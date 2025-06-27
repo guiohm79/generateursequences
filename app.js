@@ -76,7 +76,7 @@ function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
 function initializePianoRoll() {
     const grid = document.getElementById('pianoGrid');
     grid.innerHTML = '';
-    const pianoNotes = getFullPianoNotes(3,5); // 3 octaves, adapte si besoin
+    const pianoNotes = getFullPianoNotes(3, 5); // 3 octaves, adapte si besoin
     pianoNotes.forEach(noteData => {
         const row = document.createElement('div');
         row.className = 'note-row';
