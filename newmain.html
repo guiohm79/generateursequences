@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melody Sequencer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        :root {
+            --bg-primary: #0A0A0B;
+            --bg-secondary: #1A1A1D;
+            --bg-tertiary: #2D2D32;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0A8;
+            --accent: #00D4FF;
+            --accent-hover: #00B8E6;
+            --accent-secondary: #FF6B6B;
+            --border: #333338;
+            --step-active: #00D4FF;
+            --step-playing: #FF6B6B;
+            --step-inactive: #2D2D32;
+            --step-hover: #404048;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-size: 13px;
+            letter-spacing: -0.01em;
+        }
+        .sequencer { background: rgba(26, 26, 29, 0.95); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 1200px; padding: 40px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 100px rgba(0, 212, 255, 0.1); backdrop-filter: blur(20px);}
+        .header { margin-bottom: 40px; display: flex; align-items: center; justify-content: space-between;}
+        .header-titles { display: flex; flex-direction: column; gap: 8px;}
+        .logo { font-size: 28px; font-weight: 300; letter-spacing: -0.02em; background: linear-gradient(45deg, var(--accent), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;}
+        .subtitle { font-size: 12px; font-weight: 400; letter-spacing: 0.1em; color: var(--text-secondary); text-transform: uppercase;}
+        .status-indicator { width: 12px; height: 12px; border-radius: 50%; background: var(--border); transition: all 0.3s ease; position: relative;}
+        .status-indicator.active { background: var(--accent); box-shadow: 0 0 20px var(--accent);}
+        .status-indicator.active::after { content: ''; position: absolute; top: -4px; left: -4px; right: -4px; bottom: -4px; border: 2px solid var(--accent); border-radius: 50%; opacity: 0.3; animation: pulse 2s infinite;}
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.2); opacity: 0.1; }}
+        .ai-input { display: flex; gap: 12px; margin-bottom: 16px;}
+        .input-field { flex: 1; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; color: var(--text-primary); font-family: inherit; font-size: 14px; outline: none; transition: all 0.3s ease;}
+        .input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.1); background: rgba(45, 45, 50, 0.8);}
+        .input-field::placeholder { color: var(--text-secondary);}
+        .btn { background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; color: var(--text-primary); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; white-space: nowrap; display: inline-flex; align-items: center; gap: 8px; position: relative; overflow: hidden;}
+        .btn::before { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent); transition: left 0.5s;}
+        .btn:hover::before { left: 100%;}
+        .btn:hover { background: var(--step-hover); border-color: var(--accent); transform: translateY(-2px);}
+        .btn.primary { background: linear-gradient(45deg, var(--accent), var(--accent-hover)); border-color: var(--accent); color: var(--bg-primary); font-weight: 600;}
+        .btn.primary:hover { background: linear-gradient(45deg, var(--accent-hover), var(--accent)); box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);}
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none;}
+        .controls-section { display: grid; grid-template-columns: 1fr auto; gap: 24px; margin-bottom: 32px; align-items: start;}
+        .transport-controls { display: flex; gap: 12px; align-items: center;}
+        .control-group { display: flex; align-items: center; gap: 16px;}
+        .control-label { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; min-width: 50px;}
+        .slider {-webkit-appearance: none; width: 120px; height: 6px; background: var(--bg-tertiary); border-radius: 3px; outline: none; border: 1px solid var(--border);}
+        .slider::-webkit-slider-thumb {-webkit-appearance: none; width: 20px; height: 20px; background: linear-gradient(45deg, var(--accent), var(--accent-hover)); border-radius: 50%; cursor: pointer; transition: all 0.2s; border: 2px solid var(--bg-primary); box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);}
+        .slider::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 4px 12px rgba(0, 212, 255, 0.5);}
+        .value-display { font-family: 'SF Mono', 'Roboto Mono', monospace; font-size: 12px; color: var(--accent); min-width: 80px; text-align: right;}
+        .piano-roll { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 32px; overflow-x: auto;}
+        .piano-roll-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+        .steps-control { display: flex; gap: 8px;}
+        .steps-btn { padding: 8px 16px; font-size: 12px; border-radius: 8px;}
+        .steps-btn.active { background: var(--accent); color: var(--bg-primary);}
+        .scale-info { font-size: 12px; color: var(--text-secondary); font-family: 'SF Mono', 'Roboto Mono', monospace;}
+        .piano-grid { display: flex; flex-direction: column; gap: 2px;}
+        .note-row { display: flex; flex-direction: row; gap: 2px; align-items: center; min-height: 32px;}
+        .note-label { width: 50px; min-width: 50px; max-width: 60px; margin-right: 4px; display: flex; align-items: center; justify-content: center; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 11px; font-weight: 500; color: var(--text-primary); height: 32px;}
+        .note-label.black-key { background: #22232b; color: #b5b5ce; border: 1px solid #555583; font-style: italic;}
+        .step-cell { width: 32px; min-width: 24px; max-width: 38px; aspect-ratio: 1; background: var(--step-inactive); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; position: relative; margin-bottom: 2px; height: 32px; display: flex; align-items: center; justify-content: center;}
+        .step-cell:hover { background: var(--step-hover); border-color: var(--accent); transform: scale(1.05);}
+        .step-cell.active { background: var(--step-active); border-color: var(--step-active); box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);}
+        .step-cell.playing { background: var(--step-playing) !important; border-color: var(--step-playing); box-shadow: 0 0 20px var(--step-playing); transform: scale(1.1);}
+        .idea-buttons { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;}
+        .idea-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px;}
+        .idea-btn { padding: 8px 16px; font-size: 12px; background: var(--bg-tertiary); border-color: var(--border); border-radius: 8px;}
+        .idea-btn:hover { background: var(--step-hover); border-color: var(--accent);}
+        .presets { display: flex; gap: 12px; flex-wrap: wrap;}
+        .preset-btn { padding: 12px 18px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; border-radius: 10px; font-weight: 500;}
+        .preset-btn:hover { background: var(--step-hover); border-color: var(--accent);}
+        .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 32px 0;}
+        .status-message { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: rgba(26, 26, 29, 0.95); border: 1px solid var(--border); border-radius: 12px; padding: 12px 20px; font-size: 13px; color: var(--text-primary); display: none; animation: slideUp 0.4s ease-out; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); backdrop-filter: blur(20px);}
+        .status-message.show { display: block;}
+        .status-message.error { border-color: var(--accent-secondary); color: var(--accent-secondary);}
+        .status-message.success { border-color: var(--accent); color: var(--accent);}
+        @keyframes slideUp { from {opacity: 0;transform: translate(-50%, 30px);}to {opacity: 1;transform: translate(-50%, 0);}}
+        .waveform-visualizer { height: 60px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px; position: relative; overflow: hidden;}
+        .waveform-canvas { width: 100%; height: 100%;}
+        @media (max-width: 1024px) {.sequencer {padding: 24px;}.controls-section {grid-template-columns: 1fr;gap: 16px;}.transport-controls {flex-wrap: wrap;}.piano-grid {min-width: 600px;}}
+        @media (max-width: 768px) {.piano-grid {min-width: 500px;}.step-cell {width: 20px; height: 20px; min-width: 18px; max-width: 26px;}}
+    </style>
+</head>
+<body>
+    <div class="sequencer">
+        <div class="header">
+            <div class="header-titles">
+                <div class="logo">MELODY SEQUENCER</div>
+                <div class="subtitle">AI-POWERED ELECTRONIC MUSIC GENERATOR</div>
+            </div>
+            <div class="status-indicator" id="statusIndicator"></div>
+        </div>
+        <div class="ai-input">
+            <input type="text" class="input-field" id="melodyInput" placeholder="Describe your melody (e.g., 'trance arpeggio', 'psytrance lead', 'ambient pad progression')" autocomplete="off" />
+            <button class="btn primary" id="generateBtn">Generate</button>
+        </div>
+        <div class="idea-buttons">
+            <span class="idea-label">Quick Ideas:</span>
+            <button class="btn idea-btn" data-idea="trance uplifting arpeggio">Trance Arp</button>
+            <button class="btn idea-btn" data-idea="psytrance rolling bassline">Psy Bass</button>
+            <button class="btn idea-btn" data-idea="ambient floating pad">Ambient Pad</button>
+            <button class="btn idea-btn" data-idea="downtempo jazzy chord progression">Downtempo</button>
+            <button class="btn idea-btn" data-idea="goa trance acid lead">Goa Acid</button>
+            <button class="btn idea-btn" data-idea="progressive house melody">Progressive</button>
+        </div>
+        <div class="divider"></div>
+        <div class="controls-section">
+            <div class="transport-controls">
+                <button class="btn" id="playBtn">Play</button>
+                <button class="btn" id="stopBtn">Stop</button>
+                <button class="btn" id="clearBtn">Clear</button>
+                <button class="btn" id="randomBtn">Random</button>
+                <button class="btn" id="exportMidiBtn">Export MIDI</button>
+            </div>
+            <div class="control-group">
+                <div class="control-group">
+                    <span class="control-label">Tempo</span>
+                    <input type="range" class="slider" id="tempoSlider" min="60" max="180" value="128" />
+                    <span class="value-display" id="tempoValue">128 BPM</span>
+                </div>
+                <div class="control-group">
+                    <span class="control-label">Octave</span>
+                    <input type="range" class="slider" id="octaveSlider" min="2" max="6" value="4" />
+                    <span class="value-display" id="octaveValue">C4</span>
+                </div>
+            </div>
+        </div>
+        <div class="waveform-visualizer">
+            <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
+        </div>
+        <div class="piano-roll">
+            <div class="piano-roll-header">
+                <div class="steps-control">
+                    <button class="btn steps-btn active" data-steps="16">16 Steps</button>
+                    <button class="btn steps-btn" data-steps="32">32 Steps</button>
+                </div>
+                <div class="scale-info" id="scaleInfo">Scale: C Major</div>
+            </div>
+            <div class="piano-grid" id="pianoGrid"></div>
+        </div>
+        <div class="presets">
+            <button class="btn preset-btn" data-preset="trance">Trance</button>
+            <button class="btn preset-btn" data-preset="psytrance">Psytrance</button>
+            <button class="btn preset-btn" data-preset="ambient">Ambient</button>
+            <button class="btn preset-btn" data-preset="downtempo">Downtempo</button>
+            <button class="btn preset-btn" data-preset="goa">Goa</button>
+            <button class="btn preset-btn" data-preset="progressive">Progressive</button>
+        </div>
+    </div>
+    <div class="status-message" id="statusMessage"></div>
+<script>
+/* ---------- VARIABLES DE BASE ---------- */
+let currentSteps = 16;
+let currentOctave = 4;
+let isPlaying = false;
+let currentStep = 0;
+let intervalId = null;
+let audioContext;
+let oscillators = [];
+
+const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const scales = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    phrygian: [0, 1, 3, 5, 7, 8, 10],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10]
+};
+let currentScale = 'major';
+let currentKey = 'C';
+let pattern = {};
+
+const presets = {
+    trance: {scale: 'minor', key: 'A', notes: ['A3', 'C4', 'E4', 'A4', 'C5', 'E5', 'A5'], pattern: {'A3': [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],'C4': [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0],'E4': [0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0],'A4': [0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,1]}},
+    psytrance: {scale: 'phrygian', key: 'D', notes: ['D3', 'Eb3', 'G3', 'A3', 'D4', 'Eb4', 'G4'], pattern: {'D3': [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],'G3': [0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],'A3': [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0]}},
+    ambient: {scale: 'major', key: 'C', notes: ['C3', 'E3', 'G3', 'C4', 'E4', 'G4', 'C5'], pattern: {'C3': [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],'E3': [0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0],'G3': [0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],'C4': [0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0]}},
+    downtempo: {scale: 'dorian', key: 'E', notes: ['E3', 'F#3', 'G3', 'A3', 'B3', 'C#4', 'D4'], pattern: {'E3': [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],'G3': [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],'B3': [0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0]}},
+    goa: {scale: 'mixolydian', key: 'G', notes: ['G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4'], pattern: {'G3': [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1],'C4': [0,1,0,0,1,0,0,1,0,0,1,0,0,1,0,0],'D4': [0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0]}},
+    progressive: {scale: 'minor', key: 'F', notes: ['F3', 'G3', 'Ab3', 'Bb3', 'C4', 'Db4', 'Eb4'], pattern: {'F3': [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],'Ab3': [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],'C4': [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0]}}
+};
+
+/* ----------- UTILS ----------- */
+function noteToFrequency(note) {
+    let noteName = note.slice(0, -1);
+    let octave = parseInt(note.slice(-1));
+    let n = notes.indexOf(noteName);
+    return 440 * Math.pow(2, ((octave - 4) * 12 + n - 9) / 12);
+}
+function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
+
+/* ----------- PIANO ROLL GRID ----------- */
+function getScaleNotes() {
+    const scaleIntervals = scales[currentScale];
+    const baseNote = notes.indexOf(currentKey);
+    const scaleNotes = [];
+    for (let octave = currentOctave - 1; octave <= currentOctave + 1; octave++) {
+        scaleIntervals.forEach(interval => {
+            const noteIndex = (baseNote + interval) % 12;
+            const noteName = notes[noteIndex];
+            const fullNote = noteName + octave;
+            const isBlack = noteName.includes('#');
+            scaleNotes.push({
+                note: fullNote,
+                isBlack: isBlack,
+                frequency: noteToFrequency(fullNote)
+            });
+        });
+    }
+    return scaleNotes;
+}
+function initializePianoRoll() {
+    const grid = document.getElementById('pianoGrid');
+    grid.innerHTML = '';
+    const scaleNotes = getScaleNotes();
+    scaleNotes.slice().reverse().forEach(noteData => {
+        const row = document.createElement('div');
+        row.className = 'note-row';
+        // Label
+        const label = document.createElement('div');
+        label.className = `note-label ${noteData.isBlack ? 'black-key' : ''}`;
+        label.textContent = noteData.note;
+        row.appendChild(label);
+        // Steps
+        if (!pattern[noteData.note]) pattern[noteData.note] = new Array(currentSteps).fill(0);
+        for (let i = 0; i < currentSteps; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'step-cell';
+            cell.dataset.note = noteData.note;
+            cell.dataset.step = i;
+            cell.addEventListener('click', toggleStep);
+            if (pattern[noteData.note][i]) cell.classList.add('active');
+            row.appendChild(cell);
+        }
+        grid.appendChild(row);
+    });
+}
+function toggleStep(e) {
+    const note = this.dataset.note;
+    const step = parseInt(this.dataset.step);
+    pattern[note][step] = pattern[note][step] ? 0 : 1;
+    initializePianoRoll();
+}
+
+/* ----------- TRANSPORT & CONTROLS ----------- */
+function playStep() {
+    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const scaleNotes = getScaleNotes().slice().reverse();
+    // Visuel: highlight le step en cours
+    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
+    scaleNotes.forEach((noteData, rowIdx) => {
+        const row = document.getElementsByClassName('note-row')[rowIdx];
+        if (pattern[noteData.note][currentStep]) {
+            // Audio
+            const osc = audioContext.createOscillator();
+            osc.type = "sawtooth";
+            osc.frequency.value = noteData.frequency;
+            const gain = audioContext.createGain();
+            gain.gain.value = 0.12;
+            osc.connect(gain).connect(audioContext.destination);
+            osc.start();
+            osc.stop(audioContext.currentTime + 0.22);
+            // Visuel
+            row.children[currentStep+1].classList.add('playing');
+        }
+    });
+    currentStep = (currentStep + 1) % currentSteps;
+}
+function startSequencer() {
+    if (isPlaying) return;
+    isPlaying = true;
+    document.getElementById('statusIndicator').classList.add('active');
+    const tempo = parseInt(document.getElementById('tempoSlider').value);
+    playStep();
+    intervalId = setInterval(playStep, 60000/tempo/4); // 1/16th note
+}
+function stopSequencer() {
+    isPlaying = false;
+    document.getElementById('statusIndicator').classList.remove('active');
+    clearInterval(intervalId);
+    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
+}
+function clearPattern() {
+    Object.keys(pattern).forEach(note => pattern[note] = Array(currentSteps).fill(0));
+    initializePianoRoll();
+}
+
+/* ----------- RANDOMIZER ----------- */
+function randomizePattern() {
+    Object.keys(pattern).forEach(note => pattern[note] = Array(currentSteps).fill(0));
+    const notesList = getScaleNotes();
+    for (let i = 0; i < currentSteps; i++) {
+        if (Math.random() < 0.6) continue;
+        let candidates = notesList.filter(() => Math.random() < 0.45);
+        if (candidates.length === 0) candidates = [notesList[Math.floor(Math.random()*notesList.length)]];
+        const howMany = Math.random() < 0.7 ? 1 : 2;
+        for(let j=0;j<howMany && j<candidates.length;j++) {
+            pattern[candidates[j].note][i] = 1;
+        }
+    }
+    initializePianoRoll();
+}
+
+/* ----------- MIDI EXPORT ----------- */
+function exportPatternToMidi() {
+    const scaleNotes = getScaleNotes().reverse();
+    function noteNameToMidi(note) {
+        let noteName = note.slice(0,-1);
+        let octave = parseInt(note.slice(-1));
+        let n = notes.indexOf(noteName);
+        return (octave+1)*12 + n;
+    }
+    let midi = [
+        0x4d,0x54,0x68,0x64,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x01,0x00,0x60,
+        0x4d,0x54,0x72,0x6b
+    ];
+    let track = [];
+    let tempo = 60000000/parseInt(document.getElementById('tempoSlider').value);
+    track.push(0x00, 0xff, 0x51, 0x03, (tempo>>16)&0xFF, (tempo>>8)&0xFF, tempo&0xFF);
+    const ticksPerBeat = 96;
+    for (let i=0; i<currentSteps; i++) {
+        let notesOn = [];
+        scaleNotes.forEach(nd => {
+            if (pattern[nd.note][i]) {
+                track.push(0x00, 0x90, noteNameToMidi(nd.note), 100);
+                notesOn.push(nd.note);
+            }
+        });
+        if (notesOn.length > 0) {
+            track.push(0x18, ...notesOn.map(n=>[0x80, noteNameToMidi(n), 0]).flat());
+        }
+    }
+    track.push(0x00,0xff,0x2f,0x00);
+    let trackLen = track.length;
+    midi.push((trackLen>>24)&0xFF, (trackLen>>16)&0xFF, (trackLen>>8)&0xFF, trackLen&0xFF);
+    midi.push(...track);
+    let blob = new Blob([new Uint8Array(midi)], {type:'audio/midi'});
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'melody.mid';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },100);
+}
+
+/* ----------- HANDLERS (UI, PRESETS, ETC) ----------- */
+document.getElementById('playBtn').onclick = startSequencer;
+document.getElementById('stopBtn').onclick = stopSequencer;
+document.getElementById('clearBtn').onclick = clearPattern;
+document.getElementById('randomBtn').onclick = randomizePattern;
+document.getElementById('exportMidiBtn').onclick = exportPatternToMidi;
+document.querySelectorAll('.steps-btn').forEach(btn => btn.onclick = function() {
+    currentSteps = parseInt(this.dataset.steps);
+    document.querySelectorAll('.steps-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    Object.keys(pattern).forEach(note => {
+        let arr = pattern[note];
+        if (arr.length < currentSteps) pattern[note] = arr.concat(new Array(currentSteps-arr.length).fill(0));
+        else if (arr.length > currentSteps) pattern[note] = arr.slice(0, currentSteps);
+    });
+    initializePianoRoll();
+});
+document.getElementById('tempoSlider').oninput = function() {
+    document.getElementById('tempoValue').textContent = this.value + ' BPM';
+    if (isPlaying) { stopSequencer(); startSequencer(); }
+};
+document.getElementById('octaveSlider').oninput = function() {
+    currentOctave = parseInt(this.value);
+    document.getElementById('octaveValue').textContent = notes[0] + currentOctave;
+    initializePianoRoll();
+};
+document.querySelectorAll('.preset-btn').forEach(btn => btn.onclick = function() {
+    let pr = presets[this.dataset.preset];
+    currentScale = pr.scale;
+    currentKey = pr.key;
+    pattern = {};
+    Object.keys(pr.pattern).forEach(n => pattern[n] = pr.pattern[n].slice());
+    document.getElementById('scaleInfo').textContent = 'Scale: ' + currentKey + ' ' + capitalize(currentScale);
+    initializePianoRoll();
+});
+document.querySelectorAll('.idea-btn').forEach(btn => btn.onclick = function() {
+    document.getElementById('melodyInput').value = this.dataset.idea;
+});
+
+/* ----------- INIT (au chargement) ----------- */
+initializePianoRoll();
+document.getElementById('tempoValue').textContent = document.getElementById('tempoSlider').value + ' BPM';
+document.getElementById('octaveValue').textContent = notes[0] + currentOctave;
+document.getElementById('scaleInfo').textContent = 'Scale: ' + currentKey + ' ' + capitalize(currentScale);
+
+</script>
+
+</body>
+</html>

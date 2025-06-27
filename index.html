@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Melody Sequencer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sequencer">
+        <div class="header">
+            <div class="header-titles">
+                <div class="logo">MELODY SEQUENCER</div>
+                <div class="subtitle">AI-POWERED ELECTRONIC MUSIC GENERATOR</div>
+            </div>
+            <div class="status-indicator" id="statusIndicator"></div>
+        </div>
+        <div class="ai-input">
+            <input type="text" class="input-field" id="melodyInput" placeholder="Describe your melody (e.g., 'trance arpeggio', 'psytrance lead', 'ambient pad progression')" autocomplete="off" />
+            <button class="btn primary" id="generateBtn">Generate</button>
+        </div>
+        <div class="idea-buttons">
+            <span class="idea-label">Quick Ideas:</span>
+            <button class="btn idea-btn" data-idea="trance uplifting arpeggio">Trance Arp</button>
+            <button class="btn idea-btn" data-idea="psytrance rolling bassline">Psy Bass</button>
+            <button class="btn idea-btn" data-idea="ambient floating pad">Ambient Pad</button>
+            <button class="btn idea-btn" data-idea="downtempo jazzy chord progression">Downtempo</button>
+            <button class="btn idea-btn" data-idea="goa trance acid lead">Goa Acid</button>
+            <button class="btn idea-btn" data-idea="progressive house melody">Progressive</button>
+        </div>
+        <div class="divider"></div>
+        <div class="controls-section">
+            <div class="transport-controls">
+                <button class="btn" id="playBtn">Play</button>
+                <button class="btn" id="stopBtn">Stop</button>
+                <button class="btn" id="clearBtn">Clear</button>
+                <button class="btn" id="randomBtn">Random</button>
+                <button class="btn" id="exportMidiBtn">Export MIDI</button>
+            </div>
+            <div class="control-group">
+                <div class="control-group">
+                    <span class="control-label">Tempo</span>
+                    <input type="range" class="slider" id="tempoSlider" min="60" max="180" value="128" />
+                    <span class="value-display" id="tempoValue">128 BPM</span>
+                </div>
+                <div class="control-group">
+                    <span class="control-label">Octave</span>
+                    <input type="range" class="slider" id="octaveSlider" min="2" max="6" value="4" />
+                    <span class="value-display" id="octaveValue">C4</span>
+                </div>
+            </div>
+        </div>
+        <div class="waveform-visualizer">
+            <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
+        </div>
+        <div class="piano-roll">
+            <div class="piano-roll-header">
+                <div class="steps-control">
+                    <button class="btn steps-btn active" data-steps="16">16 Steps</button>
+                    <button class="btn steps-btn" data-steps="32">32 Steps</button>
+                </div>
+                <div class="scale-info" id="scaleInfo">Scale: C Major</div>
+            </div>
+            <div class="piano-grid" id="pianoGrid"></div>
+        </div>
+        <div class="presets">
+            <button class="btn preset-btn" data-preset="trance">Trance</button>
+            <button class="btn preset-btn" data-preset="psytrance">Psytrance</button>
+            <button class="btn preset-btn" data-preset="ambient">Ambient</button>
+            <button class="btn preset-btn" data-preset="downtempo">Downtempo</button>
+            <button class="btn preset-btn" data-preset="goa">Goa</button>
+            <button class="btn preset-btn" data-preset="progressive">Progressive</button>
+        </div>
+    </div>
+    <div class="status-message" id="statusMessage"></div>
+    <script src="app.js"></script>
+</body>
+</html>
