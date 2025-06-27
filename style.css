@@ -85,3 +85,18 @@
         .waveform-canvas { width: 100%; height: 100%;}
         @media (max-width: 1024px) {.sequencer {padding: 24px;}.controls-section {grid-template-columns: 1fr;gap: 16px;}.transport-controls {flex-wrap: wrap;}.piano-grid {min-width: 600px;}}
         @media (max-width: 768px) {.piano-grid {min-width: 500px;}.step-cell {width: 20px; height: 20px; min-width: 18px; max-width: 26px;}}
+.step-header-cell {
+    width: 32px;
+    min-width: 24px;
+    max-width: 38px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #aaa;
+    background: #23232a;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    border: 1px solid #2c2c33;
+}

@@ -57,30 +57,27 @@ function noteToFrequency(note) {
 function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 
 /* ----------- PIANO ROLL GRID ----------- */
-function getScaleNotes() {
-    const scaleIntervals = scales[currentScale];
-    const baseNote = notes.indexOf(currentKey);
-    const scaleNotes = [];
-    for (let octave = currentOctave - 1; octave <= currentOctave + 1; octave++) {
-        scaleIntervals.forEach(interval => {
-            const noteIndex = (baseNote + interval) % 12;
-            const noteName = notes[noteIndex];
-            const fullNote = noteName + octave;
-            const isBlack = noteName.includes('#');
-            scaleNotes.push({
-                note: fullNote,
-                isBlack: isBlack,
-                frequency: noteToFrequency(fullNote)
+// À la place de getScaleNotes :
+function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
+    const noteRows = [];
+    for(let octave=to; octave>=from; octave--) {
+        for(let n=notes.length-1; n>=0; n--) {
+            let note = notes[n] + octave;
+            noteRows.push({
+                note: note,
+                isBlack: notes[n].includes('#'),
+                frequency: noteToFrequency(note)
             });
-        });
+        }
     }
-    return scaleNotes;
+    return noteRows;
 }
+
 function initializePianoRoll() {
     const grid = document.getElementById('pianoGrid');
     grid.innerHTML = '';
-    const scaleNotes = getScaleNotes();
-    scaleNotes.slice().reverse().forEach(noteData => {
+    const pianoNotes = getFullPianoNotes(3,5); // 3 octaves, adapte si besoin
+    pianoNotes.forEach(noteData => {
         const row = document.createElement('div');
         row.className = 'note-row';
         // Label
@@ -101,7 +98,34 @@ function initializePianoRoll() {
         }
         grid.appendChild(row);
     });
+    renderStepHeader(); // Ajoute la ligne de numérotation au dessus
 }
+
+function renderStepHeader() {
+    let stepHeader = document.getElementById('stepHeader');
+    stepHeader.innerHTML = '';
+    let headerRow = document.createElement('div');
+    headerRow.className = 'note-row';
+    // Cellule vide en début pour aligner avec les notes
+    let empty = document.createElement('div');
+    empty.className = 'note-label';
+    empty.style.background = 'transparent';
+    empty.style.border = 'none';
+    empty.textContent = '';
+    headerRow.appendChild(empty);
+    // Pas
+    for (let i = 0; i < currentSteps; i++) {
+        let stepCell = document.createElement('div');
+        stepCell.className = 'step-header-cell';
+        stepCell.textContent = (i+1);
+        // Assombrir pas multiples de 4 (ou 1,5,9,13…)
+        if (i % 4 === 0) stepCell.style.background = '#16161c';
+        headerRow.appendChild(stepCell);
+    }
+    stepHeader.appendChild(headerRow);
+}
+
+
 function toggleStep(e) {
     const note = this.dataset.note;
     const step = parseInt(this.dataset.step);
@@ -112,7 +136,7 @@ function toggleStep(e) {
 /* -----------tone.js ----------- */
 function playStep() {
     if (!Tone.context.state || Tone.context.state !== "running") Tone.start();
-    const scaleNotes = getScaleNotes().slice().reverse();
+    const scaleNotes = getFullPianoNotes(3, 5);
     document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
     scaleNotes.forEach((noteData, rowIdx) => {
         const row = document.getElementsByClassName('note-row')[rowIdx];
@@ -130,33 +154,13 @@ function playStep() {
 }
 
 
-/* ----------- TRANSPORT & CONTROLS ----------- 
-function playStep() {
-    if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const scaleNotes = getScaleNotes().slice().reverse();
-    // Visuel: highlight le step en cours
-    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
-    scaleNotes.forEach((noteData, rowIdx) => {
-        const row = document.getElementsByClassName('note-row')[rowIdx];
-        if (pattern[noteData.note][currentStep]) {
-            // Audio
-            const osc = audioContext.createOscillator();
-            osc.type = "sawtooth";
-            osc.frequency.value = noteData.frequency;
-            const gain = audioContext.createGain();
-            gain.gain.value = 0.12;
-            osc.connect(gain).connect(audioContext.destination);
-            osc.start();
-            osc.stop(audioContext.currentTime + 0.22);
-            // Visuel
-            row.children[currentStep+1].classList.add('playing');
-        }
-    });
-    currentStep = (currentStep + 1) % currentSteps;
-}
-*/
+/* ----------- TRANSPORT & CONTROLS ----------- */
+
 function startSequencer() {
     if (isPlaying) return;
+    if (Tone.context.state !== 'running') {
+    Tone.context.resume();
+    }
     isPlaying = true;
     document.getElementById('statusIndicator').classList.add('active');
     const tempo = parseInt(document.getElementById('tempoSlider').value);
@@ -177,7 +181,7 @@ function clearPattern() {
 /* ----------- RANDOMIZER ----------- */
 function randomizePattern() {
     Object.keys(pattern).forEach(note => pattern[note] = Array(currentSteps).fill(0));
-    const notesList = getScaleNotes();
+    const notesList = getFullPianoNotes(3, 5);
     for (let i = 0; i < currentSteps; i++) {
         if (Math.random() < 0.6) continue;
         let candidates = notesList.filter(() => Math.random() < 0.45);
