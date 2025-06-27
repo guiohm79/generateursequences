@@ -110,12 +110,26 @@
     bottom: 2px; left: 2px; right: 2px;
 }
 .step-cell { position: relative; }
+
 .octave-controls {
     display: flex;
     align-items: center;
-    gap: 36px;         /* espace entre les deux sliders */
-    margin-left: 24px; /* optionnel, espace à gauche */
+    gap: 36px;
+    /* margin-left: 24px;   <--- ENLÈVE CETTE LIGNE */
+    flex-shrink: 1;
+    flex-wrap: wrap; /* pour éviter le débordement si trop large */
 }
+
+.controls-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 32px;
+    align-items: center;
+    max-width: 100%;      /* Évite le dépassement horizontal */
+    box-sizing: border-box;
+}
+
 
 .octave-block {
     display: flex;
