@@ -74,6 +74,13 @@ function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
 }
 
 function initializePianoRoll() {
+    Object.keys(pattern).forEach(note => {
+        pattern[note] = pattern[note].map(cell => {
+            if (typeof cell === "object" && cell.on) return cell;
+            else if (cell === 1) return {on: true, velocity: 100};
+            else return 0;
+        });
+    });    
     const grid = document.getElementById('pianoGrid');
     grid.innerHTML = '';
     const pianoNotes = getFullPianoNotes(3, 5); // Ou ton range
