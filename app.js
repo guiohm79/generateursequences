@@ -6,6 +6,9 @@ let currentStep = 0;
 let intervalId = null;
 let audioContext;
 let oscillators = [];
+let pianoMinOctave = 3;
+let pianoMaxOctave = 5;
+
 
 const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const scales = {
@@ -46,7 +49,6 @@ function getSynth() {
 let synth = getSynth();
 
 
-
 /* ----------- UTILS ----------- */
 function noteToFrequency(note) {
     let noteName = note.slice(0, -1);
@@ -58,9 +60,9 @@ function capitalize(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
 
 /* ----------- PIANO ROLL GRID ----------- */
 // À la place de getScaleNotes :
-function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
+function getFullPianoNotes() {
     const noteRows = [];
-    for(let octave=to; octave>=from; octave--) {
+    for(let octave=pianoMaxOctave; octave>=pianoMinOctave; octave--) {
         for(let n=notes.length-1; n>=0; n--) {
             let note = notes[n] + octave;
             noteRows.push({
@@ -72,6 +74,7 @@ function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
     }
     return noteRows;
 }
+
 
 function initializePianoRoll() {
     Object.keys(pattern).forEach(note => {
@@ -315,9 +318,16 @@ document.getElementById('tempoSlider').oninput = function() {
     document.getElementById('tempoValue').textContent = this.value + ' BPM';
     if (isPlaying) { stopSequencer(); startSequencer(); }
 };
-document.getElementById('octaveSlider').oninput = function() {
-    currentOctave = parseInt(this.value);
-    document.getElementById('octaveValue').textContent = notes[0] + currentOctave;
+document.getElementById('octaveMinSlider').oninput = function() {
+    pianoMinOctave = parseInt(this.value);
+    if (pianoMaxOctave < pianoMinOctave) pianoMaxOctave = pianoMinOctave;
+    document.getElementById('octaveMinValue').textContent = pianoMinOctave;
+    initializePianoRoll();
+};
+document.getElementById('octaveMaxSlider').oninput = function() {
+    pianoMaxOctave = parseInt(this.value);
+    if (pianoMinOctave > pianoMaxOctave) pianoMinOctave = pianoMaxOctave;
+    document.getElementById('octaveMaxValue').textContent = pianoMaxOctave;
     initializePianoRoll();
 };
 document.querySelectorAll('.preset-btn').forEach(btn => btn.onclick = function() {

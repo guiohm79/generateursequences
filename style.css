@@ -110,3 +110,41 @@
     bottom: 2px; left: 2px; right: 2px;
 }
 .step-cell { position: relative; }
+.octave-controls {
+    display: flex;
+    align-items: center;
+    gap: 36px;         /* espace entre les deux sliders */
+    margin-left: 24px; /* optionnel, espace à gauche */
+}
+
+.octave-block {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 160px;
+}
+
+.control-label {
+    min-width: 80px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.value-display {
+    min-width: 18px;
+    text-align: center;
+    font-family: 'SF Mono', 'Roboto Mono', monospace;
+    color: var(--accent);
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    .octave-controls {
+        flex-direction: column;
+        gap: 10px;
+    }
+    .octave-block {
+        min-width: unset;
+    }
+}
