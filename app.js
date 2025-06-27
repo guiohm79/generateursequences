@@ -28,6 +28,25 @@ const presets = {
     progressive: {scale: 'minor', key: 'F', notes: ['F3', 'G3', 'Ab3', 'Bb3', 'C4', 'Db4', 'Eb4'], pattern: {'F3': [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0],'Ab3': [0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0],'C4': [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0]}}
 };
 
+
+// Synthé multi-modes selon sélection
+let synthType = 'synth'; // valeur par défaut
+
+function getSynth() {
+    switch(synthType) {
+        case 'sine':     return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" } }).toDestination();
+        case 'square':   return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "square" } }).toDestination();
+        case 'triangle': return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "triangle" } }).toDestination();
+        case 'fm':       return new Tone.PolySynth(Tone.FMSynth).toDestination();
+        case 'duo':      return new Tone.PolySynth(Tone.DuoSynth).toDestination();
+        case 'mono':     return new Tone.MonoSynth().toDestination();
+        default:         return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
+    }
+}
+let synth = getSynth();
+
+
+
 /* ----------- UTILS ----------- */
 function noteToFrequency(note) {
     let noteName = note.slice(0, -1);
@@ -90,7 +109,28 @@ function toggleStep(e) {
     initializePianoRoll();
 }
 
-/* ----------- TRANSPORT & CONTROLS ----------- */
+/* -----------tone.js ----------- */
+function playStep() {
+    if (!Tone.context.state || Tone.context.state !== "running") Tone.start();
+    const scaleNotes = getScaleNotes().slice().reverse();
+    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
+    scaleNotes.forEach((noteData, rowIdx) => {
+        const row = document.getElementsByClassName('note-row')[rowIdx];
+        if (pattern[noteData.note][currentStep]) {
+            if (synth.triggerAttackRelease) {
+                synth.triggerAttackRelease(noteData.note, "16n");
+            } else if (synth.triggerAttack) {
+                synth.triggerAttack(noteData.note, Tone.now(), 0.8);
+                setTimeout(() => synth.triggerRelease(noteData.note), 130);
+            }
+            row.children[currentStep+1].classList.add('playing');
+        }
+    });
+    currentStep = (currentStep + 1) % currentSteps;
+}
+
+
+/* ----------- TRANSPORT & CONTROLS ----------- 
 function playStep() {
     if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const scaleNotes = getScaleNotes().slice().reverse();
@@ -114,6 +154,7 @@ function playStep() {
     });
     currentStep = (currentStep + 1) % currentSteps;
 }
+*/
 function startSequencer() {
     if (isPlaying) return;
     isPlaying = true;
@@ -230,6 +271,13 @@ document.querySelectorAll('.preset-btn').forEach(btn => btn.onclick = function()
     document.getElementById('scaleInfo').textContent = 'Scale: ' + currentKey + ' ' + capitalize(currentScale);
     initializePianoRoll();
 });
+
+document.getElementById('soundSelector').onchange = function() {
+    synthType = this.value;
+    synth = getSynth(); // recharge un synthé tout neuf
+};
+
+
 document.querySelectorAll('.idea-btn').forEach(btn => btn.onclick = function() {
     document.getElementById('melodyInput').value = this.dataset.idea;
 });

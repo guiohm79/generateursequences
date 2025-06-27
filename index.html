@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Melody Sequencer</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/tone@latest/build/Tone.js"></script>
 </head>
 <body>
     <div class="sequencer">
@@ -49,6 +50,20 @@
                     <span class="value-display" id="octaveValue">C4</span>
                 </div>
             </div>
+            <div class="control-group">
+                <span class="control-label">Son</span>
+                <select id="soundSelector" class="input-field" style="max-width:120px;">
+                    <option value="synth">Synth Saw</option>
+                    <option value="sine">Synth Sine</option>
+                    <option value="square">Synth Square</option>
+                    <option value="triangle">Synth Triangle</option>
+                    <option value="fm">FM Synth</option>
+                    <option value="duo">Duo Synth</option>
+                    <option value="mono">Mono Bass</option>
+                    <!-- Pour ajouter un piano ou d'autres samples, il faudra charger des samples -->
+                </select>
+                </div>
+
         </div>
         <div class="waveform-visualizer">
             <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
