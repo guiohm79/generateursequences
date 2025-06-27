@@ -136,20 +136,24 @@ function toggleStep(e) {
 /* -----------tone.js ----------- */
 function playStep() {
     if (!Tone.context.state || Tone.context.state !== "running") Tone.start();
-    const scaleNotes = getFullPianoNotes(3, 5);
-    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
-    scaleNotes.forEach((noteData, rowIdx) => {
-        const row = document.getElementsByClassName('note-row')[rowIdx];
-        if (pattern[noteData.note][currentStep]) {
-            if (synth.triggerAttackRelease) {
-                synth.triggerAttackRelease(noteData.note, "16n");
-            } else if (synth.triggerAttack) {
-                synth.triggerAttack(noteData.note, Tone.now(), 0.8);
-                setTimeout(() => synth.triggerRelease(noteData.note), 130);
+        const pianoNotes = getFullPianoNotes(3, 5);
+        const noteRows = Array.from(document.getElementsByClassName('note-row'));
+        document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
+
+        pianoNotes.forEach((noteData, idx) => {
+            const noteName = noteData.note;
+            // On cherche LA ligne DOM qui a le bon label (et pas juste l’index)
+            const row = noteRows.find(r => r.children[0].textContent === noteName);
+            if (row && pattern[noteName][currentStep]) {
+                if (synth.triggerAttackRelease) {
+                    synth.triggerAttackRelease(noteName, "16n");
+                } else if (synth.triggerAttack) {
+                    synth.triggerAttack(noteName, Tone.now(), 0.8);
+                    setTimeout(() => synth.triggerRelease(noteName), 130);
+                }
+                row.children[currentStep + 1].classList.add('playing');
             }
-            row.children[currentStep+1].classList.add('playing');
-        }
-    });
+        });
     currentStep = (currentStep + 1) % currentSteps;
 }
 
@@ -196,7 +200,7 @@ function randomizePattern() {
 
 /* ----------- MIDI EXPORT ----------- */
 function exportPatternToMidi() {
-    const scaleNotes = getScaleNotes().reverse();
+    const pianoNotes = getFullPianoNotes(3, 5); // SANS .reverse()
     function noteNameToMidi(note) {
         let noteName = note.slice(0,-1);
         let octave = parseInt(note.slice(-1));
@@ -213,7 +217,7 @@ function exportPatternToMidi() {
     const ticksPerBeat = 96;
     for (let i=0; i<currentSteps; i++) {
         let notesOn = [];
-        scaleNotes.forEach(nd => {
+        pianoNotes.forEach(nd => {
             if (pattern[nd.note][i]) {
                 track.push(0x00, 0x90, noteNameToMidi(nd.note), 100);
                 notesOn.push(nd.note);
@@ -239,6 +243,7 @@ function exportPatternToMidi() {
         URL.revokeObjectURL(url);
     },100);
 }
+
 
 /* ----------- HANDLERS (UI, PRESETS, ETC) ----------- */
 document.getElementById('playBtn').onclick = startSequencer;
