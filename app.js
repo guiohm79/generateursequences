@@ -76,30 +76,59 @@ function getFullPianoNotes(from = 3, to = 5) { // C3 à B5 par défaut
 function initializePianoRoll() {
     const grid = document.getElementById('pianoGrid');
     grid.innerHTML = '';
-    const pianoNotes = getFullPianoNotes(3, 5); // 3 octaves, adapte si besoin
+    const pianoNotes = getFullPianoNotes(3, 5); // Ou ton range
+
     pianoNotes.forEach(noteData => {
         const row = document.createElement('div');
         row.className = 'note-row';
+
         // Label
         const label = document.createElement('div');
         label.className = `note-label ${noteData.isBlack ? 'black-key' : ''}`;
         label.textContent = noteData.note;
         row.appendChild(label);
-        // Steps
-        if (!pattern[noteData.note]) pattern[noteData.note] = new Array(currentSteps).fill(0);
+        if (!pattern[noteData.note]) {
+            pattern[noteData.note] = Array.from({length: currentSteps}, () => 0);
+        } else if (pattern[noteData.note].length < currentSteps) {
+            // Allonge si besoin
+            for(let j = pattern[noteData.note].length; j < currentSteps; j++) {
+                pattern[noteData.note][j] = 0;
+            }
+        }
         for (let i = 0; i < currentSteps; i++) {
             const cell = document.createElement('div');
             cell.className = 'step-cell';
             cell.dataset.note = noteData.note;
             cell.dataset.step = i;
             cell.addEventListener('click', toggleStep);
-            if (pattern[noteData.note][i]) cell.classList.add('active');
+
+            // Récupère la valeur (soit 0, soit { on: true, velocity: ... })
+            let value = pattern[noteData.note][i];
+
+            if (value && value.on) {
+                cell.classList.add('active');
+                // MINI SLIDER DE VELOCITE
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = 10;
+                slider.max = 127;
+                slider.value = value.velocity;
+                slider.className = 'velocity-slider';
+                // Empêche le clic sur slider de désactiver la note
+                slider.addEventListener('click', ev => ev.stopPropagation());
+                slider.addEventListener('input', function(ev) {
+                    pattern[noteData.note][i].velocity = parseInt(this.value);
+                });
+                cell.appendChild(slider);
+            }
             row.appendChild(cell);
         }
         grid.appendChild(row);
     });
-    renderStepHeader(); // Ajoute la ligne de numérotation au dessus
+
+    renderStepHeader();
 }
+
 
 function renderStepHeader() {
     let stepHeader = document.getElementById('stepHeader');
@@ -129,33 +158,45 @@ function renderStepHeader() {
 function toggleStep(e) {
     const note = this.dataset.note;
     const step = parseInt(this.dataset.step);
-    pattern[note][step] = pattern[note][step] ? 0 : 1;
+    if (!pattern[note][step] || pattern[note][step] === 0) {
+        pattern[note][step] = { on: true, velocity: 100 };
+    } else {
+        pattern[note][step] = 0;
+    }
     initializePianoRoll();
 }
 
-/* -----------tone.js ----------- */
+/* -----------PLAY/STEP ----------- */
 function playStep() {
-    if (!Tone.context.state || Tone.context.state !== "running") Tone.start();
-        const pianoNotes = getFullPianoNotes(3, 5);
-        const noteRows = Array.from(document.getElementsByClassName('note-row'));
-        document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
+    if (Tone.context.state !== 'running') Tone.context.resume();
+    const pianoNotes = getFullPianoNotes(3, 5);
+    const noteRows = Array.from(document.getElementsByClassName('note-row'));
+    document.querySelectorAll('.step-cell').forEach(cell => cell.classList.remove('playing'));
 
-        pianoNotes.forEach((noteData, idx) => {
-            const noteName = noteData.note;
-            // On cherche LA ligne DOM qui a le bon label (et pas juste l’index)
-            const row = noteRows.find(r => r.children[0].textContent === noteName);
-            if (row && pattern[noteName][currentStep]) {
-                if (synth.triggerAttackRelease) {
-                    synth.triggerAttackRelease(noteName, "16n");
-                } else if (synth.triggerAttack) {
-                    synth.triggerAttack(noteName, Tone.now(), 0.8);
-                    setTimeout(() => synth.triggerRelease(noteName), 130);
-                }
-                row.children[currentStep + 1].classList.add('playing');
+    pianoNotes.forEach((noteData, idx) => {
+        const noteName = noteData.note;
+        const row = noteRows.find(r => r.children[0].textContent === noteName);
+
+        // Prend la valeur du pattern à cette note/step
+        const cellValue = pattern[noteName][currentStep];
+        if (cellValue && cellValue.on) {
+            let velocity = cellValue.velocity ? cellValue.velocity / 127 : 0.8; // fallback 0.8
+
+            // Pour Tone.js, velocity = 0...1
+            if (synth.triggerAttackRelease) {
+                synth.triggerAttackRelease(noteName, "16n", undefined, velocity);
+            } else if (synth.triggerAttack) {
+                synth.triggerAttack(noteName, Tone.now(), velocity);
+                setTimeout(() => synth.triggerRelease(noteName), 130);
             }
-        });
+            // +1 car .children[0] c'est le label, puis steps
+            if (row) row.children[currentStep + 1].classList.add('playing');
+        }
+    });
+
     currentStep = (currentStep + 1) % currentSteps;
 }
+
 
 
 /* ----------- TRANSPORT & CONTROLS ----------- */
@@ -218,8 +259,9 @@ function exportPatternToMidi() {
     for (let i=0; i<currentSteps; i++) {
         let notesOn = [];
         pianoNotes.forEach(nd => {
-            if (pattern[nd.note][i]) {
-                track.push(0x00, 0x90, noteNameToMidi(nd.note), 100);
+            let val = pattern[nd.note][i];
+            if (val && val.on) {
+                track.push(0x00, 0x90, noteNameToMidi(nd.note), val.velocity);
                 notesOn.push(nd.note);
             }
         });

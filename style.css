@@ -100,3 +100,13 @@
     margin-bottom: 2px;
     border: 1px solid #2c2c33;
 }
+.velocity-slider {
+    width: 26px;
+    height: 8px;
+    margin-top: 10px;
+    accent-color: #00D4FF;
+    cursor: pointer;
+    position: absolute;
+    bottom: 2px; left: 2px; right: 2px;
+}
+.step-cell { position: relative; }
