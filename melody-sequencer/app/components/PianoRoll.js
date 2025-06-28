@@ -21,7 +21,8 @@ export default function PianoRoll({
   maxOctave,
   steps,
   pattern,
-  onToggleStep
+  onToggleStep,
+  currentStep
 }) {
   const pianoNotes = getFullPianoNotes(minOctave, maxOctave);
 
@@ -48,7 +49,11 @@ export default function PianoRoll({
             {Array(steps).fill().map((_, i) => (
               <div
                 key={i}
-                className={`step-cell${pattern[row.note] && pattern[row.note][i] ? " active" : ""}`}
+                className={
+                  "step-cell" +
+                    (pattern[row.note] && pattern[row.note][i] ? " active" : "") +
+                    (currentStep === i && pattern[row.note] && pattern[row.note][i] ? " playing" : "")
+                }
                 onClick={() => onToggleStep(row.note, i)}
               />
             ))}

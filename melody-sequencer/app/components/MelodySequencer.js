@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
 
@@ -22,6 +22,7 @@ export default function MelodySequencer() {
   const [maxOctave, setMaxOctave] = useState(5);
   const [synthType, setSynthType] = useState("synth");
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Initialisation du pattern : un objet {note: [0,0,0, ...]}
   const createPattern = React.useCallback(() => {
@@ -47,44 +48,67 @@ export default function MelodySequencer() {
     }));
   };
 
-  // Play (démonstration simple : joue toutes les notes actives à l'instant T)
-  const handlePlay = async () => {
-    await Tone.start();
-    setIsPlaying(true);
+    // --- Gestion du séquenceur step-by-step ---
+  const timerRef = useRef(null);
 
-    // Génération du synth
-    let synth;
+    const getSynth = () => {
     switch (synthType) {
       case "sine":
       case "square":
       case "triangle":
-        synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: synthType } }).toDestination();
-        break;
+        return new Tone.PolySynth(Tone.Synth, { oscillator: { type: synthType } }).toDestination();
       case "fm":
-        synth = new Tone.PolySynth(Tone.FMSynth).toDestination();
-        break;
+        return new Tone.PolySynth(Tone.FMSynth).toDestination();
       case "duo":
-        synth = new Tone.PolySynth(Tone.DuoSynth).toDestination();
-        break;
+        return new Tone.PolySynth(Tone.DuoSynth).toDestination();
       case "mono":
-        synth = new Tone.MonoSynth().toDestination();
-        break;
+        return new Tone.MonoSynth().toDestination();
       default:
-        synth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
+        return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
     }
+  };
 
-    // Pour la démo : joue toutes les notes du pattern à la première step
-    const notesToPlay = Object.keys(pattern).filter(note => pattern[note][0]);
+// Joue la colonne active
+  const playStep = useCallback(() => {
+    const synth = getSynth();
+    const notesToPlay = Object.keys(pattern).filter(note => pattern[note][currentStep]);
     if (notesToPlay.length) {
       synth.triggerAttackRelease(notesToPlay, "8n");
     }
-    setTimeout(() => setIsPlaying(false), 300);
+  }, [pattern, currentStep, synthType]);
+
+  // Démarrage du playback
+  const handlePlay = async () => {
+    await Tone.start();
+    setIsPlaying(true);
   };
 
+  // Stop du playback
   const handleStop = () => {
-    Tone.Transport.stop();
     setIsPlaying(false);
+    setCurrentStep(0);
+    clearInterval(timerRef.current);
   };
+
+  // Timer du séquenceur
+  useEffect(() => {
+    if (!isPlaying) {
+      clearInterval(timerRef.current);
+      return;
+    }
+    playStep();
+    timerRef.current = setInterval(() => {
+      setCurrentStep(prev => (prev + 1) % steps);
+    }, (60000 / tempo) / 4); // 1/16th note (16 steps = 1 mesure)
+    return () => clearInterval(timerRef.current);
+  }, [isPlaying, steps, tempo, playStep]);
+
+  // À chaque step, joue la nouvelle colonne (évite le lag au premier step)
+  useEffect(() => {
+    if (isPlaying) playStep();
+    // eslint-disable-next-line
+  }, [currentStep]);
+
 
   return (
     <div className="sequencer">
@@ -195,6 +219,7 @@ export default function MelodySequencer() {
         steps={steps}
         pattern={pattern}
         onToggleStep={handleToggleStep}
+        currentStep={isPlaying ? currentStep : null}
       />
 
       <div className="presets">
