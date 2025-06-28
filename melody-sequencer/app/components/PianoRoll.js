@@ -29,38 +29,54 @@ export default function PianoRoll({
   const pianoNotes = getFullPianoNotes(minOctave, maxOctave);
   const dragInfo = useRef({});
 
+  function handleMouseDown(note, stepIdx, e) {
+  e.preventDefault();
+  const value = pattern[note][stepIdx];
+  let velocity = 100;
+  if (value && value.on) {
+    velocity = value.velocity || 100;
+  }
+  dragInfo.current = {
+    note,
+    stepIdx,
+    startY: e.clientY,
+    startVelocity: velocity,
+    dragged: false, // Pour suivre si on a bougé ou non
+    wasActive: !!(value && value.on)
+  };
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
+}
   // Handlers pour vélocité (inchangés)
-  const handleMouseMove = useCallback((e) => {
+    const handleMouseMove = useCallback((e) => {
     const { note, stepIdx, startY, startVelocity } = dragInfo.current;
     if (!note) return;
-    let diff = startY - e.clientY;
-    let newVelocity = Math.max(10, Math.min(127, startVelocity + Math.round(diff / 2)));
-    onChangeVelocity(note, stepIdx, newVelocity);
-  }, [onChangeVelocity]);
+    let diff = Math.abs(startY - e.clientY);
+    if (diff > 2) { // 2 pixels : seuil pour détecter un vrai drag
+        dragInfo.current.dragged = true;
+        let newVelocity = Math.max(10, Math.min(127, startVelocity + Math.round((startY - e.clientY) / 2)));
+        onChangeVelocity(note, stepIdx, newVelocity);
+    }
+    }, [onChangeVelocity]);
 
-  const handleMouseUp = useCallback(() => {
+    const handleMouseUp = useCallback((e) => {
+    const { note, stepIdx, dragged, wasActive } = dragInfo.current;
+    if (note) {
+        // Si on n'a pas vraiment bougé, toggle (active/désactive)
+        if (!dragged) {
+        if (wasActive) {
+            // Désactive la note
+            onToggleStep(note, stepIdx);
+        } else {
+            // Active la note avec vélocité 100
+            onToggleStep(note, stepIdx);
+        }
+        }
+    }
     dragInfo.current = {};
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", handleMouseUp);
-  }, [handleMouseMove]);
-
-  function handleMouseDown(note, stepIdx, e) {
-    e.preventDefault();
-    const value = pattern[note][stepIdx];
-    let velocity = 100;
-    if (!value || value === 0) {
-      onToggleStep(note, stepIdx);
-    } else {
-      velocity = value.velocity || 100;
-    }
-    dragInfo.current = {
-      note, stepIdx,
-      startY: e.clientY,
-      startVelocity: velocity
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  }
+    }, [onToggleStep, handleMouseMove]);
 
   // --- Rendu ---
   return (
