@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
+import RandomPopup from "./RandomPopup";
 
 const synthTypes = [
   { value: "synth", label: "Synth Saw" },
@@ -22,6 +23,7 @@ export default function MelodySequencer() {
   const [synthType, setSynthType] = useState("synth");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [randomVisible, setRandomVisible] = useState(false);
 
   // Synth unique via useRef (jamais dans le render/playStep !)
   const synthRef = useRef(null);
@@ -29,6 +31,7 @@ export default function MelodySequencer() {
   // Crée le synthé selon le type, le détruit si changement
   useEffect(() => {
     if (synthRef.current) {
+      synthRef.current.releaseAll && synthRef.current.releaseAll();
       synthRef.current.disconnect();
       synthRef.current = null;
     }
@@ -53,6 +56,7 @@ export default function MelodySequencer() {
     // Clean up à l’unmount
     return () => {
       if (synthRef.current) {
+        synthRef.current.releaseAll && synthRef.current.releaseAll();
         synthRef.current.disconnect();
         synthRef.current = null;
       }
@@ -72,7 +76,6 @@ export default function MelodySequencer() {
   }, [minOctave, maxOctave, steps]);
 
   const [pattern, setPattern] = useState(() => createPattern());
-
   useEffect(() => {
     setPattern(createPattern());
     setCurrentStep(0);
@@ -102,27 +105,6 @@ export default function MelodySequencer() {
     }));
   };
 
-
-    function handleChangeSteps(newSteps) {
-    if (newSteps === steps) return;
-    setSteps(newSteps);
-    setPattern(prev => {
-        const next = {};
-        Object.keys(prev).forEach(note => {
-        let arr = prev[note] || [];
-        if (arr.length < newSteps) {
-            arr = arr.concat(Array(newSteps - arr.length).fill(0));
-        } else if (arr.length > newSteps) {
-            arr = arr.slice(0, newSteps);
-        }
-        next[note] = arr;
-        });
-        return next;
-    });
-    setCurrentStep(0);
-    }
-
-
   // Joue les notes de la colonne courante (avec vélocité individuelle)
   const playStep = useCallback(() => {
     const synth = synthRef.current;
@@ -130,7 +112,6 @@ export default function MelodySequencer() {
     Object.keys(pattern).forEach(note => {
       const stepVal = pattern[note][currentStep];
       if (stepVal && stepVal.on) {
-        // Tone.js attend une vélocité [0..1]
         const velocity = (stepVal.velocity || 100) / 127;
         synth.triggerAttackRelease(note, "8n", undefined, velocity);
       }
@@ -172,86 +153,95 @@ export default function MelodySequencer() {
     }
   };
 
-    function exportToMidi() {
-    // Helpers
-    function noteNameToMidi(note) {
-        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        let noteName = note.slice(0, -1);
-        let octave = parseInt(note.slice(-1));
-        let n = notes.indexOf(noteName);
-        return (octave + 1) * 12 + n;
+  // Patch : Stop automatique si on change de synth en lecture
+  function handleSynthTypeChange(type) {
+    if (isPlaying) {
+      handleStop();
+      setTimeout(() => setSynthType(type), 60); // petit délai pour clean l'ancien synth
+    } else {
+      setSynthType(type);
     }
+  }
 
+  // Changement de nombre de steps (16/32)
+  function handleChangeSteps(newSteps) {
+    if (newSteps === steps) return;
+    setSteps(newSteps);
+    setPattern(prev => {
+      const next = {};
+      Object.keys(prev).forEach(note => {
+        let arr = prev[note] || [];
+        if (arr.length < newSteps) {
+          arr = arr.concat(Array(newSteps - arr.length).fill(0));
+        } else if (arr.length > newSteps) {
+          arr = arr.slice(0, newSteps);
+        }
+        next[note] = arr;
+      });
+      return next;
+    });
+    setCurrentStep(0);
+  }
+
+  // ---- Export MIDI ----
+  function exportToMidi() {
+    function noteNameToMidi(note) {
+      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      let noteName = note.slice(0, -1);
+      let octave = parseInt(note.slice(-1));
+      let n = notes.indexOf(noteName);
+      return (octave + 1) * 12 + n;
+    }
     function writeVarLen(value) {
-        let buffer = [];
-        let bufferVal = value & 0x7F;
-        while ((value >>= 7)) {
+      let buffer = [];
+      let bufferVal = value & 0x7F;
+      while ((value >>= 7)) {
         bufferVal <<= 8;
         bufferVal |= ((value & 0x7F) | 0x80);
-        }
-        while (true) {
+      }
+      while (true) {
         buffer.push(bufferVal & 0xFF);
         if (bufferVal & 0x80) bufferVal >>= 8;
         else break;
-        }
-        return buffer;
+      }
+      return buffer;
     }
-
-    // MIDI header
     let header = [
-        0x4d, 0x54, 0x68, 0x64, // MThd
-        0x00, 0x00, 0x00, 0x06, // header size
-        0x00, 0x00, // format 0
-        0x00, 0x01, // one track
-        0x00, 0x60  // division (96 ppqn)
+      0x4d, 0x54, 0x68, 0x64,
+      0x00, 0x00, 0x00, 0x06,
+      0x00, 0x00,
+      0x00, 0x01,
+      0x00, 0x60
     ];
-
-    // Track data
     let track = [];
-
-    // Tempo event
     let microsecPerBeat = Math.round(60000000 / tempo);
     track.push(0x00, 0xFF, 0x51, 0x03, (microsecPerBeat >> 16) & 0xFF, (microsecPerBeat >> 8) & 0xFF, microsecPerBeat & 0xFF);
-
-    // Pattern export
     const notesList = Object.keys(pattern);
-    const ticksPerStep = 24; // 4 steps = 1 beat (1/16th), 96 ticks per beat
-
+    const ticksPerStep = 24;
     for (let i = 0; i < steps; i++) {
-        let delta = (i === 0) ? 0 : ticksPerStep;
-        let notesOn = [];
-        notesList.forEach(note => {
+      let delta = (i === 0) ? 0 : ticksPerStep;
+      let notesOn = [];
+      notesList.forEach(note => {
         let val = pattern[note][i];
         if (val && val.on) {
-            // delta time for first event in this step
-            track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), Math.round(val.velocity || 100));
-            notesOn.push(note);
-            delta = 0;
+          track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), Math.round(val.velocity || 100));
+          notesOn.push(note);
+          delta = 0;
         }
-        });
-        // Note Off
-        if (notesOn.length > 0) {
-        // 24 ticks later (step length)
+      });
+      if (notesOn.length > 0) {
         notesOn.forEach(note => {
-            track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(note), 0x00);
+          track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(note), 0x00);
         });
-        }
+      }
     }
-
-    // End of track
     track.push(0x00, 0xFF, 0x2F, 0x00);
-
-    // Length (track chunk header)
     let trackLen = track.length;
     let trackHeader = [
-        0x4d, 0x54, 0x72, 0x6b, // MTrk
-        (trackLen >> 24) & 0xFF, (trackLen >> 16) & 0xFF, (trackLen >> 8) & 0xFF, trackLen & 0xFF
+      0x4d, 0x54, 0x72, 0x6b,
+      (trackLen >> 24) & 0xFF, (trackLen >> 16) & 0xFF, (trackLen >> 8) & 0xFF, trackLen & 0xFF
     ];
-
-    // Concaténer tout
     let midi = new Uint8Array([...header, ...trackHeader, ...track]);
-
-    // Export
     let blob = new Blob([midi], { type: 'audio/midi' });
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
@@ -260,12 +250,58 @@ export default function MelodySequencer() {
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }, 100);
-    }
+  }
 
-
+  // ---- Randomisation intelligente ----
+  function generateSmartRandom(style) {
+    const allowedNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    setPattern(prev => {
+      const next = {};
+      const notes = Object.keys(prev).filter(n => allowedNotes.includes(n.replace(/[0-9]/g, '')));
+      for (const note of Object.keys(prev)) {
+        next[note] = prev[note].map(() => 0);
+      }
+      if (style === "arp") {
+        let activeNotes = notes.slice(0, Math.min(notes.length, steps));
+        for (let i = 0; i < steps; i++) {
+          const idx = (i % activeNotes.length);
+          next[activeNotes[idx]][i] = { on: true, velocity: 90 + Math.floor(30 * Math.sin(i / activeNotes.length * Math.PI)) };
+        }
+      } else if (style === "bass") {
+        const root = notes[Math.floor(notes.length / 2)];
+        for (let i = 0; i < steps; i++) {
+          if (i % 4 !== 0 && Math.random() < 0.4) continue;
+          next[root][i] = { on: true, velocity: 100 + Math.floor(10 * Math.random()) };
+          if (Math.random() < 0.25 && notes.length > 2)
+            next[notes[Math.floor(Math.random() * notes.length)]][i] = { on: true, velocity: 80 + Math.floor(20 * Math.random()) };
+        }
+      } else if (style === "lead") {
+        let lastIdx = Math.floor(notes.length / 2);
+        for (let i = 0; i < steps; i++) {
+          if (Math.random() < 0.4) continue;
+          let delta = Math.floor(Math.random() * 3) - 1;
+          let idx = Math.max(0, Math.min(notes.length - 1, lastIdx + delta));
+          next[notes[idx]][i] = { on: true, velocity: 90 + Math.floor(30 * Math.random()) };
+          lastIdx = idx;
+        }
+      } else if (style === "pads") {
+        for (let i = 0; i < steps; i += Math.floor(steps / 3)) {
+          const idx = Math.floor(notes.length / 2 + (Math.random() - 0.5) * 2);
+          next[notes[idx]][i] = { on: true, velocity: 80 + Math.floor(20 * Math.random()) };
+        }
+      } else {
+        for (let i = 0; i < steps; i++) {
+          if (Math.random() < 0.5) continue;
+          let idx = Math.floor(Math.random() * notes.length);
+          next[notes[idx]][i] = { on: true, velocity: 80 + Math.floor(40 * Math.random()) };
+        }
+      }
+      return next;
+    });
+  }
 
   return (
     <div className="sequencer">
@@ -305,10 +341,15 @@ export default function MelodySequencer() {
           <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}>Play</button>
           <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
           <button className="btn" id="clearBtn" onClick={() => setPattern(createPattern())}>Clear</button>
-          <button className="btn" id="randomBtn" disabled>Random</button>
-          <button   className="btn" id="exportMidiBtn" onClick={exportToMidi} disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
->
-  Export MIDI</button>
+          <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}>Random</button>
+          <button
+            className="btn"
+            id="exportMidiBtn"
+            onClick={exportToMidi}
+            disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+          >
+            Export MIDI
+          </button>
         </div>
         <div className="control-group">
           <div className="control-group">
@@ -358,7 +399,8 @@ export default function MelodySequencer() {
             className="input-field"
             style={{ maxWidth: "120px" }}
             value={synthType}
-            onChange={e => setSynthType(e.target.value)}
+            disabled={isPlaying}
+            onChange={e => handleSynthTypeChange(e.target.value)}
           >
             {synthTypes.map(opt =>
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -392,6 +434,15 @@ export default function MelodySequencer() {
       </div>
 
       <div className="status-message" id="statusMessage"></div>
+
+      <RandomPopup
+        visible={randomVisible}
+        onValidate={styleKey => {
+          generateSmartRandom(styleKey);
+          setRandomVisible(false);
+        }}
+        onCancel={() => setRandomVisible(false)}
+      />
     </div>
   );
 }
