@@ -23,16 +23,17 @@ export default function PianoRoll({
   pattern,
   onToggleStep,
   onChangeVelocity,
-  currentStep
+  currentStep,
+  onChangeSteps // <- callback reçu ici !
 }) {
   const pianoNotes = getFullPianoNotes(minOctave, maxOctave);
   const dragInfo = useRef({});
 
-  // --- Les handlers stables pour le drag ---
+  // Handlers pour vélocité (inchangés)
   const handleMouseMove = useCallback((e) => {
     const { note, stepIdx, startY, startVelocity } = dragInfo.current;
     if (!note) return;
-    let diff = startY - e.clientY; // + haut = + fort
+    let diff = startY - e.clientY;
     let newVelocity = Math.max(10, Math.min(127, startVelocity + Math.round(diff / 2)));
     onChangeVelocity(note, stepIdx, newVelocity);
   }, [onChangeVelocity]);
@@ -43,7 +44,6 @@ export default function PianoRoll({
     window.removeEventListener("mouseup", handleMouseUp);
   }, [handleMouseMove]);
 
-  // --- Activation/déplacement sur la case ---
   function handleMouseDown(note, stepIdx, e) {
     e.preventDefault();
     const value = pattern[note][stepIdx];
@@ -66,8 +66,17 @@ export default function PianoRoll({
   return (
     <div className="piano-roll">
       <div className="piano-roll-header">
-        <div className="steps-control" style={{ opacity: 0.6 }}>
-          <button className="btn steps-btn active" data-steps={steps}>{steps} Steps</button>
+        <div className="steps-control">
+          <button
+            className={"btn steps-btn" + (steps === 16 ? " active" : "")}
+            onClick={() => onChangeSteps && onChangeSteps(16)}
+            disabled={steps === 16}
+          >16 Steps</button>
+          <button
+            className={"btn steps-btn" + (steps === 32 ? " active" : "")}
+            onClick={() => onChangeSteps && onChangeSteps(32)}
+            disabled={steps === 32}
+          >32 Steps</button>
         </div>
         <div className="scale-info" style={{ textAlign: "right" }}>Scale: C Major</div>
       </div>

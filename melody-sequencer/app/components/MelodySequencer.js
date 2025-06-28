@@ -101,6 +101,27 @@ export default function MelodySequencer() {
     }));
   };
 
+
+    function handleChangeSteps(newSteps) {
+    if (newSteps === steps) return;
+    setSteps(newSteps);
+    setPattern(prev => {
+        const next = {};
+        Object.keys(prev).forEach(note => {
+        let arr = prev[note] || [];
+        if (arr.length < newSteps) {
+            arr = arr.concat(Array(newSteps - arr.length).fill(0));
+        } else if (arr.length > newSteps) {
+            arr = arr.slice(0, newSteps);
+        }
+        next[note] = arr;
+        });
+        return next;
+    });
+    setCurrentStep(0);
+    }
+
+
   // Joue les notes de la colonne courante (avec vélocité individuelle)
   const playStep = useCallback(() => {
     const synth = synthRef.current;
@@ -260,6 +281,7 @@ export default function MelodySequencer() {
         onToggleStep={handleToggleStep}
         onChangeVelocity={handleChangeVelocity}
         currentStep={isPlaying ? currentStep : null}
+        onChangeSteps={handleChangeSteps}
       />
 
       <div className="presets">
