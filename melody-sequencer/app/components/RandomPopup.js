@@ -1,63 +1,82 @@
 "use client";
 import React, { useState } from "react";
 
+const ROOT_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const SCALES = [
+  { key: "major", label: "Majeur" },
+  { key: "minor", label: "Mineur" },
+  { key: "phrygian", label: "Phrygien" },
+];
 const STYLES = [
-  { key: "arp", label: "Arpège (ascendant/descendant)" },
-  { key: "bass", label: "Bassline trance/psy" },
-  { key: "lead", label: "Lead simple (oscillant)" },
-  { key: "pads", label: "Pad doux" },
-  { key: "random", label: "Aléatoire classique" },
-  { key: "psy-oldschool", label: "Psytrance Oldschool" }
+  { key: "psy-oldschool", label: "Psytrance Oldschool" },
+  { key: "goa", label: "Goa" },
+  { key: "trance-arp", label: "Trance Arpège" },
+  { key: "prog", label: "Progressive" },
+];
+const MOODS = [
+  { key: "default", label: "Standard" },
+  { key: "uplifting", label: "Uplifting" },
+  { key: "dark", label: "Sombre" },
+  { key: "punchy", label: "Punchy" },
+  { key: "soft", label: "Soft" },
+  { key: "dense", label: "Dense" }
+];
+const PARTS = [
+  { key: "music", label: "Tout (musique)" },
+  { key: "melody", label: "Mélodie/Lead" },
+  { key: "bassline", label: "Bassline" },
+  { key: "pad", label: "Pad" },
 ];
 
-export default function RandomPopup({ visible, onValidate, onCancel }) {
-  const [selected, setSelected] = useState(STYLES[0].key);
+export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
+  const [root, setRoot] = useState(defaultParams?.rootNote || "C");
+  const [scale, setScale] = useState(defaultParams?.scale || "major");
+  const [style, setStyle] = useState(defaultParams?.style || "psy-oldschool");
+  const [mood, setMood] = useState(defaultParams?.mood || "default");
+  const [part, setPart] = useState(defaultParams?.part || "music");
 
   if (!visible) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100
-      }}
-    >
-      <div
-        style={{
-          background: "#23232a",
-          border: "2px solid #00d4ff",
-          borderRadius: 20,
-          boxShadow: "0 6px 40px #000a",
-          minWidth: 340,
-          padding: 32
-        }}
-      >
-        <h3 style={{ margin: 0, marginBottom: 18, fontSize: 22, color: "#00d4ff" }}>
-          Générer un pattern aléatoire
-        </h3>
-        <div style={{ marginBottom: 24 }}>
-          {STYLES.map(style => (
-            <label key={style.key} style={{ display: "block", margin: "10px 0", cursor: "pointer" }}>
-              <input
-                type="radio"
-                name="randomType"
-                value={style.key}
-                checked={selected === style.key}
-                onChange={() => setSelected(style.key)}
-                style={{ marginRight: 8 }}
-              />
-              {style.label}
-            </label>
-          ))}
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <button className="btn" style={{ marginRight: 10 }} onClick={onCancel}>Annuler</button>
-          <button className="btn primary" onClick={() => onValidate(selected)}>Générer</button>
+    <div className="random-popup-overlay">
+      <div className="random-popup-modal">
+        <h3>Générer un pattern aléatoire</h3>
+        <label>
+          Fondamentale :
+          <select value={root} onChange={e => setRoot(e.target.value)}>
+            {ROOT_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label>
+          Gamme&nbsp;:
+          <select value={scale} onChange={e => setScale(e.target.value)}>
+            {SCALES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Style&nbsp;:
+          <select value={style} onChange={e => setStyle(e.target.value)}>
+            {STYLES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Ambiance&nbsp;:
+          <select value={mood} onChange={e => setMood(e.target.value)}>
+            {MOODS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </select>
+        </label>
+        <label>
+          Partie à générer&nbsp;:
+          <select value={part} onChange={e => setPart(e.target.value)}>
+            {PARTS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          </select>
+        </label>
+        <div className="random-popup-actions">
+          <button className="btn" onClick={onCancel}>Annuler</button>
+          <button
+            className="btn primary"
+            onClick={() => onValidate({ rootNote: root, scale, style, mood, part })}
+          >Générer</button>
         </div>
       </div>
     </div>

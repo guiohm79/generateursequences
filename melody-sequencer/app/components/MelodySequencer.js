@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
+import { generateMusicalPattern } from "../lib/randomEngine";
 import RandomPopup from "./RandomPopup";
 
 const synthTypes = [
@@ -24,6 +25,7 @@ export default function MelodySequencer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [randomVisible, setRandomVisible] = useState(false);
+  const [randomParams, setRandomParams] = useState(null);
 
   // Synth unique via useRef (jamais dans le render/playStep !)
   const synthRef = useRef(null);
@@ -433,7 +435,17 @@ export default function MelodySequencer() {
       <div className="waveform-visualizer">
         <canvas className="waveform-canvas" id="waveformCanvas"></canvas>
       </div>
-
+        {randomParams &&
+        <button className="btn" onClick={() => {
+            setPattern(generateMusicalPattern({
+            ...randomParams,
+            steps,
+            octaves: { min: minOctave, max: maxOctave }
+            }));
+        }}>
+            Régénérer ce motif
+        </button>
+}
       <PianoRoll
         minOctave={minOctave}
         maxOctave={maxOctave}
@@ -456,14 +468,32 @@ export default function MelodySequencer() {
 
       <div className="status-message" id="statusMessage"></div>
 
-      <RandomPopup
+        <RandomPopup
         visible={randomVisible}
-        onValidate={styleKey => {
-          generateSmartRandom(styleKey);
-          setRandomVisible(false);
+        onValidate={params => {
+            setPattern(generateMusicalPattern({
+            ...params,
+            steps,
+            octaves: { min: minOctave, max: maxOctave }
+            }));
+            setRandomParams(params); // Pour le bouton "régénérer" plus tard
+            setRandomVisible(false);
         }}
         onCancel={() => setRandomVisible(false)}
-      />
+        defaultParams={randomParams}
+        />
+        {randomParams &&
+        <button className="btn" onClick={() => {
+            setPattern(generateMusicalPattern({
+            ...randomParams,
+            steps,
+            octaves: { min: minOctave, max: maxOctave }
+            }));
+        }}>
+            Régénérer ce motif
+        </button>
+}
+
     </div>
   );
 }
