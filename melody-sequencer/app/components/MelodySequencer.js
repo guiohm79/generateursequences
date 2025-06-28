@@ -72,6 +72,7 @@ export default function MelodySequencer() {
   }, [minOctave, maxOctave, steps]);
 
   const [pattern, setPattern] = useState(() => createPattern());
+
   useEffect(() => {
     setPattern(createPattern());
     setCurrentStep(0);
@@ -171,6 +172,101 @@ export default function MelodySequencer() {
     }
   };
 
+    function exportToMidi() {
+    // Helpers
+    function noteNameToMidi(note) {
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        let noteName = note.slice(0, -1);
+        let octave = parseInt(note.slice(-1));
+        let n = notes.indexOf(noteName);
+        return (octave + 1) * 12 + n;
+    }
+
+    function writeVarLen(value) {
+        let buffer = [];
+        let bufferVal = value & 0x7F;
+        while ((value >>= 7)) {
+        bufferVal <<= 8;
+        bufferVal |= ((value & 0x7F) | 0x80);
+        }
+        while (true) {
+        buffer.push(bufferVal & 0xFF);
+        if (bufferVal & 0x80) bufferVal >>= 8;
+        else break;
+        }
+        return buffer;
+    }
+
+    // MIDI header
+    let header = [
+        0x4d, 0x54, 0x68, 0x64, // MThd
+        0x00, 0x00, 0x00, 0x06, // header size
+        0x00, 0x00, // format 0
+        0x00, 0x01, // one track
+        0x00, 0x60  // division (96 ppqn)
+    ];
+
+    // Track data
+    let track = [];
+
+    // Tempo event
+    let microsecPerBeat = Math.round(60000000 / tempo);
+    track.push(0x00, 0xFF, 0x51, 0x03, (microsecPerBeat >> 16) & 0xFF, (microsecPerBeat >> 8) & 0xFF, microsecPerBeat & 0xFF);
+
+    // Pattern export
+    const notesList = Object.keys(pattern);
+    const ticksPerStep = 24; // 4 steps = 1 beat (1/16th), 96 ticks per beat
+
+    for (let i = 0; i < steps; i++) {
+        let delta = (i === 0) ? 0 : ticksPerStep;
+        let notesOn = [];
+        notesList.forEach(note => {
+        let val = pattern[note][i];
+        if (val && val.on) {
+            // delta time for first event in this step
+            track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), Math.round(val.velocity || 100));
+            notesOn.push(note);
+            delta = 0;
+        }
+        });
+        // Note Off
+        if (notesOn.length > 0) {
+        // 24 ticks later (step length)
+        notesOn.forEach(note => {
+            track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(note), 0x00);
+        });
+        }
+    }
+
+    // End of track
+    track.push(0x00, 0xFF, 0x2F, 0x00);
+
+    // Length (track chunk header)
+    let trackLen = track.length;
+    let trackHeader = [
+        0x4d, 0x54, 0x72, 0x6b, // MTrk
+        (trackLen >> 24) & 0xFF, (trackLen >> 16) & 0xFF, (trackLen >> 8) & 0xFF, trackLen & 0xFF
+    ];
+
+    // Concaténer tout
+    let midi = new Uint8Array([...header, ...trackHeader, ...track]);
+
+    // Export
+    let blob = new Blob([midi], { type: 'audio/midi' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'melody-sequencer.mid';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }, 100);
+    }
+
+
+
   return (
     <div className="sequencer">
       <div className="header">
@@ -210,7 +306,9 @@ export default function MelodySequencer() {
           <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
           <button className="btn" id="clearBtn" onClick={() => setPattern(createPattern())}>Clear</button>
           <button className="btn" id="randomBtn" disabled>Random</button>
-          <button className="btn" id="exportMidiBtn" disabled>Export MIDI</button>
+          <button   className="btn" id="exportMidiBtn" onClick={exportToMidi} disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+>
+  Export MIDI</button>
         </div>
         <div className="control-group">
           <div className="control-group">
