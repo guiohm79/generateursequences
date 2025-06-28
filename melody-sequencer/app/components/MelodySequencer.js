@@ -292,6 +292,27 @@ export default function MelodySequencer() {
           const idx = Math.floor(notes.length / 2 + (Math.random() - 0.5) * 2);
           next[notes[idx]][i] = { on: true, velocity: 80 + Math.floor(20 * Math.random()) };
         }
+
+        } else if (style === "psy-oldschool") {
+            // Bassline ultra-classique (1 note par pas, souvent sur la fondamentale)
+            let bassNoteIdx = Math.floor(notes.length / 2); // note centrale
+            let motif = [0, 0, 1, 0, 0, 1, 0, 1]; // type "pompompom"
+            for (let i = 0; i < steps; i++) {
+                if (i % motif.length === 0) bassNoteIdx = Math.floor(notes.length / 2) + (Math.random() > 0.7 ? 1 : 0); // Parfois saute d'un demi-ton
+                if (motif[i % motif.length] || (Math.random() < 0.15 && i % 2 === 1)) {
+                next[notes[bassNoteIdx]][i] = { on: true, velocity: 110 + Math.floor(Math.random() * 15) };
+                }
+            }
+            // Mélodie "oldschool" : notes en haut du clavier, sautent un peu, parfois octave up/down
+            let melodyZone = notes.slice(-4); // les 4 notes les plus aigües
+            let melodicMotif = [0, 1, 0, 1, 1, 0, 0, 1];
+            for (let i = 0; i < steps; i++) {
+                if (melodicMotif[i % melodicMotif.length] && Math.random() > 0.6) {
+                let idx = Math.floor(Math.random() * melodyZone.length);
+                next[melodyZone[idx]][i] = { on: true, velocity: 90 + Math.floor(Math.random() * 25) };
+                }
+            }
+
       } else {
         for (let i = 0; i < steps; i++) {
           if (Math.random() < 0.5) continue;

@@ -6,7 +6,8 @@ const STYLES = [
   { key: "bass", label: "Bassline trance/psy" },
   { key: "lead", label: "Lead simple (oscillant)" },
   { key: "pads", label: "Pad doux" },
-  { key: "random", label: "Aléatoire classique" }
+  { key: "random", label: "Aléatoire classique" },
+  { key: "psy-oldschool", label: "Psytrance Oldschool" }
 ];
 
 export default function RandomPopup({ visible, onValidate, onCancel }) {
