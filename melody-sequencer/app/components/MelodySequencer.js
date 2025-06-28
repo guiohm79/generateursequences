@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
 
-// Les types de synthés
 const synthTypes = [
   { value: "synth", label: "Synth Saw" },
   { value: "sine", label: "Synth Sine" },
@@ -24,8 +23,44 @@ export default function MelodySequencer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Initialisation du pattern : un objet {note: [0,0,0, ...]}
-  const createPattern = React.useCallback(() => {
+  // Synth unique via useRef (jamais dans le render/playStep !)
+  const synthRef = useRef(null);
+
+  // Crée le synthé selon le type, le détruit si changement
+  useEffect(() => {
+    if (synthRef.current) {
+      synthRef.current.disconnect();
+      synthRef.current = null;
+    }
+    switch (synthType) {
+      case "sine":
+      case "square":
+      case "triangle":
+        synthRef.current = new Tone.PolySynth(Tone.Synth, { oscillator: { type: synthType } }).toDestination();
+        break;
+      case "fm":
+        synthRef.current = new Tone.PolySynth(Tone.FMSynth).toDestination();
+        break;
+      case "duo":
+        synthRef.current = new Tone.PolySynth(Tone.DuoSynth).toDestination();
+        break;
+      case "mono":
+        synthRef.current = new Tone.MonoSynth().toDestination();
+        break;
+      default:
+        synthRef.current = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
+    }
+    // Clean up à l’unmount
+    return () => {
+      if (synthRef.current) {
+        synthRef.current.disconnect();
+        synthRef.current = null;
+      }
+    };
+  }, [synthType]);
+
+  // Pattern de notes (mémorisé pour chaque grille/param)
+  const createPattern = useCallback(() => {
     const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     const pat = {};
     for (let octave = minOctave; octave <= maxOctave; octave++) {
@@ -36,79 +71,84 @@ export default function MelodySequencer() {
     return pat;
   }, [minOctave, maxOctave, steps]);
 
-  // Pattern : recréé si le nombre de steps ou octaves change
   const [pattern, setPattern] = useState(() => createPattern());
-  useEffect(() => { setPattern(createPattern()); }, [createPattern]);
+  useEffect(() => {
+    setPattern(createPattern());
+    setCurrentStep(0);
+  }, [createPattern]);
 
-  // Toggle d'une case
+  // Toggle step avec vélocité
   const handleToggleStep = (note, idx) => {
     setPattern(prev => ({
       ...prev,
-      [note]: prev[note].map((v, i) => (i === idx ? (v ? 0 : 1) : v))
+      [note]: prev[note].map((v, i) => {
+        if (i !== idx) return v;
+        // Si inactif : on active avec vélocité 100
+        if (!v || v === 0) return { on: true, velocity: 100 };
+        // Si déjà actif, on désactive
+        return 0;
+      })
     }));
   };
 
-    // --- Gestion du séquenceur step-by-step ---
+  // Changement de vélocité
+  const handleChangeVelocity = (note, idx, velocity) => {
+    setPattern(prev => ({
+      ...prev,
+      [note]: prev[note].map((v, i) =>
+        i === idx && v && v.on ? { ...v, velocity } : v
+      )
+    }));
+  };
+
+  // Joue les notes de la colonne courante (avec vélocité individuelle)
+  const playStep = useCallback(() => {
+    const synth = synthRef.current;
+    if (!synth) return;
+    Object.keys(pattern).forEach(note => {
+      const stepVal = pattern[note][currentStep];
+      if (stepVal && stepVal.on) {
+        // Tone.js attend une vélocité [0..1]
+        const velocity = (stepVal.velocity || 100) / 127;
+        synth.triggerAttackRelease(note, "8n", undefined, velocity);
+      }
+    });
+  }, [pattern, currentStep]);
+
+  // Timer unique pour le playback (clean à chaque stop/unmount !)
   const timerRef = useRef(null);
 
-    const getSynth = () => {
-    switch (synthType) {
-      case "sine":
-      case "square":
-      case "triangle":
-        return new Tone.PolySynth(Tone.Synth, { oscillator: { type: synthType } }).toDestination();
-      case "fm":
-        return new Tone.PolySynth(Tone.FMSynth).toDestination();
-      case "duo":
-        return new Tone.PolySynth(Tone.DuoSynth).toDestination();
-      case "mono":
-        return new Tone.MonoSynth().toDestination();
-      default:
-        return new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
-    }
-  };
-
-// Joue la colonne active
-  const playStep = useCallback(() => {
-    const synth = getSynth();
-    const notesToPlay = Object.keys(pattern).filter(note => pattern[note][currentStep]);
-    if (notesToPlay.length) {
-      synth.triggerAttackRelease(notesToPlay, "8n");
-    }
-  }, [pattern, currentStep, synthType]);
-
-  // Démarrage du playback
-  const handlePlay = async () => {
-    await Tone.start();
-    setIsPlaying(true);
-  };
-
-  // Stop du playback
-  const handleStop = () => {
-    setIsPlaying(false);
-    setCurrentStep(0);
-    clearInterval(timerRef.current);
-  };
-
-  // Timer du séquenceur
   useEffect(() => {
     if (!isPlaying) {
       clearInterval(timerRef.current);
       return;
     }
-    playStep();
+    playStep(); // Joue le premier step direct
     timerRef.current = setInterval(() => {
       setCurrentStep(prev => (prev + 1) % steps);
-    }, (60000 / tempo) / 4); // 1/16th note (16 steps = 1 mesure)
+    }, (60000 / tempo) / 4);
     return () => clearInterval(timerRef.current);
   }, [isPlaying, steps, tempo, playStep]);
 
-  // À chaque step, joue la nouvelle colonne (évite le lag au premier step)
+  // Joue à chaque step (évite le "décalage")
   useEffect(() => {
     if (isPlaying) playStep();
     // eslint-disable-next-line
   }, [currentStep]);
 
+  const handlePlay = async () => {
+    await Tone.start();
+    setIsPlaying(true);
+  };
+
+  const handleStop = () => {
+    setIsPlaying(false);
+    setCurrentStep(0);
+    clearInterval(timerRef.current);
+    if (synthRef.current && synthRef.current.releaseAll) {
+      synthRef.current.releaseAll();
+    }
+  };
 
   return (
     <div className="sequencer">
@@ -212,13 +252,13 @@ export default function MelodySequencer() {
         <canvas className="waveform-canvas" id="waveformCanvas"></canvas>
       </div>
 
-      {/* Le Piano Roll réactif */}
       <PianoRoll
         minOctave={minOctave}
         maxOctave={maxOctave}
         steps={steps}
         pattern={pattern}
         onToggleStep={handleToggleStep}
+        onChangeVelocity={handleChangeVelocity}
         currentStep={isPlaying ? currentStep : null}
       />
 

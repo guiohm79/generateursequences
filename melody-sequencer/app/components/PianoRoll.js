@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useRef, useCallback } from "react";
 
 // Génère toutes les notes de minOctave à maxOctave
 function getFullPianoNotes(minOctave = 3, maxOctave = 5) {
@@ -22,10 +22,47 @@ export default function PianoRoll({
   steps,
   pattern,
   onToggleStep,
+  onChangeVelocity,
   currentStep
 }) {
   const pianoNotes = getFullPianoNotes(minOctave, maxOctave);
+  const dragInfo = useRef({});
 
+  // --- Les handlers stables pour le drag ---
+  const handleMouseMove = useCallback((e) => {
+    const { note, stepIdx, startY, startVelocity } = dragInfo.current;
+    if (!note) return;
+    let diff = startY - e.clientY; // + haut = + fort
+    let newVelocity = Math.max(10, Math.min(127, startVelocity + Math.round(diff / 2)));
+    onChangeVelocity(note, stepIdx, newVelocity);
+  }, [onChangeVelocity]);
+
+  const handleMouseUp = useCallback(() => {
+    dragInfo.current = {};
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  }, [handleMouseMove]);
+
+  // --- Activation/déplacement sur la case ---
+  function handleMouseDown(note, stepIdx, e) {
+    e.preventDefault();
+    const value = pattern[note][stepIdx];
+    let velocity = 100;
+    if (!value || value === 0) {
+      onToggleStep(note, stepIdx);
+    } else {
+      velocity = value.velocity || 100;
+    }
+    dragInfo.current = {
+      note, stepIdx,
+      startY: e.clientY,
+      startVelocity: velocity
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  }
+
+  // --- Rendu ---
   return (
     <div className="piano-roll">
       <div className="piano-roll-header">
@@ -46,17 +83,30 @@ export default function PianoRoll({
         {pianoNotes.map(row => (
           <div className="note-row" key={row.note}>
             <div className={`note-label${row.isBlack ? " black-key" : ""}`}>{row.note}</div>
-            {Array(steps).fill().map((_, i) => (
-              <div
-                key={i}
-                className={
-                  "step-cell" +
-                    (pattern[row.note] && pattern[row.note][i] ? " active" : "") +
-                    (currentStep === i && pattern[row.note] && pattern[row.note][i] ? " playing" : "")
-                }
-                onClick={() => onToggleStep(row.note, i)}
-              />
-            ))}
+            {Array(steps).fill().map((_, i) => {
+              const val = pattern[row.note] && pattern[row.note][i];
+              const isActive = val && val.on;
+              const velocity = isActive ? (val.velocity || 100) : 100;
+              const colorIntensity = Math.round((velocity - 10) / 117 * 80 + 20); // 20% à 100%
+              return (
+                <div
+                  key={i}
+                  className={
+                    "step-cell" +
+                    (isActive ? " active" : "") +
+                    (currentStep === i && isActive ? " playing" : "")
+                  }
+                  onMouseDown={e => handleMouseDown(row.note, i, e)}
+                  style={{
+                    background: isActive
+                      ? `rgba(0, 212, 255, ${colorIntensity / 100})`
+                      : undefined,
+                    cursor: "ns-resize"
+                  }}
+                  title={isActive ? `Velocity: ${velocity}` : "Click to activate"}
+                />
+              );
+            })}
           </div>
         ))}
       </div>
