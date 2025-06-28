@@ -4,6 +4,8 @@ import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
 import { generateMusicalPattern } from "../lib/randomEngine";
 import RandomPopup from "./RandomPopup";
+import { SYNTH_PRESETS } from "../lib/synthPresets";
+import SynthPopup from "./SynthPopup";
 
 const synthTypes = [
   { value: "synth", label: "Synth Saw" },
@@ -30,40 +32,41 @@ export default function MelodySequencer() {
   // Synth unique via useRef (jamais dans le render/playStep !)
   const synthRef = useRef(null);
 
+  const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
+  const [synthPopupOpen, setSynthPopupOpen] = useState(false);
+
+  const currentPreset = SYNTH_PRESETS.find(p => p.key === presetKey);
+
   // Crée le synthé selon le type, le détruit si changement
   useEffect(() => {
+  if (synthRef.current) {
+    synthRef.current.releaseAll && synthRef.current.releaseAll();
+    synthRef.current.disconnect();
+    synthRef.current = null;
+  }
+  // Appliquer les options du preset
+  const preset = SYNTH_PRESETS.find(p => p.key === presetKey) || SYNTH_PRESETS[0];
+  let options = preset.options || {};
+  switch (preset.synthType) {
+    case "MonoSynth":
+      synthRef.current = new Tone.MonoSynth(options).toDestination();
+      break;
+    case "FMSynth":
+      synthRef.current = new Tone.PolySynth(Tone.FMSynth, options).toDestination();
+      break;
+    case "PolySynth":
+    default:
+      synthRef.current = new Tone.PolySynth(Tone.Synth, options).toDestination();
+      break;
+  }
+  return () => {
     if (synthRef.current) {
       synthRef.current.releaseAll && synthRef.current.releaseAll();
       synthRef.current.disconnect();
       synthRef.current = null;
     }
-    switch (synthType) {
-      case "sine":
-      case "square":
-      case "triangle":
-        synthRef.current = new Tone.PolySynth(Tone.Synth, { oscillator: { type: synthType } }).toDestination();
-        break;
-      case "fm":
-        synthRef.current = new Tone.PolySynth(Tone.FMSynth).toDestination();
-        break;
-      case "duo":
-        synthRef.current = new Tone.PolySynth(Tone.DuoSynth).toDestination();
-        break;
-      case "mono":
-        synthRef.current = new Tone.MonoSynth().toDestination();
-        break;
-      default:
-        synthRef.current = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sawtooth" } }).toDestination();
-    }
-    // Clean up à l’unmount
-    return () => {
-      if (synthRef.current) {
-        synthRef.current.releaseAll && synthRef.current.releaseAll();
-        synthRef.current.disconnect();
-        synthRef.current = null;
-      }
-    };
-  }, [synthType]);
+  };
+}, [presetKey]);
 
   // Pattern de notes (mémorisé pour chaque grille/param)
   const createPattern = useCallback(() => {
@@ -417,6 +420,13 @@ export default function MelodySequencer() {
         </div>
         <div className="control-group">
           <span className="control-label">Son</span>
+          <button
+          className="btn"
+          style={{ marginLeft: 10, minWidth: 80 }}
+          onClick={() => setSynthPopupOpen(true)}
+        >
+          Éditer son
+        </button>
           <select
             id="soundSelector"
             className="input-field"
@@ -438,7 +448,11 @@ export default function MelodySequencer() {
         {randomParams &&
         <button className="btn" onClick={() => {
             setPattern(generateMusicalPattern({
-            ...randomParams,
+            rootNote: params.rootNote,
+            scale: params.scale,
+            style: params.style,
+            mood: params.mood,
+            part: params.part,
             steps,
             octaves: { min: minOctave, max: maxOctave }
             }));
@@ -493,6 +507,15 @@ export default function MelodySequencer() {
             Régénérer ce motif
         </button>
 }
+      <SynthPopup
+        visible={synthPopupOpen}
+        current={presetKey}
+        onSelect={key => {
+          setPresetKey(key);
+          setSynthPopupOpen(false);
+        }}
+        onCancel={() => setSynthPopupOpen(false)}
+      />
 
     </div>
   );
