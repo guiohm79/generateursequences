@@ -2,193 +2,189 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
-import { generateMusicalPattern } from "../lib/randomEngine";
 import RandomPopup from "./RandomPopup";
-import { SYNTH_PRESETS } from "../lib/synthPresets";
 import SynthPopup from "./SynthPopup";
+import { SYNTH_PRESETS } from "../lib/synthPresets";
+import { generateMusicalPattern } from "../lib/randomEngine";
 
-const synthTypes = [
-  { value: "synth", label: "Synth Saw" },
-  { value: "sine", label: "Synth Sine" },
-  { value: "square", label: "Synth Square" },
-  { value: "triangle", label: "Synth Triangle" },
-  { value: "fm", label: "FM Synth" },
-  { value: "duo", label: "Duo Synth" },
-  { value: "mono", label: "Mono Bass" },
-];
+// Helpers pattern robustes
+function getAllNotes(minOct, maxOct) {
+  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const all = [];
+  for (let octave = minOct; octave <= maxOct; octave++) {
+    notes.forEach(note => all.push(note + octave));
+  }
+  return all;
+}
+
+function buildPattern(pattern, steps, minOct, maxOct) {
+  const allNotes = getAllNotes(minOct, maxOct);
+  const next = {};
+  allNotes.forEach(note => {
+    let arr = Array.isArray(pattern?.[note]) ? pattern[note].slice(0, steps) : [];
+    if (arr.length < steps) arr = arr.concat(Array(steps - arr.length).fill(0));
+    next[note] = arr;
+  });
+  return next;
+}
 
 export default function MelodySequencer() {
-  // Etats principaux
+  // États principaux
   const [tempo, setTempo] = useState(128);
   const [steps, setSteps] = useState(16);
   const [minOctave, setMinOctave] = useState(3);
   const [maxOctave, setMaxOctave] = useState(5);
-  const [synthType, setSynthType] = useState("synth");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
+  const [synthPopupOpen, setSynthPopupOpen] = useState(false);
+  const currentPreset = SYNTH_PRESETS.find(p => p.key === presetKey);
   const [randomVisible, setRandomVisible] = useState(false);
   const [randomParams, setRandomParams] = useState(null);
 
-  // Synth unique via useRef (jamais dans le render/playStep !)
-  const synthRef = useRef(null);
-
-  const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
-  const [synthPopupOpen, setSynthPopupOpen] = useState(false);
-
-  const currentPreset = SYNTH_PRESETS.find(p => p.key === presetKey);
-
-  // Crée le synthé selon le type, le détruit si changement
+  // Pattern management blindé
+  const [pattern, setPattern] = useState(() => buildPattern(null, steps, minOctave, maxOctave));
   useEffect(() => {
-  if (synthRef.current) {
-    synthRef.current.releaseAll && synthRef.current.releaseAll();
-    synthRef.current.disconnect();
-    synthRef.current = null;
-  }
-  // Appliquer les options du preset
-  const preset = SYNTH_PRESETS.find(p => p.key === presetKey) || SYNTH_PRESETS[0];
-  let options = preset.options || {};
-  switch (preset.synthType) {
-    case "MonoSynth":
-      synthRef.current = new Tone.MonoSynth(options).toDestination();
-      break;
-    case "FMSynth":
-      synthRef.current = new Tone.PolySynth(Tone.FMSynth, options).toDestination();
-      break;
-    case "PolySynth":
-    default:
-      synthRef.current = new Tone.PolySynth(Tone.Synth, options).toDestination();
-      break;
-  }
-  return () => {
+    setPattern(prev => buildPattern(prev, steps, minOctave, maxOctave));
+    setCurrentStep(0);
+  }, [steps, minOctave, maxOctave]);
+
+  // Synthé et playback
+  const synthRef = useRef(null);
+  const previousMonoNote = useRef(null);
+  const transportId = useRef(null);
+
+  useEffect(() => {
     if (synthRef.current) {
       synthRef.current.releaseAll && synthRef.current.releaseAll();
       synthRef.current.disconnect();
       synthRef.current = null;
     }
-  };
-}, [presetKey]);
-
-  // Pattern de notes (mémorisé pour chaque grille/param)
-  const createPattern = useCallback(() => {
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const pat = {};
-    for (let octave = minOctave; octave <= maxOctave; octave++) {
-      notes.forEach(note => {
-        pat[note + octave] = Array(steps).fill(0);
-      });
+    const preset = currentPreset || SYNTH_PRESETS[0];
+    let options = preset.options || {};
+    switch (preset.synthType) {
+      case "MonoSynth":
+        synthRef.current = new Tone.MonoSynth(options).toDestination();
+        break;
+      case "FMSynth":
+        synthRef.current = new Tone.PolySynth(Tone.FMSynth, options).toDestination();
+        break;
+      case "PolySynth":
+      default:
+        synthRef.current = new Tone.PolySynth(Tone.Synth, options).toDestination();
+        break;
     }
-    return pat;
-  }, [minOctave, maxOctave, steps]);
+    return () => {
+      if (synthRef.current) {
+        synthRef.current.releaseAll && synthRef.current.releaseAll();
+        synthRef.current.disconnect();
+        synthRef.current = null;
+      }
+      previousMonoNote.current = null;
+    };
+    // eslint-disable-next-line
+  }, [presetKey]);
 
-  const [pattern, setPattern] = useState(() => createPattern());
-  useEffect(() => {
-    setPattern(createPattern());
-    setCurrentStep(0);
-  }, [createPattern]);
-
-  // Toggle step avec vélocité
+  // Mutations blindées
   const handleToggleStep = (note, idx) => {
-    setPattern(prev => ({
-      ...prev,
-      [note]: prev[note].map((v, i) => {
-        if (i !== idx) return v;
-        // Si inactif : on active avec vélocité 100
-        if (!v || v === 0) return { on: true, velocity: 100 };
-        // Si déjà actif, on désactive
-        return 0;
-      })
-    }));
+    setPattern(prev => {
+      const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
+      // Toggle on/off (désactive si déjà on)
+      line[idx] = !line[idx] || line[idx] === 0 ? { on: true, velocity: 100 } : 0;
+      return { ...prev, [note]: line };
+    });
   };
 
-  // Changement de vélocité
+  function handleChangeSteps(newSteps) {
+    setSteps(newSteps);
+    // pattern update via useEffect
+    setCurrentStep(0);
+  }
   const handleChangeVelocity = (note, idx, velocity) => {
-    setPattern(prev => ({
-      ...prev,
-      [note]: prev[note].map((v, i) =>
-        i === idx && v && v.on ? { ...v, velocity } : v
-      )
-    }));
+    setPattern(prev => {
+      const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
+      if (line[idx] && line[idx].on) {
+        line[idx] = { ...line[idx], velocity };
+      }
+      return { ...prev, [note]: line };
+    });
   };
-
-  // Joue les notes de la colonne courante (avec vélocité individuelle)
-  const playStep = useCallback(() => {
+  // Playback via Tone.Transport
+  const playStep = useCallback((stepIdx, time) => {
     const synth = synthRef.current;
     if (!synth) return;
-    Object.keys(pattern).forEach(note => {
-      const stepVal = pattern[note][currentStep];
-      if (stepVal && stepVal.on) {
+    const isMono = currentPreset?.synthType === "MonoSynth";
+    if (isMono) {
+      const activeNotes = Object.keys(pattern).filter(note => pattern[note][stepIdx] && pattern[note][stepIdx].on);
+      if (activeNotes.length) {
+        const note = activeNotes.sort((a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi())[0];
+        const stepVal = pattern[note][stepIdx];
         const velocity = (stepVal.velocity || 100) / 127;
-        synth.triggerAttackRelease(note, "8n", undefined, velocity);
+        synth.triggerAttackRelease(note, "8n", time, velocity);
+        previousMonoNote.current = note;
+      } else {
+        previousMonoNote.current = null;
       }
-    });
-  }, [pattern, currentStep]);
-
-  // Timer unique pour le playback (clean à chaque stop/unmount !)
-  const timerRef = useRef(null);
+    } else {
+      Object.keys(pattern).forEach(note => {
+        const stepVal = pattern[note][stepIdx];
+        if (stepVal && stepVal.on) {
+          const velocity = (stepVal.velocity || 100) / 127;
+          synth.triggerAttackRelease(note, "8n", time, velocity);
+        }
+      });
+    }
+  }, [pattern, currentPreset]);
 
   useEffect(() => {
+    if (transportId.current) {
+      Tone.Transport.clear(transportId.current);
+      transportId.current = null;
+    }
     if (!isPlaying) {
-      clearInterval(timerRef.current);
+      Tone.Transport.stop();
+      previousMonoNote.current = null;
       return;
     }
-    playStep(); // Joue le premier step direct
-    timerRef.current = setInterval(() => {
-      setCurrentStep(prev => (prev + 1) % steps);
-    }, (60000 / tempo) / 4);
-    return () => clearInterval(timerRef.current);
-  }, [isPlaying, steps, tempo, playStep]);
+    Tone.Transport.bpm.value = tempo;
+    setCurrentStep(0);
+    let step = 0;
+    transportId.current = Tone.Transport.scheduleRepeat((time) => {
+      step = (step + 1) % steps;
+      setCurrentStep(step);
+      playStep(step, time);
+    }, "16n");
 
-  // Joue à chaque step (évite le "décalage")
-  useEffect(() => {
-    if (isPlaying) playStep();
+    Tone.Transport.start("+0.05");
+    return () => {
+      if (transportId.current) {
+        Tone.Transport.clear(transportId.current);
+        transportId.current = null;
+      }
+      Tone.Transport.stop();
+    };
     // eslint-disable-next-line
-  }, [currentStep]);
+  }, [isPlaying, steps, tempo, playStep]);
 
   const handlePlay = async () => {
     await Tone.start();
+    setCurrentStep(0);
     setIsPlaying(true);
   };
-
   const handleStop = () => {
     setIsPlaying(false);
     setCurrentStep(0);
-    clearInterval(timerRef.current);
     if (synthRef.current && synthRef.current.releaseAll) {
       synthRef.current.releaseAll();
     }
+    previousMonoNote.current = null;
+    Tone.Transport.stop();
+    if (transportId.current) {
+      Tone.Transport.clear(transportId.current);
+      transportId.current = null;
+    }
   };
 
-  // Patch : Stop automatique si on change de synth en lecture
-  function handleSynthTypeChange(type) {
-    if (isPlaying) {
-      handleStop();
-      setTimeout(() => setSynthType(type), 60); // petit délai pour clean l'ancien synth
-    } else {
-      setSynthType(type);
-    }
-  }
-
-  // Changement de nombre de steps (16/32)
-  function handleChangeSteps(newSteps) {
-    if (newSteps === steps) return;
-    setSteps(newSteps);
-    setPattern(prev => {
-      const next = {};
-      Object.keys(prev).forEach(note => {
-        let arr = prev[note] || [];
-        if (arr.length < newSteps) {
-          arr = arr.concat(Array(newSteps - arr.length).fill(0));
-        } else if (arr.length > newSteps) {
-          arr = arr.slice(0, newSteps);
-        }
-        next[note] = arr;
-      });
-      return next;
-    });
-    setCurrentStep(0);
-  }
-
-  // ---- Export MIDI ----
   function exportToMidi() {
     function noteNameToMidi(note) {
       const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -260,206 +256,90 @@ export default function MelodySequencer() {
     }, 100);
   }
 
-  // ---- Randomisation intelligente ----
-  function generateSmartRandom(style) {
-    const allowedNotes = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    setPattern(prev => {
-      const next = {};
-      const notes = Object.keys(prev).filter(n => allowedNotes.includes(n.replace(/[0-9]/g, '')));
-      for (const note of Object.keys(prev)) {
-        next[note] = prev[note].map(() => 0);
-      }
-      if (style === "arp") {
-        let activeNotes = notes.slice(0, Math.min(notes.length, steps));
-        for (let i = 0; i < steps; i++) {
-          const idx = (i % activeNotes.length);
-          next[activeNotes[idx]][i] = { on: true, velocity: 90 + Math.floor(30 * Math.sin(i / activeNotes.length * Math.PI)) };
-        }
-      } else if (style === "bass") {
-        const root = notes[Math.floor(notes.length / 2)];
-        for (let i = 0; i < steps; i++) {
-          if (i % 4 !== 0 && Math.random() < 0.4) continue;
-          next[root][i] = { on: true, velocity: 100 + Math.floor(10 * Math.random()) };
-          if (Math.random() < 0.25 && notes.length > 2)
-            next[notes[Math.floor(Math.random() * notes.length)]][i] = { on: true, velocity: 80 + Math.floor(20 * Math.random()) };
-        }
-      } else if (style === "lead") {
-        let lastIdx = Math.floor(notes.length / 2);
-        for (let i = 0; i < steps; i++) {
-          if (Math.random() < 0.4) continue;
-          let delta = Math.floor(Math.random() * 3) - 1;
-          let idx = Math.max(0, Math.min(notes.length - 1, lastIdx + delta));
-          next[notes[idx]][i] = { on: true, velocity: 90 + Math.floor(30 * Math.random()) };
-          lastIdx = idx;
-        }
-      } else if (style === "pads") {
-        for (let i = 0; i < steps; i += Math.floor(steps / 3)) {
-          const idx = Math.floor(notes.length / 2 + (Math.random() - 0.5) * 2);
-          next[notes[idx]][i] = { on: true, velocity: 80 + Math.floor(20 * Math.random()) };
-        }
-
-        } else if (style === "psy-oldschool") {
-            // Bassline ultra-classique (1 note par pas, souvent sur la fondamentale)
-            let bassNoteIdx = Math.floor(notes.length / 2); // note centrale
-            let motif = [0, 0, 1, 0, 0, 1, 0, 1]; // type "pompompom"
-            for (let i = 0; i < steps; i++) {
-                if (i % motif.length === 0) bassNoteIdx = Math.floor(notes.length / 2) + (Math.random() > 0.7 ? 1 : 0); // Parfois saute d'un demi-ton
-                if (motif[i % motif.length] || (Math.random() < 0.15 && i % 2 === 1)) {
-                next[notes[bassNoteIdx]][i] = { on: true, velocity: 110 + Math.floor(Math.random() * 15) };
-                }
-            }
-            // Mélodie "oldschool" : notes en haut du clavier, sautent un peu, parfois octave up/down
-            let melodyZone = notes.slice(-4); // les 4 notes les plus aigües
-            let melodicMotif = [0, 1, 0, 1, 1, 0, 0, 1];
-            for (let i = 0; i < steps; i++) {
-                if (melodicMotif[i % melodicMotif.length] && Math.random() > 0.6) {
-                let idx = Math.floor(Math.random() * melodyZone.length);
-                next[melodyZone[idx]][i] = { on: true, velocity: 90 + Math.floor(Math.random() * 25) };
-                }
-            }
-
-      } else {
-        for (let i = 0; i < steps; i++) {
-          if (Math.random() < 0.5) continue;
-          let idx = Math.floor(Math.random() * notes.length);
-          next[notes[idx]][i] = { on: true, velocity: 80 + Math.floor(40 * Math.random()) };
-        }
-      }
-      return next;
-    });
+  function handleRandomValidate(params) {
+    // TOUJOURS rebuild le pattern pour la grille courante
+    setPattern(pat => buildPattern(generateMusicalPattern({
+      ...params,
+      steps,
+      octaves: { min: minOctave, max: maxOctave }
+    }), steps, minOctave, maxOctave));
+    setRandomParams(params);
+    setRandomVisible(false);
   }
 
+  const handleClear = () => {
+    setPattern(buildPattern(null, steps, minOctave, maxOctave));
+    setCurrentStep(0);
+    // Arrête toute note, tout synthé, TOUT DE SUITE :
+    if (synthRef.current) {
+      synthRef.current.releaseAll && synthRef.current.releaseAll();
+      synthRef.current.triggerRelease && synthRef.current.triggerRelease();
+    }
+    previousMonoNote.current = null;
+  };
+
+
   return (
+    
     <div className="sequencer">
-      <div className="header">
-        <div className="header-titles">
-          <div className="logo">MELODY SEQUENCER</div>
-          <div className="subtitle">AI-POWERED ELECTRONIC MUSIC GENERATOR</div>
+      <div className="app-title"
+      style={{
+        fontSize: 30,
+        fontWeight: 800,
+        letterSpacing: 1,
+        margin: "14px 0 12px 0",
+        color: "#00eaff",
+        textShadow: "0 2px 18px #00eaff66"
+          }}>
+          MELODY SEQUENCER PRO
         </div>
-        <div className={`status-indicator${isPlaying ? " active" : ""}`} id="statusIndicator"></div>
-      </div>
 
-      <div className="ai-input">
-        <input
-          type="text"
-          className="input-field"
-          id="melodyInput"
-          placeholder="Describe your melody (e.g., 'trance arpeggio', ...)"
-          autoComplete="off"
-        />
-        <button className="btn primary" id="generateBtn">Generate</button>
-      </div>
-
-      <div className="idea-buttons">
-        <span className="idea-label">Quick Ideas:</span>
-        <button className="btn idea-btn" data-idea="trance uplifting arpeggio">Trance Arp</button>
-        <button className="btn idea-btn" data-idea="psytrance rolling bassline">Psy Bass</button>
-        <button className="btn idea-btn" data-idea="ambient floating pad">Ambient Pad</button>
-        <button className="btn idea-btn" data-idea="downtempo jazzy chord progression">Downtempo</button>
-        <button className="btn idea-btn" data-idea="goa trance acid lead">Goa Acid</button>
-        <button className="btn idea-btn" data-idea="progressive house melody">Progressive</button>
-      </div>
-
-      <div className="divider"></div>
-
+      {/* ... HEADER, CONTROLS, etc ... */}
       <div className="controls-section">
         <div className="transport-controls">
           <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}>Play</button>
           <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
-          <button className="btn" id="clearBtn" onClick={() => setPattern(createPattern())}>Clear</button>
+          <button className="btn" id="clearBtn" onClick={handleClear}>Clear</button>
           <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}>Random</button>
           <button
             className="btn"
             id="exportMidiBtn"
             onClick={exportToMidi}
             disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
-          >
-            Export MIDI
-          </button>
+          >Export MIDI</button>
+          <div className="steps-control">
+
+</div>
+
         </div>
-        <div className="control-group">
-          <div className="control-group">
-            <span className="control-label">Tempo</span>
-            <input
-              type="range"
-              className="slider"
-              id="tempoSlider"
-              min="60"
-              max="180"
-              value={tempo}
-              onChange={e => setTempo(Number(e.target.value))}
-            />
-            <span className="value-display" id="tempoValue">{tempo} BPM</span>
-          </div>
-          <div className="octave-controls">
-            <div className="octave-block">
-              <span className="control-label">Octave Min</span>
-              <input
-                type="range"
-                id="octaveMinSlider"
-                min="1"
-                max="6"
-                value={minOctave}
-                onChange={e => setMinOctave(Number(e.target.value))}
-              />
-              <span id="octaveMinValue" className="value-display">{minOctave}</span>
-            </div>
-            <div className="octave-block">
-              <span className="control-label">Octave Max</span>
-              <input
-                type="range"
-                id="octaveMaxSlider"
-                min="2"
-                max="7"
-                value={maxOctave}
-                onChange={e => setMaxOctave(Number(e.target.value))}
-              />
-              <span id="octaveMaxValue" className="value-display">{maxOctave}</span>
-            </div>
-          </div>
-        </div>
+        {/* ... autres contrôles (octaves, tempo, preset) ... */}
         <div className="control-group">
           <span className="control-label">Son</span>
-          <button
-          className="btn"
-          style={{ marginLeft: 10, minWidth: 80 }}
-          onClick={() => setSynthPopupOpen(true)}
-        >
-          Éditer son
-        </button>
           <select
             id="soundSelector"
             className="input-field"
             style={{ maxWidth: "120px" }}
-            value={synthType}
+            value={presetKey}
+            onChange={e => setPresetKey(e.target.value)}
             disabled={isPlaying}
-            onChange={e => handleSynthTypeChange(e.target.value)}
           >
-            {synthTypes.map(opt =>
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            {SYNTH_PRESETS.map(opt =>
+              <option key={opt.key} value={opt.key}>{opt.label}</option>
             )}
           </select>
+          <button
+            className="btn"
+            style={{ marginLeft: 10, minWidth: 80 }}
+            onClick={() => setSynthPopupOpen(true)}
+            disabled={isPlaying}
+          >
+            Éditer son
+          </button>
         </div>
       </div>
+      {/* ... */}
 
-      <div className="waveform-visualizer">
-        <canvas className="waveform-canvas" id="waveformCanvas"></canvas>
-      </div>
-        {randomParams &&
-        <button className="btn" onClick={() => {
-            setPattern(generateMusicalPattern({
-            rootNote: params.rootNote,
-            scale: params.scale,
-            style: params.style,
-            mood: params.mood,
-            part: params.part,
-            steps,
-            octaves: { min: minOctave, max: maxOctave }
-            }));
-        }}>
-            Régénérer ce motif
-        </button>
-}
+
       <PianoRoll
         minOctave={minOctave}
         maxOctave={maxOctave}
@@ -470,43 +350,12 @@ export default function MelodySequencer() {
         currentStep={isPlaying ? currentStep : null}
         onChangeSteps={handleChangeSteps}
       />
-
-      <div className="presets">
-        <button className="btn preset-btn" data-preset="trance" disabled>Trance</button>
-        <button className="btn preset-btn" data-preset="psytrance" disabled>Psytrance</button>
-        <button className="btn preset-btn" data-preset="ambient" disabled>Ambient</button>
-        <button className="btn preset-btn" data-preset="downtempo" disabled>Downtempo</button>
-        <button className="btn preset-btn" data-preset="goa" disabled>Goa</button>
-        <button className="btn preset-btn" data-preset="progressive" disabled>Progressive</button>
-      </div>
-
-      <div className="status-message" id="statusMessage"></div>
-
-        <RandomPopup
+      <RandomPopup
         visible={randomVisible}
-        onValidate={params => {
-            setPattern(generateMusicalPattern({
-            ...params,
-            steps,
-            octaves: { min: minOctave, max: maxOctave }
-            }));
-            setRandomParams(params); // Pour le bouton "régénérer" plus tard
-            setRandomVisible(false);
-        }}
+        onValidate={handleRandomValidate}
         onCancel={() => setRandomVisible(false)}
         defaultParams={randomParams}
-        />
-        {randomParams &&
-        <button className="btn" onClick={() => {
-            setPattern(generateMusicalPattern({
-            ...randomParams,
-            steps,
-            octaves: { min: minOctave, max: maxOctave }
-            }));
-        }}>
-            Régénérer ce motif
-        </button>
-}
+      />
       <SynthPopup
         visible={synthPopupOpen}
         current={presetKey}
@@ -516,7 +365,6 @@ export default function MelodySequencer() {
         }}
         onCancel={() => setSynthPopupOpen(false)}
       />
-
     </div>
   );
 }
