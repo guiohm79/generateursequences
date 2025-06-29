@@ -82,16 +82,31 @@ export default function PianoRoll({
       </div>
       {/* Header steps avec surbrillance */}
       <div className="note-row step-header-row" style={{ userSelect: "none", position: "sticky", top: 0, zIndex: 2, background: "#191c23" }}>
-        <div className="note-label" style={{ background: "transparent", border: "none" }}></div>
+        <div 
+          className="note-label" 
+          style={{ 
+            background: "transparent", 
+            border: "none",
+            width: "60px" // Même largeur que les labels de notes (60px)
+          }}
+        ></div>
         {Array(steps).fill().map((_, i) => (
           <div
             key={i}
             className={`step-header-cell${currentStep === i ? " current-step" : ""}`}
-            style={currentStep === i ? {
-              background: "#00eaff44",
-              color: "#00eaff",
-              fontWeight: 700
-            } : {}}
+            style={{
+              ...(currentStep === i ? {
+                background: "#00eaff44",
+                color: "#00eaff",
+                fontWeight: 700
+              } : {}),
+              width: "28px", // Même largeur que les cellules
+              height: "24px",
+              margin: "1px", // Même marge que les cellules
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center"
+            }}
           >
             {i + 1}
           </div>
@@ -100,17 +115,41 @@ export default function PianoRoll({
       <div
         className="piano-grid"
         style={{
-          maxHeight: "56vh",
+          maxHeight: "65vh", // Augmentation de la hauteur maximale
           overflowY: "auto",
           overflowX: "auto",
-          borderRadius: 8,
+          borderRadius: 12, // Bordure plus arrondie
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Ajout d'une ombre
+          padding: "4px 0", // Ajout de padding vertical
         }}
       >
 {pianoNotes.map(note => (
-  <div className="note-row" key={note}>
-    <div className={`note-label${note.includes("#") ? " black-key" : ""}`}>{note}</div>
+  <div className="note-row" key={note} style={{ marginBottom: "2px" }}> {/* Espacement entre les rangées */}
+    <div 
+      className={`note-label${note.includes("#") ? " black-key" : ""}`}
+      style={{ 
+        width: "60px", // Encore plus large pour les labels de notes
+        fontSize: "0.95rem", // Texte légèrement plus grand
+        fontWeight: note.includes("#") ? "normal" : "bold", // Notes naturelles en gras
+        borderRadius: "6px 0 0 6px", // Coins plus arrondis côté gauche
+        display: "flex",
+        alignItems: "center", // Centrer verticalement
+        justifyContent: "flex-end", // Aligner à droite
+        paddingRight: "10px", // Espace à droite
+        boxShadow: note.includes("#") ? "inset 0 0 0 1px rgba(255,255,255,0.1)" : "inset 0 0 0 1px rgba(255,255,255,0.2)", // Bordure subtile
+        background: note.includes("#") ? "linear-gradient(to right, #1a1c25, #252736)" : "linear-gradient(to right, #252736, #2c2e40)", // Dégradé subtil
+        color: note.includes("#") ? "#8af" : "#fff", // Couleur différente pour les dièses
+        letterSpacing: "0.5px", // Espacement des lettres
+      }}
+    >
+      {/* Afficher la note de manière plus lisible */}
+      <span style={{ fontWeight: "bold" }}>{note.replace(/([0-9])/g, '')}</span>
+      <span style={{ opacity: 0.7, fontSize: "0.8em", marginLeft: "2px" }}>
+        {note.match(/[0-9]/)?.[0]}
+      </span>
+    </div>
     {Array(steps).fill().map((_, i) => {
-      const cell = pattern[note] && pattern[note][i] !== undefined ? pattern[note][i] : 0;
+      const cell = pattern[note] && pattern[note][i] !== undefined ? pattern[note][i] : null;
       const vel = cell && cell.on ? (cell.velocity || 100) : null;
       return (
         <div
@@ -118,23 +157,31 @@ export default function PianoRoll({
           className={
             "step-cell" +
             (cell && cell.on ? " active" : "") +
-            (currentStep === i && cell && cell.on ? " playing" : "")
+            (currentStep === i && cell && cell.on ? " playing" : "") +
+            (currentStep === i ? " current-column" : "") // Nouvelle classe pour la colonne actuelle
           }
-          style={cell && cell.on ? {
-            background: `linear-gradient(to top, #00eaff ${(vel/127)*100}%, #252736 ${(vel/127)*100}%)`,
-            position: "relative"
-          } : { position: "relative" }}
-          title={vel ? `Vel: ${vel}` : ""}
+          style={{
+            ...(cell && cell.on ? {
+              background: `linear-gradient(to top, #00eaff ${(vel/127)*100}%, #252736 ${(vel/127)*100}%)`,
+              boxShadow: "0 0 8px rgba(0, 234, 255, 0.4)", // Lueur pour les notes actives
+            } : {}),
+            position: "relative",
+            width: "28px", // Cellules plus larges
+            height: "28px", // Cellules plus hautes
+            margin: "1px", // Marge entre les cellules
+            borderRadius: "4px", // Coins arrondis pour les cellules
+            transition: "all 0.1s ease", // Animation douce
+          }}
+          title={vel ? `Vélocité: ${vel}` : ""}
           onMouseDown={e => handleMouseDown(note, i, e)}
         >
-          {/* Affiche la barre de vélocité SEULEMENT si la note est active */}
+          {/* Indicateur de vélocité plus visible */}
 
         </div>
       );
     })}
   </div>
 ))}
-
       </div>
     </div>
   );

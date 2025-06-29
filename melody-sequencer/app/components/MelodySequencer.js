@@ -336,6 +336,112 @@ export default function MelodySequencer() {
     }
     previousMonoNote.current = null;
   };
+  
+  // Fonction pour monter toutes les notes actives d'une octave
+  const shiftOctaveUp = () => {
+    // Récupérer toutes les notes actives avec leur position et vélocité
+    const activeNotes = [];
+    Object.keys(pattern).forEach(note => {
+      // Pour chaque note, vérifier les steps actifs
+      if (Array.isArray(pattern[note])) {
+        pattern[note].forEach((cell, stepIndex) => {
+          if (cell && cell.on) {
+            // Décomposer la note en nom et octave (ex: "C4" => "C" et 4)
+            const noteName = note.replace(/[0-9]/g, '');
+            const octave = parseInt(note.replace(/[^0-9]/g, ''));
+            
+            // Ajouter à notre liste de notes actives
+            activeNotes.push({
+              originalNote: note,
+              noteName,
+              octave,
+              stepIndex,
+              velocity: cell.velocity || 100
+            });
+          }
+        });
+      }
+    });
+    
+    // Nettoyer d'abord le pattern actuel (supprimer toutes les notes actives)
+    const newPattern = {};
+    Object.keys(pattern).forEach(note => {
+      if (Array.isArray(pattern[note])) {
+        newPattern[note] = pattern[note].map(cell => 
+          cell && cell.on ? 0 : cell
+        );
+      } else {
+        newPattern[note] = pattern[note];
+      }
+    });
+    
+    // Placer les notes à leur nouvelle position (octave supérieure)
+    activeNotes.forEach(({ noteName, octave, stepIndex, velocity }) => {
+      const newOctave = Math.min(9, octave + 1); // Limite supérieure à l'octave 9
+      const newNote = `${noteName}${newOctave}`;
+      
+      // Vérifier que la nouvelle note existe dans notre pattern
+      if (newPattern[newNote] && Array.isArray(newPattern[newNote])) {
+        newPattern[newNote][stepIndex] = { on: true, velocity };
+      }
+    });
+    
+    // Mettre à jour le pattern
+    setPattern(newPattern);
+  };
+  
+  // Fonction pour descendre toutes les notes actives d'une octave
+  const shiftOctaveDown = () => {
+    // Récupérer toutes les notes actives avec leur position et vélocité
+    const activeNotes = [];
+    Object.keys(pattern).forEach(note => {
+      // Pour chaque note, vérifier les steps actifs
+      if (Array.isArray(pattern[note])) {
+        pattern[note].forEach((cell, stepIndex) => {
+          if (cell && cell.on) {
+            // Décomposer la note en nom et octave (ex: "C4" => "C" et 4)
+            const noteName = note.replace(/[0-9]/g, '');
+            const octave = parseInt(note.replace(/[^0-9]/g, ''));
+            
+            // Ajouter à notre liste de notes actives
+            activeNotes.push({
+              originalNote: note,
+              noteName,
+              octave,
+              stepIndex,
+              velocity: cell.velocity || 100
+            });
+          }
+        });
+      }
+    });
+    
+    // Nettoyer d'abord le pattern actuel (supprimer toutes les notes actives)
+    const newPattern = {};
+    Object.keys(pattern).forEach(note => {
+      if (Array.isArray(pattern[note])) {
+        newPattern[note] = pattern[note].map(cell => 
+          cell && cell.on ? 0 : cell
+        );
+      } else {
+        newPattern[note] = pattern[note];
+      }
+    });
+    
+    // Placer les notes à leur nouvelle position (octave inférieure)
+    activeNotes.forEach(({ noteName, octave, stepIndex, velocity }) => {
+      const newOctave = Math.max(0, octave - 1); // Limite inférieure à l'octave 0
+      const newNote = `${noteName}${newOctave}`;
+      
+      // Vérifier que la nouvelle note existe dans notre pattern
+      if (newPattern[newNote] && Array.isArray(newPattern[newNote])) {
+        newPattern[newNote][stepIndex] = { on: true, velocity };
+      }
+    });
+    
+    // Mettre à jour le pattern
+    setPattern(newPattern);
+  };
 
 
   return (
@@ -366,6 +472,28 @@ export default function MelodySequencer() {
             onClick={exportToMidi}
             disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
           >Export MIDI</button>
+          
+          {/* Boutons pour décaler les octaves */}
+          <div style={{ display: "flex", gap: "5px", marginLeft: "10px" }}>
+            <button 
+              className="btn" 
+              onClick={shiftOctaveDown}
+              title="Décaler toutes les notes actives d'une octave vers le bas"
+              disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+              style={{ minWidth: "40px", padding: "0 8px" }}
+            >
+              <span style={{ fontSize: "16px" }}>↓ Oct</span>
+            </button>
+            <button 
+              className="btn" 
+              onClick={shiftOctaveUp}
+              title="Décaler toutes les notes actives d'une octave vers le haut"
+              disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+              style={{ minWidth: "40px", padding: "0 8px" }}
+            >
+              <span style={{ fontSize: "16px" }}>↑ Oct</span>
+            </button>
+          </div>
           <div className="steps-control">
 
 </div>

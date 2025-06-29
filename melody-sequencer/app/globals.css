@@ -310,27 +310,28 @@ body {
 
 .note-row {
     display: flex;
-    gap: 2px;
+    gap: 0;
     align-items: center;
-    min-height: 32px;
+    min-height: 30px;
 }
 
 .note-label {
-    width: 50px;
-    min-width: 50px;
+    width: 60px;
+    min-width: 60px;
     max-width: 60px;
-    margin-right: 4px;
+    margin-right: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 6px 0 0 6px;
     padding: 8px;
     font-size: 11px;
     font-weight: 500;
     color: var(--text-primary);
-    height: 32px;
+    height: 28px;
+    box-sizing: border-box;
 }
 
 .note-label.black-key {
@@ -341,21 +342,22 @@ body {
 }
 
 .step-cell {
-    width: 32px;
-    min-width: 24px;
-    max-width: 38px;
+    width: 28px;
+    min-width: 28px;
+    max-width: 28px;
     aspect-ratio: 1;
     background: var(--step-inactive);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
-    margin-bottom: 2px;
-    height: 32px;
+    margin: 1px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
 }
 
 .step-cell:hover {
@@ -500,19 +502,17 @@ body {
 
 /* Step Header Cell */
 .step-header-cell {
-    width: 32px;
-    min-width: 24px;
-    max-width: 38px;
+    width: 28px;
     height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 11px;
     color: var(--text-secondary);
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-    margin-bottom: 2px;
-    border: 1px solid var(--border);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    margin: 1px;
+    box-sizing: border-box;
 }
 
 .velocity-slider {
