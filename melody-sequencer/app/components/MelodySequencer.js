@@ -316,12 +316,21 @@ export default function MelodySequencer() {
   }
 
   function handleRandomValidate(params) {
-    // TOUJOURS rebuild le pattern pour la grille courante
+    // Si le nombre de pas a changé, mettre à jour le nombre de pas du séquenceur
+    if (params.steps && params.steps !== steps) {
+      setSteps(params.steps);
+    }
+    
+    // Utiliser le nombre de pas sélectionné dans le popup ou le nombre de pas actuel
+    const stepsToUse = params.steps || steps;
+    
+    // Générer le pattern avec les paramètres sélectionnés
     setPattern(pat => buildPattern(generateMusicalPattern({
       ...params,
-      steps,
+      steps: stepsToUse,
       octaves: { min: minOctave, max: maxOctave }
-    }), steps, minOctave, maxOctave));
+    }), stepsToUse, minOctave, maxOctave));
+    
     setRandomParams(params);
     setRandomVisible(false);
   }

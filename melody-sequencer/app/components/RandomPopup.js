@@ -27,6 +27,10 @@ const PARTS = [
   { key: "bassline", label: "Bassline" },
   { key: "pad", label: "Pad" },
 ];
+const STEPS_OPTIONS = [
+  { value: 16, label: "16 pas" },
+  { value: 32, label: "32 pas" }
+];
 
 export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
   const [root, setRoot] = useState(defaultParams?.rootNote || "C");
@@ -34,6 +38,7 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
   const [style, setStyle] = useState(defaultParams?.style || "psy-oldschool");
   const [mood, setMood] = useState(defaultParams?.mood || "default");
   const [part, setPart] = useState(defaultParams?.part || "music");
+  const [steps, setSteps] = useState(defaultParams?.steps || 16);
 
   if (!visible) return null;
 
@@ -71,11 +76,18 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
             {PARTS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
         </label>
+        <label>
+          Nombre de pas&nbsp;:
+          <select value={steps} onChange={e => setSteps(parseInt(e.target.value))}>
+            <option value="16">16 pas</option>
+            <option value="32">32 pas</option>
+          </select>
+        </label>
         <div className="random-popup-actions">
           <button className="btn" onClick={onCancel}>Annuler</button>
           <button
             className="btn primary"
-            onClick={() => onValidate({ rootNote: root, scale, style, mood, part })}
+            onClick={() => onValidate({ rootNote: root, scale, style, mood, part, steps })}
           >Générer</button>
         </div>
       </div>
