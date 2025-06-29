@@ -371,29 +371,75 @@ export default function MelodySequencer() {
 </div>
 
         </div>
-        {/* ... autres contrôles (octaves, tempo, preset) ... */}
-        <div className="control-group">
-          <span className="control-label">Son</span>
-          <select
-            id="soundSelector"
-            className="input-field"
-            style={{ maxWidth: "120px" }}
-            value={presetKey}
-            onChange={e => setPresetKey(e.target.value)}
-            disabled={isPlaying}
-          >
-            {SYNTH_PRESETS.map(opt =>
-              <option key={opt.key} value={opt.key}>{opt.label}</option>
-            )}
-          </select>
-          <button
-            className="btn"
-            style={{ marginLeft: 10, minWidth: 80 }}
-            onClick={() => setSynthPopupOpen(true)}
-            disabled={isPlaying}
-          >
-            Éditer son
-          </button>
+        
+        {/* Contrôles principaux */}
+        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", margin: "10px 0" }}>
+          {/* Contrôle du tempo */}
+          <div className="control-group">
+            <span className="control-label">Tempo</span>
+            <input 
+              type="number" 
+              className="input-field"
+              style={{ width: "60px", textAlign: "center" }}
+              min="60"
+              max="240"
+              value={tempo}
+              onChange={(e) => {
+                const value = parseInt(e.target.value);
+                if (value >= 60 && value <= 240) {
+                  setTempo(value);
+                  if (isPlaying) {
+                    // Mise à jour du tempo en temps réel
+                    Tone.Transport.bpm.value = value;
+                  }
+                }
+              }}
+            />
+            <span style={{ marginLeft: "5px", fontSize: "0.9rem", color: "#8af" }}>BPM</span>
+            <div style={{ display: "flex", marginTop: "5px" }}>
+              <input
+                type="range"
+                min="60"
+                max="240"
+                step="1"
+                value={tempo}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  setTempo(value);
+                  if (isPlaying) {
+                    // Mise à jour du tempo en temps réel
+                    Tone.Transport.bpm.value = value;
+                  }
+                }}
+                style={{ width: "120px" }}
+              />
+            </div>
+          </div>
+          
+          {/* Contrôle du son */}
+          <div className="control-group">
+            <span className="control-label">Son</span>
+            <select
+              id="soundSelector"
+              className="input-field"
+              style={{ maxWidth: "120px" }}
+              value={presetKey}
+              onChange={e => setPresetKey(e.target.value)}
+              disabled={isPlaying}
+            >
+              {SYNTH_PRESETS.map(opt =>
+                <option key={opt.key} value={opt.key}>{opt.label}</option>
+              )}
+            </select>
+            <button
+              className="btn"
+              style={{ marginLeft: 10, minWidth: 80 }}
+              onClick={() => setSynthPopupOpen(true)}
+              disabled={isPlaying}
+            >
+              Éditer son
+            </button>
+          </div>
         </div>
       </div>
       {/* ... */}
