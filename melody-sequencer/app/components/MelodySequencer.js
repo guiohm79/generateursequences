@@ -568,6 +568,136 @@ export default function MelodySequencer() {
               Éditer son
             </button>
           </div>
+          
+          {/* Contrôle des octaves */}
+          <div className="control-group">
+            <span className="control-label">PLAGE D'OCTAVES</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => {
+                    if (minOctave > 0) {
+                      setMinOctave(minOctave - 1);
+                    }
+                  }}
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    marginRight: "5px"
+                  }}
+                  disabled={minOctave <= 0}
+                >
+                  -
+                </button>
+                <div 
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    backgroundColor: "#00D4FF", 
+                    color: "#000000", 
+                    borderRadius: "8px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "20px",
+                    fontWeight: "bold"
+                  }}
+                >
+                  {minOctave}
+                </div>
+                <button 
+                  className="btn" 
+                  onClick={() => {
+                    if (minOctave < maxOctave - 1) {
+                      setMinOctave(minOctave + 1);
+                    }
+                  }}
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    marginLeft: "5px"
+                  }}
+                  disabled={minOctave >= maxOctave - 1}
+                >
+                  +
+                </button>
+              </div>
+              
+              <span style={{ margin: "0 5px" }}>à</span>
+              
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <button 
+                  className="btn" 
+                  onClick={() => {
+                    if (maxOctave > minOctave + 1) {
+                      setMaxOctave(maxOctave - 1);
+                    }
+                  }}
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    marginRight: "5px"
+                  }}
+                  disabled={maxOctave <= minOctave + 1}
+                >
+                  -
+                </button>
+                <div 
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    backgroundColor: "#00D4FF", 
+                    color: "#000000", 
+                    borderRadius: "8px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "20px",
+                    fontWeight: "bold"
+                  }}
+                >
+                  {maxOctave}
+                </div>
+                <button 
+                  className="btn" 
+                  onClick={() => {
+                    if (maxOctave < 8) {
+                      setMaxOctave(maxOctave + 1);
+                    }
+                  }}
+                  style={{ 
+                    width: "30px", 
+                    height: "30px", 
+                    padding: "0", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "center",
+                    fontSize: "16px",
+                    marginLeft: "5px"
+                  }}
+                  disabled={maxOctave >= 8}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {/* ... */}
@@ -587,7 +717,10 @@ export default function MelodySequencer() {
         visible={randomVisible}
         onValidate={handleRandomValidate}
         onCancel={() => setRandomVisible(false)}
-        defaultParams={randomParams}
+        defaultParams={{
+          ...randomParams,
+          octaves: { min: minOctave, max: maxOctave }
+        }}
       />
       <SynthPopup
         visible={synthPopupOpen}
