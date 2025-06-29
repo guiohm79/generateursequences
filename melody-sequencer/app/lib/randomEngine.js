@@ -30,61 +30,65 @@ function getScale(rootNote, scaleType, octaves) {
 // ===== ALGORITHMES DE PATTERN SELON STYLE/PART =====
 
 // BASSLINE – Patterns de basse en fonction du style
+// BASSLINE – rolling 1/16 (psy / goa) ou off-beat (prog / deep) inspiré
+// https://www.youtube.com/watch?v=oMFxRnCIdMo  rolling bassline tuto
+// https://www.youtube.com/watch?v=vjR_Puh7E5o  kick & bass en key
 function basslinePattern({ allNotes, rootNote, steps, mood, style }) {
-  // Index de la fondamentale dans allNotes (première occurrence, plus grave)
+  // 1. On localise la fondamentale la plus grave de la gamme
   let rootIdx = allNotes.findIndex(n => n.startsWith(rootNote));
   if (rootIdx === -1) rootIdx = 0;
-  // Tableau initial de la ligne de basse (tous pas à off = 0)
-  let bassArray = Array(steps).fill(0);
 
+  // 2. On crée un tableau initial rempli de silences (0)
+  const arr = Array(steps).fill(0);
+
+  // ---- ROLLING 1/16 : Psy / Goa  ----
   if (style === "psy-oldschool" || style === "goa") {
-    // Pattern psytrance/goa : basse roulante sur toutes les doubles-croches sauf le kick
+    // pattern 0-1-1-1 (le 0 = kick)  quatre pas par temps
     for (let i = 0; i < steps; i++) {
-      if (i % 4 === 0) {
-        // Silence sur chaque temps fort (kick)
-        bassArray[i] = 0;
-      } else {
-        // Note de basse sur les 3 autres pas
-        let velocity = (i % 4 === 1) 
-          ? (mood === "punchy" ? 127 : 120)   // accent sur la première note après le kick
-          : 100;
-        // En mode "soft", on peut omettre la troisième note de chaque groupe de 3 pour adoucir
-        if (mood === "soft" && i % 4 === 3) {
-          bassArray[i] = 0;
-        } else {
-          bassArray[i] = { on: true, velocity };
-        }
-      }
+      const posInBeat = i % 4;            // 0 1 2 3
+      if (posInBeat === 0) continue;      // silence sur le kick
+      // Accent sur le premier 1/16 après le kick
+      const velocity =
+        posInBeat === 1 ? (mood === "punchy" ? 127 : 120)
+                        : 90 + Math.floor(Math.random() * 20);
+      // En mode soft on supprime la 3ᵉ note (posInBeat === 3)
+      if (mood === "soft" && posInBeat === 3) continue;
+      arr[i] = { on: true, velocity };
     }
-  } else if (style === "prog") {
-    // Pattern progressive : basse sur les contretemps (off-beat 1/8)
+  }
+
+  // ---- OFF-BEAT : Progressive / Deep Techno  ----
+  else if (style === "prog") {
+    // note sur la 2ᵉ double-croche de chaque temps (posInBeat === 2)
     for (let i = 0; i < steps; i++) {
       if (i % 4 === 2) {
-        // Note sur le "et" du temps (2ème double-croche de chaque temps)
-        let velocity = (mood === "punchy" ? 127 : 110);
-        bassArray[i] = { on: true, velocity };
-      }
-    }
-  } else {
-    // Pattern par défaut : notes sur chaque temps 1/8, avec quelques variations aléatoires
-    for (let i = 0; i < steps; i++) {
-      if (i % 2 === 0) {
-        // Note sur chaque temps pair (0,2,4...): pulse régulière
-        bassArray[i] = { on: true, velocity: mood === "punchy" ? 120 : 110 };
-      } else if (Math.random() < 0.2 && mood !== "soft") {
-        // 20% de chances de placer une note faible sur un off-beat impair
-        bassArray[i] = { on: true, velocity: 60 + Math.floor(Math.random() * 40) };
+        arr[i] = {
+          on: true,
+          velocity: mood === "punchy" ? 120 : 105
+        };
       }
     }
   }
 
-  // Construction de l'objet pattern : seule la note fondamentale reçoit le motif de basse
-  let pattern = {};
+  // ---- Par défaut : pulse 1/8 + remplissage aléatoire  ----
+  else {
+    for (let i = 0; i < steps; i++) {
+      if (i % 2 === 0) {
+        arr[i] = { on: true, velocity: 105 };
+      } else if (Math.random() < 0.20 && mood !== "soft") {
+        arr[i] = { on: true, velocity: 70 + Math.floor(Math.random() * 30) };
+      }
+    }
+  }
+
+  // 3. Construction de l’objet final : seule la ligne fondamentale reçoit le motif
+  const pattern = {};
   allNotes.forEach((note, idx) => {
-    pattern[note] = (idx === rootIdx) ? bassArray : Array(steps).fill(0);
+    pattern[note] = idx === rootIdx ? arr : Array(steps).fill(0);
   });
   return pattern;
 }
+
 
 // MELODY/LEAD – Pattern psytrance oldschool
 function psyOldschoolPattern({ allNotes, rootNote, steps, mood }) {
