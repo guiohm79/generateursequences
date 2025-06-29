@@ -109,13 +109,23 @@ export default function MelodySequencer() {
       return { ...prev, [note]: line };
     });
   };
-  // Playback via Tone.Transport
+  // Playback via Tone.Transport - Optimisé pour réduire la latence
   const playStep = useCallback((stepIdx, time) => {
     const synth = synthRef.current;
     if (!synth) return;
+    
+    // S'assurer que stepIdx est un nombre valide
+    if (stepIdx === undefined || stepIdx < 0 || stepIdx >= steps) return;
+    
     const isMono = currentPreset?.synthType === "MonoSynth";
     if (isMono) {
-      const activeNotes = Object.keys(pattern).filter(note => pattern[note][stepIdx] && pattern[note][stepIdx].on);
+      const activeNotes = Object.keys(pattern).filter(note => 
+        pattern[note] && 
+        Array.isArray(pattern[note]) && 
+        pattern[note][stepIdx] && 
+        pattern[note][stepIdx].on
+      );
+      
       if (activeNotes.length) {
         const note = activeNotes.sort((a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi())[0];
         const stepVal = pattern[note][stepIdx];
@@ -126,15 +136,29 @@ export default function MelodySequencer() {
         previousMonoNote.current = null;
       }
     } else {
+      // Pour le Poly mode, utiliser un ensemble de notes pour éviter les doublons
+      const notesToPlay = new Set();
+      
       Object.keys(pattern).forEach(note => {
+        if (!pattern[note] || !Array.isArray(pattern[note])) return;
+        
         const stepVal = pattern[note][stepIdx];
         if (stepVal && stepVal.on) {
-          const velocity = (stepVal.velocity || 100) / 127;
-          synth.triggerAttackRelease(note, "8n", time, velocity);
+          notesToPlay.add({
+            note,
+            velocity: (stepVal.velocity || 100) / 127
+          });
         }
       });
+      
+      // Jouer les notes uniquement si elles existent
+      if (notesToPlay.size > 0) {
+        notesToPlay.forEach(noteData => {
+          synth.triggerAttackRelease(noteData.note, "8n", time, noteData.velocity);
+        });
+      }
     }
-  }, [pattern, currentPreset]);
+  }, [pattern, currentPreset, steps]);
 
   useEffect(() => {
     if (transportId.current) {
@@ -146,16 +170,36 @@ export default function MelodySequencer() {
       previousMonoNote.current = null;
       return;
     }
+    
+    // Configuration précise du transport
     Tone.Transport.bpm.value = tempo;
+    Tone.Transport.cancel(); // Annuler tous les événements précédents
+    
+    // Initialiser currentStep à 0 au début
     setCurrentStep(0);
     let step = 0;
+    
+    // Jouer le premier pas immédiatement
+    const scheduleFirstStep = () => {
+      // Utiliser l'API précise de Tone.js avec contexte AudioContext
+      const startTime = Tone.immediate();
+      playStep(0, startTime);
+    };
+    
+    // Planifier les pas suivants avec précision
     transportId.current = Tone.Transport.scheduleRepeat((time) => {
+      // Incrémenter le pas après avoir joué le pas actuel
       step = (step + 1) % steps;
       setCurrentStep(step);
       playStep(step, time);
     }, "16n");
-
-    Tone.Transport.start("+0.05");
+    
+    // Démarrer le transport avec le minimum de latence
+    Tone.context.resume().then(() => {
+      Tone.Transport.start();
+      scheduleFirstStep();
+    });
+    
     return () => {
       if (transportId.current) {
         Tone.Transport.clear(transportId.current);
@@ -167,9 +211,24 @@ export default function MelodySequencer() {
   }, [isPlaying, steps, tempo, playStep]);
 
   const handlePlay = async () => {
-    await Tone.start();
-    setCurrentStep(0);
-    setIsPlaying(true);
+    try {
+      // S'assurer que le contexte audio est démarré correctement
+      await Tone.context.resume();
+      await Tone.start();
+      
+      // Réinitialiser l'état
+      setCurrentStep(0);
+      
+      // S'assurer que toutes les notes précédentes sont relâchées
+      if (synthRef.current && synthRef.current.releaseAll) {
+        synthRef.current.releaseAll();
+      }
+      
+      // Activer la lecture
+      setIsPlaying(true);
+    } catch (err) {
+      console.error("Erreur lors du démarrage de l'audio:", err);
+    }
   };
   const handleStop = () => {
     setIsPlaying(false);
