@@ -66,7 +66,6 @@
         .note-label { width: 50px; min-width: 50px; max-width: 60px; margin-right: 4px; display: flex; align-items: center; justify-content: center; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 8px; padding: 8px; font-size: 11px; font-weight: 500; color: var(--text-primary); height: 32px;}
         .note-label.black-key { background: #22232b; color: #b5b5ce; border: 1px solid #555583; font-style: italic;}
         .step-cell { width: 32px; min-width: 24px; max-width: 38px; aspect-ratio: 1; background: var(--step-inactive); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: all 0.2s ease; position: relative; margin-bottom: 2px; height: 32px; display: flex; align-items: center; justify-content: center;}
-        .step-cell:hover { background: var(--step-hover); border-color: var(--accent); transform: scale(1.05);}
         .step-cell.active { background: var(--step-active); border-color: var(--step-active); box-shadow: 0 0 12px rgba(0, 212, 255, 0.4);}
         .step-cell.playing { background: var(--step-playing) !important; border-color: var(--step-playing); box-shadow: 0 0 20px var(--step-playing); transform: scale(1.1);}
         .idea-buttons { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;}
@@ -239,4 +238,283 @@
 
 .random-popup-modal .btn.primary:hover {
   background: #25f6e7;
+}
+.piano-grid {
+  overflow-y: auto;
+  /* ...autres styles... */
+}
+.piano-grid::-webkit-scrollbar {
+  width: 6px;
+  background: transparent;
+}
+.piano-grid::-webkit-scrollbar-thumb {
+  background: #00eaff;
+  border-radius: 10px;
+}
+.step-header-cell.current-step {
+  background: #00eaff44 !important;
+  color: #00eaff !important;
+  font-weight: 700;
+}
+
+.piano-grid {
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #00eaff #151920;
+}
+.piano-grid::-webkit-scrollbar {
+  height: 7px;
+  width: 7px;
+  background: transparent;
+}
+.piano-grid::-webkit-scrollbar-thumb {
+  background: #00eaffcc;
+  border-radius: 7px;
+}
+.step-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #191c23;
+}
+.step-header-cell {
+  min-width: 28px;
+  max-width: 44px;
+  padding: 2px 0;
+  font-size: 1em;
+  border-bottom: 1px solid #252737;
+  color: #aaa;
+  background: #23253c;
+  transition: background 0.12s;
+}
+.step-header-cell.current-step {
+  background: #00eaff44 !important;
+  color: #00eaff !important;
+  font-weight: bold;
+  border-bottom: 2.5px solid #00eaff;
+}
+@media (max-width: 900px) {
+  .step-header-cell {
+    min-width: 18px;
+    font-size: .93em;
+    padding: 0;
+  }
+  .note-label {
+    font-size: .90em;
+  }
+}
+.piano-roll-header .steps-control .steps-btn.active {
+  background: #00eaff;
+  color: #191c23;
+  font-weight: bold;
+}
+.piano-roll-header .steps-btn {
+  min-width: 48px;
+  border-radius: 10px;
+}
+.piano-roll {
+  background: linear-gradient(120deg, #23253b 96%, #191c23 100%);
+  border-radius: 18px;
+  padding: 18px 16px 16px 14px;
+  box-shadow: 0 6px 30px #000a;
+}
+.piano-grid {
+  border-radius: 12px;
+  background: #181924;
+  box-shadow: 0 2px 18px #0012;
+}
+.note-row {
+  display: flex;
+  align-items: center;
+}
+.note-label {
+  min-width: 38px;
+  padding: 2px 5px 2px 7px;
+  margin-right: 3px;
+  color: #dff6ff;
+  font-weight: 500;
+  background: #181a2c;
+  border-radius: 8px;
+  text-align: right;
+  font-size: 1em;
+}
+.note-label.black-key {
+  background: #27273e;
+  color: #77c3ff;
+  font-style: italic;
+}
+.step-cell {
+  width: 28px;
+  height: 26px;
+  margin: 2px;
+  border-radius: 6px;
+  background: #252736;
+  box-shadow: 0 1.5px 4px #0003 inset;
+  cursor: pointer;
+  transition: background 0.13s, box-shadow 0.12s;
+  border: 1.2px solid #222;
+}
+.step-cell.active {
+  background: linear-gradient(90deg, #00eaff 80%, #28c5ff 110%);
+  box-shadow: 0 1px 8px #00eaff88, 0 0 0 1.5px #00eaff;
+  border-color: #00eaffbb;
+}
+.step-cell.playing {
+  box-shadow: 0 0 16px #fff3, 0 0 0 2.5px #fff;
+  background: #ffffffbb;
+}
+.step-cell:hover {
+  background: #27cfff;
+  box-shadow: 0 0 8px #00eaff55, 0 0 0 1.5px #00eaff;
+}
+/* Mini-barre de vélocité dans la case (step-cell) */
+.step-cell .velocity-bar {
+  position: absolute;
+  left: 6px;
+  bottom: 3px;
+  width: 8px;
+  border-radius: 5px;
+  background: rgb(25, 138, 138);
+  opacity: 0.83;
+  pointer-events: none;
+  transition: height 0.1s;
+}
+.step-cell.active .velocity-bar {
+  box-shadow: 0 0 4px #00eaff77;
+}
+
+/* Optionnel: effet de hover amélioré */
+.step-cell.active:hover {
+  background: linear-gradient(90deg, #05eaff 60%, #33f5ff 120%);
+  border-color: #05eaff;
+}
+
+/* Responsive piano roll: largeur min/max plus petites sur mobile */
+@media (max-width: 700px) {
+  .step-header-cell, .step-cell {
+    min-width: 13px;
+    max-width: 19px;
+    font-size: 0.92em;
+    padding: 0;
+  }
+  .note-label {
+    font-size: .89em;
+    min-width: 22px;
+  }
+}
+.piano-roll {
+  background: linear-gradient(120deg, #23253b 96%, #191c23 100%);
+  border-radius: 18px;
+  padding: 18px 16px 16px 14px;
+  box-shadow: 0 6px 30px #000a;
+}
+.piano-grid {
+  border-radius: 12px;
+  background: #181924;
+  box-shadow: 0 2px 18px #0012;
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #00eaff #151920;
+}
+.piano-grid::-webkit-scrollbar {
+  height: 7px;
+  width: 7px;
+  background: transparent;
+}
+.piano-grid::-webkit-scrollbar-thumb {
+  background: #00eaffcc;
+  border-radius: 7px;
+}
+.note-row {
+  display: flex;
+  align-items: center;
+}
+.note-label {
+  min-width: 38px;
+  padding: 2px 5px 2px 7px;
+  margin-right: 3px;
+  color: #dff6ff;
+  font-weight: 500;
+  background: #181a2c;
+  border-radius: 8px;
+  text-align: right;
+  font-size: 1em;
+}
+.note-label.black-key {
+  background: #27273e;
+  color: #77c3ff;
+  font-style: italic;
+}
+.step-cell {
+  width: 28px;
+  height: 26px;
+  margin: 2px;
+  border-radius: 6px;
+  background: #252736;
+  box-shadow: 0 1.5px 4px #0003 inset;
+  cursor: pointer;
+  transition: background 0.13s, box-shadow 0.12s;
+  border: 1.2px solid #222;
+  position: relative;
+}
+.step-cell.active {
+  background: linear-gradient(90deg, #00eaff 80%, #28c5ff 110%);
+  box-shadow: 0 1px 8px #00eaff88, 0 0 0 1.5px #00eaff;
+  border-color: #00eaffbb;
+}
+.step-cell.playing {
+  box-shadow: 0 0 16px #fff3, 0 0 0 2.5px #fff;
+  background: #ffffffbb;
+}
+.step-cell:hover {
+  background: #27cfff;
+  box-shadow: 0 0 8px #00eaff55, 0 0 0 1.5px #00eaff;
+}
+.velocity-bar {
+  position: absolute;
+  left: 6px;
+  bottom: 3px;
+  width: 8px;
+  border-radius: 5px;
+  background: #0ff;
+  opacity: 0.83;
+  pointer-events: none;
+  transition: height 0.1s;
+}
+.step-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #191c23;
+}
+.step-header-cell {
+  min-width: 28px;
+  max-width: 44px;
+  padding: 2px 0;
+  font-size: 1em;
+  border-bottom: 1px solid #252737;
+  color: #aaa;
+  background: #23253c;
+  transition: background 0.12s;
+  text-align: center;
+}
+.step-header-cell.current-step {
+  background: #00eaff44 !important;
+  color: #00eaff !important;
+  font-weight: bold;
+  border-bottom: 2.5px solid #00eaff;
+}
+@media (max-width: 900px) {
+  .step-header-cell {
+    min-width: 16px;
+    max-width: 22px;
+    font-size: 0.9em;
+    padding: 0 0;
+  }
+  .note-label {
+    font-size: 0.93em;
+    min-width: 27px;
+  }
 }
