@@ -5,6 +5,7 @@ import PianoRoll from "./PianoRoll";
 import RandomPopup from "./RandomPopup";
 import SynthPopup from "./SynthPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
+import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern } from "../lib/randomEngine";
 
 // Helpers pattern robustes
@@ -37,8 +38,8 @@ export default function MelodySequencer() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
+  const [currentPreset, setCurrentPreset] = useState(SYNTH_PRESETS[0]); // Stocker l'objet preset complet
   const [synthPopupOpen, setSynthPopupOpen] = useState(false);
-  const currentPreset = SYNTH_PRESETS.find(p => p.key === presetKey);
   const [randomVisible, setRandomVisible] = useState(false);
   const [randomParams, setRandomParams] = useState(null);
 
@@ -734,8 +735,22 @@ export default function MelodySequencer() {
       <SynthPopup
         visible={synthPopupOpen}
         current={presetKey}
-        onSelect={key => {
-          setPresetKey(key);
+        onSelect={preset => {
+          // Si on reçoit un objet preset complet
+          if (typeof preset === 'object' && preset !== null) {
+            console.log('Reçu preset complet:', preset);
+            setPresetKey(preset.key); // Garder la clé pour compatibilité
+            setCurrentPreset(preset); // Stocker l'objet preset complet
+          } 
+          // Si on reçoit juste une clé (ancien comportement)
+          else if (typeof preset === 'string') {
+            console.log('Reçu preset key:', preset);
+            setPresetKey(preset);
+            // Rechercher parmi tous les presets (par défaut + personnalisés)
+            const allPresets = PresetStorage.getAllPresets();
+            const foundPreset = allPresets.find(p => p.key === preset);
+            if (foundPreset) setCurrentPreset(foundPreset);
+          }
           setSynthPopupOpen(false);
         }}
         onCancel={() => setSynthPopupOpen(false)}
