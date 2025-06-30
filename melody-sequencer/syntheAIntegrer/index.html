@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Synth1 Ultimate Pro</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>Synth1 Ultimate Pro</h1>
+  <p>(Clique pour activer l’audio puis utilise les contrôles)</p>
+  <div id="ui">
+
+    <div class="panel" id="osc-panel">
+      <h2>Oscillateurs</h2>
+      <label>Osc 1: 
+        <select id="wave1">
+          <option value="sine">Sinus</option>
+          <option value="square">Carré</option>
+          <option value="sawtooth">Dent de scie</option>
+          <option value="triangle">Triangle</option>
+        </select>
+        <input type="range" class="slider" id="vol1" min="0" max="1" step="0.01" value="0.5" />
+        <span id="vol1Val">0.5</span>
+      </label>
+      <label>Osc 2: 
+        <select id="wave2">
+          <option value="sine">Sinus</option>
+          <option value="square">Carré</option>
+          <option value="sawtooth">Dent de scie</option>
+          <option value="triangle">Triangle</option>
+        </select>
+        <input type="range" class="slider" id="vol2" min="0" max="1" step="0.01" value="0.5" />
+        <span id="vol2Val">0.5</span>
+      </label>
+      <label>Detune:
+        <input type="range" class="slider" id="detune" min="-50" max="50" value="0" />
+        <span id="detuneVal">0</span>
+      </label>
+      <label>PWM Osc 2:
+        <input type="range" class="slider" id="pwm2" min="0" max="1" step="0.01" value="0.5" />
+        <span id="pwm2Val">0.5</span>
+      </label>
+      <label>Sub Osc:
+        <input type="range" class="slider" id="sub" min="0" max="1" step="0.01" value="0.3" />
+        <span id="subVal">0.3</span>
+      </label>
+      <label>Balance:
+        <input type="range" class="slider" id="balance" min="0" max="1" step="0.01" value="0.5" />
+        <span id="balanceVal">0.5</span>
+      </label>
+      <label>Glide (Portamento):
+        <input type="range" class="slider" id="glide" min="0" max="0.3" step="0.01" value="0" />
+        <span id="glideVal">0</span>
+      </label>
+    </div>
+
+    <div class="panel" id="vcf-panel">
+      <h2>VCF (Filtre)</h2>
+      <label>Cutoff:
+        <input type="range" class="slider" id="cutoff" min="100" max="8000" value="1000" />
+        <span id="cutoffVal">1000</span>
+      </label>
+      <label>Resonance:
+        <input type="range" class="slider" id="res" min="0" max="20" value="0" />
+        <span id="resVal">0</span>
+      </label>
+      <label>Env Amount:
+        <input type="range" class="slider" id="envAmt" min="0" max="1" step="0.01" value="0.5" />
+        <span id="envAmtVal">0.5</span>
+      </label>
+    </div>
+
+    <div class="panel" id="env-panel">
+      <h2>Envelope (ADSR)</h2>
+      <label>Attack:
+        <input type="range" class="slider" id="atk" min="0" max="2" step="0.01" value="0.1" />
+        <span id="atkVal">0.1</span>
+      </label>
+      <label>Decay:
+        <input type="range" class="slider" id="decay" min="0" max="2" step="0.01" value="0.2" />
+        <span id="decayVal">0.2</span>
+      </label>
+      <label>Sustain:
+        <input type="range" class="slider" id="sustain" min="0" max="1" step="0.01" value="0.7" />
+        <span id="sustainVal">0.7</span>
+      </label>
+      <label>Release:
+        <input type="range" class="slider" id="rel" min="0" max="5" step="0.01" value="1.5" />
+        <span id="relVal">1.5</span>
+      </label>
+    </div>
+
+    <div class="panel" id="lfo-panel">
+      <h2>LFO</h2>
+      <label>Rate:
+        <input type="range" class="slider" id="lfoRate" min="0.1" max="10" step="0.1" value="4" />
+        <span id="lfoRateVal">4</span>
+      </label>
+      <label>Depth:
+        <input type="range" class="slider" id="lfoDepth" min="0" max="100" value="0" />
+        <span id="lfoDepthVal">0</span>
+      </label>
+      <label>Destination:
+        <select id="lfoDest">
+          <option value="pitch">Pitch</option>
+          <option value="cutoff">Cutoff</option>
+          <option value="amp">Amplitude</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="panel" id="fx-panel">
+      <h2>Effets</h2>
+      <label>Delay:
+        <input type="range" class="slider" id="delay" min="0" max="1" step="0.01" value="0.2" />
+        <span id="delayVal">0.2</span>
+      </label>
+      <label>Chorus:
+        <input type="range" class="slider" id="chorus" min="0" max="1" step="0.01" value="0.3" />
+        <span id="chorusVal">0.3</span>
+      </label>
+      <label>Reverb:
+        <input type="range" class="slider" id="reverb" min="0" max="1" step="0.01" value="0.2" />
+        <span id="reverbVal">0.2</span>
+      </label>
+      <label>Distortion:
+        <input type="range" class="slider" id="disto" min="0" max="1" step="0.01" value="0" />
+        <span id="distoVal">0</span>
+      </label>
+    </div>
+
+    <div class="panel" id="preset-panel">
+      <h2>Presets</h2>
+      <button id="randomize">Randomizer</button>
+      <button id="reset">Reset</button>
+    </div>
+
+  </div>
+  <div id="keyboard"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
+  <script src="main-ui.js"></script>
+</body>
+</html>

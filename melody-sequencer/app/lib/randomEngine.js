@@ -29,10 +29,6 @@ function getScale(rootNote, scaleType, octaves) {
 
 // ===== ALGORITHMES DE PATTERN SELON STYLE/PART =====
 
-// BASSLINE – Patterns de basse en fonction du style
-// BASSLINE – rolling 1/16 (psy / goa) ou off-beat (prog / deep) inspiré
-// https://www.youtube.com/watch?v=oMFxRnCIdMo  rolling bassline tuto
-// https://www.youtube.com/watch?v=vjR_Puh7E5o  kick & bass en key
 function basslinePattern({ allNotes, rootNote, steps, mood, style }) {
   // 1. On localise la fondamentale la plus grave de la gamme
   let rootIdx = allNotes.findIndex(n => n.startsWith(rootNote));
