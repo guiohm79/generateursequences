@@ -107,60 +107,70 @@ export default function MIDIOutputSettings({ onClose }) {
     }, 500);
   };
 
-  // Style directement appliqué pour correspondre exactement à la capture d'écran
+  // Utilisation des styles définis dans globals.css
   const containerStyle = {
-    backgroundColor: '#121212',
-    color: 'white',
-    padding: '10px',
-    width: '300px',
+    backgroundColor: 'var(--bg-secondary)',
+    color: 'var(--text-primary)',
+    padding: '20px',
+    width: '320px',
+    border: '1px solid var(--border)',
+    borderRadius: '12px',
     position: 'absolute',
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
-    zIndex: 1000
+    zIndex: 1000,
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 0 100px rgba(0, 212, 255, 0.1)'
   };
 
   const titleStyle = {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '10px'
+    fontSize: '18px',
+    fontWeight: '500',
+    marginBottom: '16px',
+    color: 'var(--accent)',
+    letterSpacing: '-0.01em'
   };
 
   const statusStyle = {
-    fontSize: '14px',
-    marginBottom: '10px'
+    fontSize: '13px',
+    marginBottom: '16px',
+    color: 'var(--text-secondary)'
   };
 
   const labelStyle = {
     display: 'block',
-    marginBottom: '5px',
-    marginTop: '10px'
+    marginBottom: '8px',
+    marginTop: '16px',
+    color: 'var(--text-secondary)',
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
   };
 
   const selectStyle = {
     width: '100%',
-    backgroundColor: '#121212',
-    color: 'white',
-    border: '1px solid #333',
-    padding: '3px'
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    fontFamily: 'inherit',
+    fontSize: '13px',
+    outline: 'none',
+    transition: 'all 0.3s ease'
   };
 
   const inputStyle = {
-    width: '100px',
-    backgroundColor: '#121212',
-    color: 'white',
-    border: '1px solid #333',
-    padding: '3px'
-  };
-
-  const buttonStyle = {
-    backgroundColor: '#333',
-    color: 'white',
-    border: 'none',
-    padding: '5px 15px',
-    margin: '10px 5px 0 0',
-    borderRadius: '4px',
-    cursor: 'pointer'
+    width: '100%',
+    backgroundColor: 'var(--bg-tertiary)',
+    color: 'var(--text-primary)',
+    border: '1px solid var(--border)',
+    borderRadius: '8px',
+    padding: '8px 10px',
+    fontFamily: 'inherit',
+    fontSize: '13px',
+    outline: 'none',
+    transition: 'all 0.3s ease'
   };
 
   return (
@@ -171,12 +181,13 @@ export default function MIDIOutputSettings({ onClose }) {
         {statusMessage || (midiEnabled ? "Système MIDI initialisé" : "MIDI désactivé")}
       </div>
 
-      <div>
+      <div className="control-group" style={{ display: 'block' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <label style={labelStyle}>Port MIDI</label>
           <button 
             onClick={refreshPortList}
-            style={buttonStyle}
+            className="btn"
+            style={{ padding: '8px 12px', fontSize: '12px' }}
           >
             Rafraîchir
           </button>
@@ -195,7 +206,7 @@ export default function MIDIOutputSettings({ onClose }) {
         </select>
       </div>
       
-      <div>
+      <div className="control-group" style={{ display: 'block' }}>
         <label style={labelStyle}>Canal MIDI (0-15)</label>
         <input
           type="number"
@@ -207,23 +218,21 @@ export default function MIDIOutputSettings({ onClose }) {
         />
       </div>
       
-      <div style={{ marginTop: '15px' }}>
+      <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between' }}>
         <button
           onClick={handleTestNote}
           disabled={!midiEnabled}
+          className={midiEnabled ? "btn" : "btn"}
           style={{
-            ...buttonStyle,
-            backgroundColor: midiEnabled ? '#333' : '#222',
-            color: midiEnabled ? 'white' : '#555',
-            cursor: midiEnabled ? 'pointer' : 'not-allowed',
-            borderRadius: '4px'
+            opacity: midiEnabled ? 1 : 0.5,
+            cursor: midiEnabled ? 'pointer' : 'not-allowed'
           }}
         >
           Tester
         </button>
         <button
           onClick={onClose}
-          style={buttonStyle}
+          className="btn primary"
         >
           Fermer
         </button>
