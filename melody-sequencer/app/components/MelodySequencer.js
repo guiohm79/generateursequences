@@ -172,8 +172,8 @@ export default function MelodySequencer() {
         const stepVal = pattern[note][stepIdx];
         const velocity = stepVal.velocity || 100;
         
-        // Jouer avec Tone.js si activé
-        if (synth) {
+        // Jouer avec Tone.js seulement si MIDI n'est pas activé
+        if (synth && !midiOutputEnabled) {
           synth.triggerAttackRelease(note, "8n", time, velocity / 127);
         }
         
@@ -205,8 +205,8 @@ export default function MelodySequencer() {
       // Jouer les notes uniquement si elles existent
       if (notesToPlay.length > 0) {
         notesToPlay.forEach(noteData => {
-          // Jouer avec Tone.js si activé
-          if (synth) {
+          // Jouer avec Tone.js seulement si MIDI n'est pas activé
+          if (synth && !midiOutputEnabled) {
             synth.triggerAttackRelease(noteData.note, "8n", time, noteData.velocity / 127);
           }
           
