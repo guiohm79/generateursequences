@@ -4,9 +4,11 @@ import * as Tone from "tone";
 import PianoRoll from "./PianoRoll";
 import RandomPopup from "./RandomPopup";
 import SynthPopup from "./SynthPopup";
+import MIDIOutputSettings from "./MIDIOutputSettings";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern } from "../lib/randomEngine";
+import { getMIDIOutput } from "../lib/midiOutput";
 
 // Helpers pattern robustes
 function getAllNotes(minOct, maxOct) {
@@ -42,6 +44,42 @@ export default function MelodySequencer() {
   const [synthPopupOpen, setSynthPopupOpen] = useState(false);
   const [randomVisible, setRandomVisible] = useState(false);
   const [randomParams, setRandomParams] = useState(null);
+  const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
+  const [midiOutputEnabled, setMidiOutputEnabled] = useState(false);
+
+  // Référence pour le débogage de la popup MIDI
+  const midiDebugRef = useRef(null);
+  
+  // Gestion de l'activation/désactivation MIDI
+  const handleToggleMIDI = async () => {
+    try {
+      const newState = !midiOutputEnabled;
+      console.log("Toggle MIDI:", newState);
+      
+      if (newState) {
+        // Initialisation du système MIDI si on l'active
+        const midiOutput = getMIDIOutput();
+        const success = await midiOutput.initialize();
+        
+        if (success) {
+          console.log("MIDI initialisé avec succès");
+          setMidiOutputEnabled(true);
+          setMidiSettingsOpen(true); // Ouvrir automatiquement les paramètres
+        } else {
+          console.error("Impossible d'initialiser MIDI");
+          alert("Impossible d'initialiser MIDI. Votre navigateur supporte-t-il la Web MIDI API?");
+        }
+      } else {
+        // Désactivation MIDI
+        const midiOutput = getMIDIOutput();
+        midiOutput.allNotesOff(); // All notes off avant de désactiver
+        setMidiOutputEnabled(false);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'activation/désactivation MIDI:", error);
+      alert("Erreur lors de l'activation MIDI. Consultez la console pour plus d'informations.");
+    }
+  };
 
   // Pattern management blindé
   const [pattern, setPattern] = useState(() => buildPattern(null, steps, minOctave, maxOctave));
@@ -110,56 +148,81 @@ export default function MelodySequencer() {
       return { ...prev, [note]: line };
     });
   };
-  // Playback via Tone.Transport - Optimisé pour réduire la latence
+  // Playback via Tone.Transport - Optimisé pour réduire la latence et support MIDI output
   const playStep = useCallback((stepIdx, time) => {
     const synth = synthRef.current;
-    if (!synth) return;
+    const midiOutput = midiOutputEnabled ? getMIDIOutput() : null;
     
     // S'assurer que stepIdx est un nombre valide
     if (stepIdx === undefined || stepIdx < 0 || stepIdx >= steps) return;
     
+    // Collecter les notes à jouer à ce pas
+    const activeNotes = Object.keys(pattern).filter(note => 
+      pattern[note] && 
+      Array.isArray(pattern[note]) && 
+      pattern[note][stepIdx] && 
+      pattern[note][stepIdx].on
+    );
+    
     const isMono = currentPreset?.synthType === "MonoSynth";
     if (isMono) {
-      const activeNotes = Object.keys(pattern).filter(note => 
-        pattern[note] && 
-        Array.isArray(pattern[note]) && 
-        pattern[note][stepIdx] && 
-        pattern[note][stepIdx].on
-      );
-      
+      // Mode MonoSynth: seulement la note la plus grave est jouée
       if (activeNotes.length) {
         const note = activeNotes.sort((a, b) => Tone.Frequency(a).toMidi() - Tone.Frequency(b).toMidi())[0];
         const stepVal = pattern[note][stepIdx];
-        const velocity = (stepVal.velocity || 100) / 127;
-        synth.triggerAttackRelease(note, "8n", time, velocity);
+        const velocity = stepVal.velocity || 100;
+        
+        // Jouer avec Tone.js si activé
+        if (synth) {
+          synth.triggerAttackRelease(note, "8n", time, velocity / 127);
+        }
+        
+        // Envoyer en MIDI si activé
+        if (midiOutput) {
+          midiOutput.sendNoteOn(note, velocity);
+          // Programmer la note off
+          setTimeout(() => {
+            midiOutput.sendNoteOff(note);
+          }, (60000 / tempo) / 4); // Durée d'une double-croche
+        }
+        
         previousMonoNote.current = note;
       } else {
         previousMonoNote.current = null;
       }
     } else {
-      // Pour le Poly mode, utiliser un ensemble de notes pour éviter les doublons
-      const notesToPlay = new Set();
+      // Mode Poly: toutes les notes sont jouées
+      const notesToPlay = [];
       
-      Object.keys(pattern).forEach(note => {
-        if (!pattern[note] || !Array.isArray(pattern[note])) return;
-        
+      activeNotes.forEach(note => {
         const stepVal = pattern[note][stepIdx];
-        if (stepVal && stepVal.on) {
-          notesToPlay.add({
-            note,
-            velocity: (stepVal.velocity || 100) / 127
-          });
-        }
+        notesToPlay.push({
+          note,
+          velocity: stepVal.velocity || 100
+        });
       });
       
       // Jouer les notes uniquement si elles existent
-      if (notesToPlay.size > 0) {
+      if (notesToPlay.length > 0) {
         notesToPlay.forEach(noteData => {
-          synth.triggerAttackRelease(noteData.note, "8n", time, noteData.velocity);
+          // Jouer avec Tone.js si activé
+          if (synth) {
+            synth.triggerAttackRelease(noteData.note, "8n", time, noteData.velocity / 127);
+          }
+          
+          // Envoyer en MIDI si activé
+          if (midiOutput) {
+            midiOutput.sendNoteOn(noteData.note, noteData.velocity);
+            // Programmer la note off
+            setTimeout(() => {
+              midiOutput.sendNoteOff(noteData.note);
+            }, (60000 / tempo) / 4); // Durée d'une double-croche
+          }
         });
       }
     }
-  }, [pattern, currentPreset, steps]);
+  }, [pattern, currentPreset, steps, tempo, midiOutputEnabled]);
+
 
   useEffect(() => {
     if (transportId.current) {
@@ -242,6 +305,14 @@ export default function MelodySequencer() {
     if (transportId.current) {
       Tone.Transport.clear(transportId.current);
       transportId.current = null;
+    }
+    
+    // Arrêter toutes les notes MIDI en cours
+    if (midiOutputEnabled) {
+      const midiOutput = getMIDIOutput();
+      if (midiOutput) {
+        midiOutput.allNotesOff();
+      }
     }
   };
 
@@ -345,8 +416,46 @@ export default function MelodySequencer() {
       synthRef.current.triggerRelease && synthRef.current.triggerRelease();
     }
     previousMonoNote.current = null;
+    
+    // Arrêter toutes les notes MIDI en cours
+    if (midiOutputEnabled) {
+      const midiOutput = getMIDIOutput();
+      if (midiOutput) {
+        midiOutput.allNotesOff();
+      }
+    }
   };
   
+  // Gérer les paramètres MIDI
+  const handleToggleMidi = () => {
+    if (!midiOutputEnabled) {
+      // Initialiser la sortie MIDI si ce n'est pas déjà fait
+      const initMidi = async () => {
+        const midiOutput = getMIDIOutput();
+        try {
+          const success = await midiOutput.initialize();
+          setMidiOutputEnabled(success);
+          if (success) {
+            const ports = midiOutput.getOutputPorts();
+            if (ports.length > 0) {
+              setMidiSettingsOpen(true);
+            }
+          }
+        } catch (error) {
+          console.error("Erreur d'initialisation MIDI:", error);
+        }
+      };
+      initMidi();
+    } else {
+      // Désactiver la sortie MIDI
+      if (isPlaying) {
+        const midiOutput = getMIDIOutput();
+        midiOutput.allNotesOff();
+      }
+      setMidiOutputEnabled(false);
+    }
+  };
+
   // Fonction pour monter toutes les notes actives d'une octave
   const shiftOctaveUp = () => {
     // Récupérer toutes les notes actives avec leur position et vélocité
@@ -482,6 +591,19 @@ export default function MelodySequencer() {
             onClick={exportToMidi}
             disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
           >Export MIDI</button>
+
+          <button
+            className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
+            id="midiBtn"
+            onClick={handleToggleMidi}
+            title="Activer/désactiver la sortie MIDI vers un VSTi externe"
+            style={{ 
+              backgroundColor: midiOutputEnabled ? '#0c9' : '', 
+              color: midiOutputEnabled ? '#000' : ''
+            }}
+          >
+            {midiOutputEnabled ? 'MIDI ON' : 'MIDI OFF'}
+          </button>
           
           {/* Boutons pour décaler les octaves */}
           <div style={{ display: "flex", gap: "5px", marginLeft: "10px" }}>
@@ -576,6 +698,17 @@ export default function MelodySequencer() {
               disabled={isPlaying}
             >
               Éditer son
+            </button>
+            <button
+              className="btn"
+              style={{ marginLeft: 10, minWidth: 80, backgroundColor: midiOutputEnabled ? '#0c9' : '#999', color: '#000' }}
+              onClick={() => {
+                console.log('Ouverture des paramètres MIDI');
+                setMidiSettingsOpen(true);
+              }}
+              disabled={!midiOutputEnabled}
+            >
+              Config MIDI
             </button>
           </div>
           
@@ -755,6 +888,13 @@ export default function MelodySequencer() {
         }}
         onCancel={() => setSynthPopupOpen(false)}
       />
+      {midiSettingsOpen && (
+        <div className="popup-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <MIDIOutputSettings
+            onClose={() => setMidiSettingsOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

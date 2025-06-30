@@ -9,6 +9,8 @@ const SCALES = [
   { key: "phrygian", label: "Phrygien" },
   { key: "phrygianDominant", label: "Phrygien Dominant" },
   { key: "dorian", label: "Dorien" },
+  { key: "perso", label: "Perso" },
+
 ];
 const STYLES = [
   { key: "psy", label: "Psytrance" },
