@@ -5,13 +5,18 @@ const ROOT_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const SCALES = [
   { key: "major", label: "Majeur" },
   { key: "minor", label: "Mineur" },
+  { key: "harmonicMinor", label: "Mineur Harmonique" },
   { key: "phrygian", label: "Phrygien" },
+  { key: "phrygianDominant", label: "Phrygien Dominant" },
+  { key: "dorian", label: "Dorien" },
 ];
 const STYLES = [
-  { key: "psy-oldschool", label: "Psytrance Oldschool" },
+  { key: "psy", label: "Psytrance" },
   { key: "goa", label: "Goa" },
-  { key: "trance-arp", label: "Trance Arpège" },
   { key: "prog", label: "Progressive" },
+  { key: "downtempo", label: "Downtempo" },
+  { key: "deep", label: "Deep" },
+  { key: "ambient", label: "Ambient" },
 ];
 const MOODS = [
   { key: "default", label: "Standard" },
@@ -22,10 +27,10 @@ const MOODS = [
   { key: "dense", label: "Dense" }
 ];
 const PARTS = [
-  { key: "music", label: "Tout (musique)" },
-  { key: "melody", label: "Mélodie/Lead" },
+  { key: "lead", label: "Mélodie/Lead" },
   { key: "bassline", label: "Bassline" },
   { key: "pad", label: "Pad" },
+  { key: "arpeggio", label: "Arpège" },
 ];
 const STEPS_OPTIONS = [
   { value: 16, label: "16 pas" },
@@ -35,9 +40,9 @@ const STEPS_OPTIONS = [
 export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
   const [root, setRoot] = useState(defaultParams?.rootNote || "C");
   const [scale, setScale] = useState(defaultParams?.scale || "major");
-  const [style, setStyle] = useState(defaultParams?.style || "psy-oldschool");
+  const [style, setStyle] = useState(defaultParams?.style || "psy");
   const [mood, setMood] = useState(defaultParams?.mood || "default");
-  const [part, setPart] = useState(defaultParams?.part || "music");
+  const [part, setPart] = useState(defaultParams?.part || "lead");
   const [steps, setSteps] = useState(defaultParams?.steps || 16);
 
   if (!visible) return null;
