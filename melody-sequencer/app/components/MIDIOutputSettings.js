@@ -107,16 +107,76 @@ export default function MIDIOutputSettings({ onClose }) {
     }, 500);
   };
 
+  // Style directement appliqué pour correspondre exactement à la capture d'écran
+  const containerStyle = {
+    backgroundColor: '#121212',
+    color: 'white',
+    padding: '10px',
+    width: '300px',
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+    zIndex: 1000
+  };
+
+  const titleStyle = {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    marginBottom: '10px'
+  };
+
+  const statusStyle = {
+    fontSize: '14px',
+    marginBottom: '10px'
+  };
+
+  const labelStyle = {
+    display: 'block',
+    marginBottom: '5px',
+    marginTop: '10px'
+  };
+
+  const selectStyle = {
+    width: '100%',
+    backgroundColor: '#121212',
+    color: 'white',
+    border: '1px solid #333',
+    padding: '3px'
+  };
+
+  const inputStyle = {
+    width: '100px',
+    backgroundColor: '#121212',
+    color: 'white',
+    border: '1px solid #333',
+    padding: '3px'
+  };
+
+  const buttonStyle = {
+    backgroundColor: '#333',
+    color: 'white',
+    border: 'none',
+    padding: '5px 15px',
+    margin: '10px 5px 0 0',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  };
+
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 w-full max-w-md z-50">
-      <h3 className="text-lg font-semibold mb-3 text-white">Configuration Sortie MIDI</h3>
+    <div style={containerStyle}>
+      <h3 style={titleStyle}>Configuration MIDI</h3>
       
-      <div className="mb-4">
-        <div className="flex justify-between mb-2">
-          <label className="text-gray-300 mb-1">Port MIDI</label>
+      <div style={statusStyle}>
+        {statusMessage || (midiEnabled ? "Système MIDI initialisé" : "MIDI désactivé")}
+      </div>
+
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label style={labelStyle}>Port MIDI</label>
           <button 
             onClick={refreshPortList}
-            className="text-xs bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded text-white"
+            style={buttonStyle}
           >
             Rafraîchir
           </button>
@@ -124,52 +184,49 @@ export default function MIDIOutputSettings({ onClose }) {
         <select
           value={selectedPort}
           onChange={handlePortChange}
-          className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+          style={selectStyle}
         >
           <option value="">Sélectionner un port...</option>
           {availablePorts.map(port => (
             <option key={port.id} value={port.id}>
-              {port.name} ({port.manufacturer})
+              {port.name} {port.manufacturer ? `(${port.manufacturer})` : ''}
             </option>
           ))}
         </select>
       </div>
       
-      <div className="mb-4">
-        <label className="text-gray-300 mb-1 block">Canal MIDI (0-15)</label>
+      <div>
+        <label style={labelStyle}>Canal MIDI (0-15)</label>
         <input
           type="number"
           min="0"
           max="15"
           value={midiChannel}
           onChange={handleChannelChange}
-          className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600"
+          style={inputStyle}
         />
       </div>
       
-      <div className="mt-4 flex justify-between items-center">
-        <span className={`text-sm ${midiEnabled ? 'text-green-500' : 'text-gray-400'}`}>
-          {statusMessage || (midiEnabled ? "MIDI activé" : "MIDI désactivé")}
-        </span>
-        <div>
-          <button
-            onClick={handleTestNote}
-            disabled={!midiEnabled}
-            className={`mr-2 px-4 py-2 rounded text-white ${
-              midiEnabled 
-                ? 'bg-green-600 hover:bg-green-500' 
-                : 'bg-gray-600 cursor-not-allowed'
-            }`}
-          >
-            Test
-          </button>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-white"
-          >
-            Fermer
-          </button>
-        </div>
+      <div style={{ marginTop: '15px' }}>
+        <button
+          onClick={handleTestNote}
+          disabled={!midiEnabled}
+          style={{
+            ...buttonStyle,
+            backgroundColor: midiEnabled ? '#333' : '#222',
+            color: midiEnabled ? 'white' : '#555',
+            cursor: midiEnabled ? 'pointer' : 'not-allowed',
+            borderRadius: '4px'
+          }}
+        >
+          Tester
+        </button>
+        <button
+          onClick={onClose}
+          style={buttonStyle}
+        >
+          Fermer
+        </button>
       </div>
     </div>
   );
