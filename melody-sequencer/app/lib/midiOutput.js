@@ -154,6 +154,31 @@ export class MIDIOutput {
   }
   
   /**
+   * Envoie un message Control Change
+   * @param {number} controller Numéro de contrôleur (0-127)
+   * @param {number} value Valeur (0-127)
+   * @returns {boolean} Succès de l'envoi
+   */
+  sendControlChange(controller, value) {
+    if (!this.isConnected || !this.outputDevice) {
+      console.warn("Impossible d'envoyer Control Change - Non connecté");
+      return false;
+    }
+    
+    try {
+      // Message MIDI Control Change: [0xB0 | canal, contrôleur, valeur]
+      const controllerValue = Math.min(127, Math.max(0, Math.round(controller)));
+      const dataValue = Math.min(127, Math.max(0, Math.round(value)));
+      console.log(`Envoi MIDI: CC ${controllerValue}, valeur ${dataValue}, canal ${this.midiChannel}`);
+      this.outputDevice.send([0xB0 | this.midiChannel, controllerValue, dataValue]);
+      return true;
+    } catch (error) {
+      console.error("Erreur d'envoi MIDI Control Change:", error);
+      return false;
+    }
+  }
+  
+  /**
    * Change le canal MIDI utilisé
    * @param {number} channel Numéro du canal (0-15)
    */

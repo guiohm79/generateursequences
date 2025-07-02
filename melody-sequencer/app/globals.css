@@ -358,6 +358,84 @@ body {
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
+    color: transparent;  /* Rendre le texte invisible */
+    font-size: 0;       /* Réduire la taille du texte à zéro */
+}
+
+.step-cell.active {
+    color: white;       /* Rendre le texte visible uniquement pour les cellules actives */
+    font-size: 12px;    /* Rétablir la taille du texte pour les cellules actives */
+}
+
+/* Styles pour les contrôles accent/slide */
+.cell-controls {
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: none; /* Caché par défaut */
+    gap: 2px;
+    z-index: 10;
+}
+
+/* Afficher les contrôles au survol */
+.step-cell.active:hover .cell-controls {
+    display: flex;
+}
+
+.accent-button, .slide-button {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: all 0.2s;
+}
+
+.accent-button:hover, .slide-button:hover {
+    opacity: 1;
+}
+
+.accent-button {
+    background-color: #FF5722;
+    color: white;
+}
+
+.slide-button {
+    background-color: #8BC34A;
+    color: white;
+}
+
+.accent-button.active, .slide-button.active {
+    opacity: 1;
+    box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+}
+
+/* Indicateurs accent/slide */
+.accent-indicator {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #FF5722;
+    z-index: 2;
+}
+
+.slide-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 8px;
+    height: 8px;
+    background: #8BC34A;
+    transform: rotate(45deg);
+    z-index: 2;
 }
 
 .step-cell:hover {

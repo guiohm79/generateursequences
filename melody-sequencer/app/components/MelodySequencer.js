@@ -129,7 +129,31 @@ export default function MelodySequencer() {
     setPattern(prev => {
       const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
       // Toggle on/off (désactive si déjà on)
-      line[idx] = !line[idx] || line[idx] === 0 ? { on: true, velocity: 100 } : 0;
+      line[idx] = !line[idx] || line[idx] === 0 ? { on: true, velocity: 100, accent: false, slide: false } : 0;
+      return { ...prev, [note]: line };
+    });
+  };
+  
+  // Gestion des accents (active/désactive l'accent sur une note)
+  const handleToggleAccent = (note, idx) => {
+    setPattern(prev => {
+      const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
+      // On ne peut modifier l'accent que si la note est active
+      if (line[idx] && line[idx].on) {
+        line[idx] = { ...line[idx], accent: !line[idx].accent };
+      }
+      return { ...prev, [note]: line };
+    });
+  };
+  
+  // Gestion des slides (active/désactive le slide sur une note)
+  const handleToggleSlide = (note, idx) => {
+    setPattern(prev => {
+      const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
+      // On ne peut modifier le slide que si la note est active
+      if (line[idx] && line[idx].on) {
+        line[idx] = { ...line[idx], slide: !line[idx].slide };
+      }
       return { ...prev, [note]: line };
     });
   };
@@ -174,14 +198,66 @@ export default function MelodySequencer() {
         
         // Jouer avec Tone.js seulement si MIDI n'est pas activé
         if (synth && !midiOutputEnabled) {
-          synth.triggerAttackRelease(note, "8n", time, velocity / 127);
+          // Récupérer les propriétés accent et slide
+          const hasAccent = stepVal.accent || false;
+          const hasSlide = stepVal.slide || false;
+          
+          // Ajuster la vélocité pour l'accent (augmentation de 20%)
+          let adjustedVelocity = velocity;
+          if (hasAccent) {
+            adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
+          }
+          
+          // Avec slide, on utilise portamento
+          if (hasSlide && previousMonoNote.current) {
+            // Augmenter le temps de portamento pour le slide
+            synth.portamento = 0.15; // 150ms de glissement
+          } else {
+            synth.portamento = 0.01; // valeur par défaut très faible
+          }
+          
+          // Appliquer l'enveloppe attack plus courte pour l'accent
+          if (hasAccent) {
+            const origAttack = synth.envelope.attack;
+            synth.envelope.attack = Math.max(0.01, origAttack * 0.7); // Réduire l'attaque de 30%
+            
+            synth.triggerAttackRelease(note, "8n", time, adjustedVelocity / 127);
+            
+            // Rétablir l'attaque d'origine après un court délai
+            setTimeout(() => {
+              synth.envelope.attack = origAttack;
+            }, 50);
+          } else {
+            synth.triggerAttackRelease(note, "8n", time, adjustedVelocity / 127);
+          }
         }
         
         // Envoyer en MIDI si activé
         if (midiOutput) {
-          midiOutput.sendNoteOn(note, velocity);
-          // Programmer la note off
+          // Gérer accent et slide en temps réel pour MIDI
+          if (stepVal.accent) {
+            midiOutput.sendControlChange(16, 127); // CC#16 pour accent
+          }
+          if (stepVal.slide) {
+            midiOutput.sendControlChange(17, 127); // CC#17 pour slide
+          }
+          
+          // Ajuster la vélocité pour l'accent
+          let adjustedVelocity = velocity;
+          if (stepVal.accent) {
+            adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
+          }
+          
+          midiOutput.sendNoteOn(note, adjustedVelocity);
+          
+          // Programmer la note off et reset des contrôleurs
           setTimeout(() => {
+            if (stepVal.accent) {
+              midiOutput.sendControlChange(16, 0); // Reset accent
+            }
+            if (stepVal.slide) {
+              midiOutput.sendControlChange(17, 0); // Reset slide
+            }
             midiOutput.sendNoteOff(note);
           }, (60000 / tempo) / 4); // Durée d'une double-croche
         }
@@ -207,16 +283,90 @@ export default function MelodySequencer() {
         notesToPlay.forEach(noteData => {
           // Jouer avec Tone.js seulement si MIDI n'est pas activé
           if (synth && !midiOutputEnabled) {
-            synth.triggerAttackRelease(noteData.note, "8n", time, noteData.velocity / 127);
+            // Récupérer les propriétés accent et slide de la note
+            const stepVal = pattern[noteData.note][stepIdx];
+            const hasAccent = stepVal && stepVal.accent;
+            const hasSlide = stepVal && stepVal.slide;
+            
+            // Ajuster la vélocité pour l'accent
+            let adjustedVelocity = noteData.velocity;
+            if (hasAccent) {
+              adjustedVelocity = Math.min(127, Math.round(noteData.velocity * 1.2));
+            }
+            
+            // Pour les synthés qui supportent le voice.portamento individuel par note
+            if (hasSlide && synth.get) {
+              try {
+                // Activer le portamento pour cette note spécifique si possible
+                synth.set({ portamento: 0.15 });
+                setTimeout(() => {
+                  synth.set({ portamento: 0.01 }); // Revenir au réglage normal
+                }, 100);
+              } catch (e) {
+                console.log("Portamento par voice non supporté", e);
+              }
+            }
+            
+            // Appliquer une attaque plus courte pour l'accent si possible
+            if (hasAccent && synth.set) {
+              try {
+                const origAttack = synth.get().attack || 0.1;
+                synth.set({ attack: Math.max(0.01, origAttack * 0.7) });
+                
+                synth.triggerAttackRelease(noteData.note, "8n", time, adjustedVelocity / 127);
+                
+                // Rétablir l'attaque d'origine
+                setTimeout(() => {
+                  synth.set({ attack: origAttack });
+                }, 50);
+              } catch (e) {
+                // Fallback si synth.set n'est pas supporté
+                synth.triggerAttackRelease(noteData.note, "8n", time, adjustedVelocity / 127);
+              }
+            } else {
+              synth.triggerAttackRelease(noteData.note, "8n", time, adjustedVelocity / 127);
+            }
           }
           
           // Envoyer en MIDI si activé
           if (midiOutput) {
-            midiOutput.sendNoteOn(noteData.note, noteData.velocity);
-            // Programmer la note off
+            const stepVal = pattern[noteData.note][stepIdx];
+            
+            // CORRECTION: Envoi des contrôleurs avant les notes avec un délai pour laisser le temps au VSTi de les traiter
+            // Le problème était que les messages CC arrivaient trop près des NoteOn, ce qui pouvait perturber les VSTi
+            const hasAccent = stepVal && stepVal.accent;
+            const hasSlide = stepVal && stepVal.slide;
+            
+            // Ajuster la vélocité pour l'accent
+            let adjustedVelocity = noteData.velocity;
+            if (hasAccent) {
+              adjustedVelocity = Math.min(127, Math.round(noteData.velocity * 1.2));
+            }
+            
+            // Envoyer d'abord les contrôleurs
+            if (hasAccent) {
+              midiOutput.sendControlChange(16, 127); // CC#16 pour accent
+            }
+            if (hasSlide) {
+              midiOutput.sendControlChange(17, 127); // CC#17 pour slide
+            }
+            
+            // Attendre un petit moment avant d'envoyer la note
+            // Ce délai permet aux VSTi de traiter correctement les messages CC avant la note
             setTimeout(() => {
-              midiOutput.sendNoteOff(noteData.note);
-            }, (60000 / tempo) / 4); // Durée d'une double-croche
+              midiOutput.sendNoteOn(noteData.note, adjustedVelocity);
+              
+              // Programmer la note off et reset des contrôleurs
+              setTimeout(() => {
+                if (hasAccent) {
+                  midiOutput.sendControlChange(16, 0); // Reset accent
+                }
+                if (hasSlide) {
+                  midiOutput.sendControlChange(17, 0); // Reset slide
+                }
+                midiOutput.sendNoteOff(noteData.note);
+              }, (60000 / tempo) / 4); // Durée d'une double-croche
+            }, 10); // Délai de 10ms entre CC et Note
           }
         });
       }
@@ -348,22 +498,67 @@ export default function MelodySequencer() {
     let track = [];
     let microsecPerBeat = Math.round(60000000 / tempo);
     track.push(0x00, 0xFF, 0x51, 0x03, (microsecPerBeat >> 16) & 0xFF, (microsecPerBeat >> 8) & 0xFF, microsecPerBeat & 0xFF);
+    
+    // Définition des contrôleurs MIDI pour accent et slide
+    const CC_ACCENT = 16; // CC#16 pour l'accent
+    const CC_SLIDE = 17;  // CC#17 pour le slide (portamento)
+    
     const notesList = Object.keys(pattern);
     const ticksPerStep = 24;
+    
+    // Pour chaque pas de la séquence
     for (let i = 0; i < steps; i++) {
       let delta = (i === 0) ? 0 : ticksPerStep;
       let notesOn = [];
+      
+      // Pour chaque note à ce pas
       notesList.forEach(note => {
         let val = pattern[note][i];
         if (val && val.on) {
-          track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), Math.round(val.velocity || 100));
-          notesOn.push(note);
+          // Générer les messages Control Change pour accent et slide si activés
+          if (val.accent) {
+            // Accent: CC#16, valeur 127 (max)
+            track.push(...writeVarLen(delta), 0xB0, CC_ACCENT, 127);
+            delta = 0; // Réinitialiser delta après le premier événement
+          }
+          
+          if (val.slide) {
+            // Slide/portamento: CC#17, valeur 127 (max)
+            track.push(...writeVarLen(delta), 0xB0, CC_SLIDE, 127);
+            delta = 0; // Réinitialiser delta après le premier événement
+          }
+          
+          // Note On avec vélocité
+          // Si un accent est présent, augmenter la vélocité (mais ne pas dépasser 127)
+          let velocity = Math.round(val.velocity || 100);
+          if (val.accent) {
+            // Augmenter la vélocité de 20% pour les notes accentuées, max 127
+            velocity = Math.min(127, Math.round(velocity * 1.2));
+          }
+          
+          track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), velocity);
+          notesOn.push({
+            note,
+            hasSlide: val.slide || false,
+            hasAccent: val.accent || false
+          });
           delta = 0;
         }
       });
+      
+      // Note Off pour toutes les notes actives
       if (notesOn.length > 0) {
-        notesOn.forEach(note => {
-          track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(note), 0x00);
+        notesOn.forEach(noteInfo => {
+          track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(noteInfo.note), 0x00);
+          
+          // Réinitialiser les contrôleurs après la note
+          if (noteInfo.hasAccent) {
+            track.push(...writeVarLen(0), 0xB0, CC_ACCENT, 0);
+          }
+          
+          if (noteInfo.hasSlide) {
+            track.push(...writeVarLen(0), 0xB0, CC_SLIDE, 0);
+          }
         });
       }
     }
@@ -843,18 +1038,19 @@ export default function MelodySequencer() {
           </div>
         </div>
       </div>
-      {/* ... */}
-
-
+      {/* Piano Roll avec grille de notes améliorée */}
       <PianoRoll
         minOctave={minOctave}
         maxOctave={maxOctave}
         steps={steps}
         pattern={pattern}
+        currentStep={isPlaying ? currentStep : null}
         onToggleStep={handleToggleStep}
         onChangeVelocity={handleChangeVelocity}
-        currentStep={isPlaying ? currentStep : null}
         onChangeSteps={handleChangeSteps}
+        onToggleAccent={handleToggleAccent}
+        onToggleSlide={handleToggleSlide}
+        showVelocityValues={false} /* Désactiver l'affichage des valeurs numériques (00) */
       />
       <RandomPopup
         visible={randomVisible}

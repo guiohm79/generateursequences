@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
 // Génère la liste des notes du piano roll
 function getAllNotes(minOct, maxOct) {
@@ -12,23 +12,121 @@ function getAllNotes(minOct, maxOct) {
 }
 
 export default function PianoRoll({
-  minOctave,
-  maxOctave,
-  steps,
-  pattern,
+  minOctave = 3,
+  maxOctave = 5,
+  steps = 16,
+  pattern = {},
   onToggleStep,
   onChangeVelocity,
   currentStep,
   onChangeSteps,
+  onToggleAccent,
+  onToggleSlide,
+  showVelocityValues = true, // Nouvelle prop pour contrôler l'affichage des valeurs numériques
 }) {
   const pianoNotes = getAllNotes(minOctave, maxOctave).reverse();
 
   // Pour le drag de vélocité
   const dragRef = useRef({ note: null, step: null, startY: null, startVelocity: null });
 
+  // État pour stocker la note et le pas sélectionnés
+  const [selectedCell, setSelectedCell] = useState({ note: null, step: null });
+  
+  // Ajouter un état pour le survol
+  const [hoveredCell, setHoveredCell] = useState({ note: null, step: null });
+
+  // Information sur la note sélectionnée 
+  const [selectedInfo, setSelectedInfo] = useState(null);
+  
+  // Variables d'effet pour contrôler la gestion du survol et des raccourcis clavier
+  const [activeHoverControl, setActiveHoverControl] = useState(false);
+  
+  // Mise en évidence visuelle de la cellule hover active
+  const [hoverTarget, setHoverTarget] = useState({ note: null, step: null });
+
+  // Debug pour suivre la cellule survolée
+  useEffect(() => {
+    // Log uniquement quand la cellule change
+    if (hoveredCell.note !== null) {
+      console.log(`Cellule survolée: ${hoveredCell.note} pas ${hoveredCell.step}`);
+    }
+    
+    // Mettre à jour le hoverTarget seulement si c'est une note active
+    if (hoveredCell.note !== null && hoveredCell.step !== null) {
+      const cell = pattern[hoveredCell.note]?.[hoveredCell.step];
+      if (cell && cell.on) {
+        setHoverTarget(hoveredCell);
+      }
+    }
+  }, [hoveredCell, pattern]);
+
+  // Attachement direct des raccourcis clavier aux cellules plutôt que d'utiliser un listener global
+  const handleAccentKeyForCurrentCell = (note, step) => {
+    // Vérifier que la cellule existe et est active
+    const cell = pattern[note]?.[step];
+    if (cell && cell.on) {
+      console.log(`Applique accent sur: ${note} pas ${step}`);
+      onToggleAccent(note, step);
+      return true;
+    }
+    return false;
+  };
+  
+  const handleSlideKeyForCurrentCell = (note, step) => {
+    // Vérifier que la cellule existe et est active
+    const cell = pattern[note]?.[step];
+    if (cell && cell.on) {
+      console.log(`Applique slide sur: ${note} pas ${step}`);
+      onToggleSlide(note, step);
+      return true;
+    }
+    return false;
+  };
+  
+  // Listener global pour les raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // N'utiliser que la cible du survol (qui est mise à jour seulement pour les notes actives)
+      const { note, step } = hoverTarget;
+      if (note === null || step === null) return;
+      
+      // Touche 'A' pour l'accent
+      if (e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        handleAccentKeyForCurrentCell(note, step);
+      }
+      
+      // Touche 'S' pour le slide
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        handleSlideKeyForCurrentCell(note, step);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [hoverTarget, pattern, onToggleAccent, onToggleSlide, handleAccentKeyForCurrentCell, handleSlideKeyForCurrentCell]);
+
+  // Mise à jour des infos de la cellule sélectionnée
+  useEffect(() => {
+    const { note, step } = selectedCell;
+    if (note && step !== null) {
+      setSelectedInfo(pattern[note]?.[step] || null);
+    } else {
+      setSelectedInfo(null);
+    }
+  }, [selectedCell, pattern]);
+
   function handleMouseDown(note, idx, e) {
     e.preventDefault();
     const cell = pattern[note]?.[idx];
+    
+    // Sélection de la cellule avec clic principal
+    setSelectedCell({ note, step: idx });
+    
     // Toggle on/off la note : 1 clic active, re-clic désactive (marche tout le temps)
     onToggleStep(note, idx);
 
@@ -68,6 +166,14 @@ export default function PianoRoll({
 
   return (
     <div className="piano-roll">
+      {/* Indications des contrôles clavier */}
+      <div style={{ marginBottom: "10px", padding: "5px 10px", background: "rgba(0,0,0,0.2)", borderRadius: "4px" }}>
+        <strong>Instructions:</strong> Survolez ou sélectionnez une note puis utilisez:
+        <ul style={{ margin: "5px 0 0 0", padding: "0 0 0 20px" }}>
+          <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>A</kbd> pour activer/désactiver l'accent sur la note survolée</li>
+          <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>S</kbd> pour activer/désactiver le slide sur la note survolée</li>
+        </ul>
+      </div>
       <div className="piano-roll-header" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
         <div className="steps-control" style={{ display: "flex", gap: 10 }}>
           <button
@@ -158,7 +264,8 @@ export default function PianoRoll({
             "step-cell" +
             (cell && cell.on ? " active" : "") +
             (currentStep === i && cell && cell.on ? " playing" : "") +
-            (currentStep === i ? " current-column" : "") // Nouvelle classe pour la colonne actuelle
+            (currentStep === i ? " current-column" : "") + 
+            ((hoveredCell.note === note && hoveredCell.step === i) ? " hovered" : "")
           }
           style={{
             ...(cell && cell.on ? {
@@ -166,17 +273,82 @@ export default function PianoRoll({
               boxShadow: "0 0 8px rgba(0, 234, 255, 0.4)", // Lueur pour les notes actives
             } : {}),
             position: "relative",
-            width: "28px", // Cellules plus larges
-            height: "28px", // Cellules plus hautes
-            margin: "1px", // Marge entre les cellules
-            borderRadius: "4px", // Coins arrondis pour les cellules
-            transition: "all 0.1s ease", // Animation douce
           }}
-          title={vel ? `Vélocité: ${vel}` : ""}
+          title={vel ? `Vélocité: ${vel}${cell?.accent ? " - Accent" : ""}${cell?.slide ? " - Slide" : ""}` : ""}
           onMouseDown={e => handleMouseDown(note, i, e)}
+          onMouseEnter={() => {
+            // Mettre à jour la cellule survolée pour TOUTES les cellules (pas seulement actives)
+            setHoveredCell({ note, step: i });
+          }}
+          onMouseLeave={() => {
+            // Réinitialiser lorsqu'on quitte la cellule
+            if (hoveredCell.note === note && hoveredCell.step === i) {
+              setHoveredCell({ note: null, step: null });
+            }
+          }}
         >
-          {/* Indicateur de vélocité plus visible */}
+          {/* Contrôles pour accent/slide directement sur la cellule si elle est active */}
+          {cell && cell.on && (
+            <div className="cell-controls">
+              <div 
+                className={`accent-button ${cell.accent ? 'active' : ''}`}
+                onMouseDown={(e) => {
+                  e.stopPropagation(); // Empêcher le déclenchement du handleMouseDown
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Utiliser setTimeout pour s'assurer que l'événement ne se propage pas
+                  setTimeout(() => onToggleAccent(note, i), 0);
+                }}
+                title="Accent (A)"
+              >
+                A
+              </div>
+              <div 
+                className={`slide-button ${cell.slide ? 'active' : ''}`}
+                onMouseDown={(e) => {
+                  e.stopPropagation(); // Empêcher le déclenchement du handleMouseDown
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Utiliser setTimeout pour s'assurer que l'événement ne se propage pas
+                  setTimeout(() => onToggleSlide(note, i), 0);
+                }}
+                title="Slide (S)"
+              >
+                S
+              </div>
+            </div>
+          )}
+          
+          {/* Indicateurs visuels d'accent et slide */}
+          {cell && cell.on && cell.accent && (
+            <div className="accent-indicator"></div>
+          )}
+          
+          {cell && cell.on && cell.slide && (
+            <div className="slide-indicator"></div>
+          )}
 
+          {/* Indicateur de sélection */}
+          {selectedCell.note === note && selectedCell.step === i && (
+            <div
+              style={{
+                position: "absolute",
+                top: "0",
+                left: "0",
+                width: "100%",
+                height: "100%",
+                border: "2px solid yellow",
+                boxSizing: "border-box",
+                zIndex: 1,
+                pointerEvents: "none",
+                borderRadius: "3px"
+              }}
+            />
+          )}
         </div>
       );
     })}
