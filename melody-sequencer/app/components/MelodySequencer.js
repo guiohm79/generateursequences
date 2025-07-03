@@ -592,12 +592,15 @@ export default function MelodySequencer() {
     const stepsToUse = params.steps || steps;
     
     // Générer le pattern avec les paramètres sélectionnés
+    // Inclut maintenant le seed si présent dans params
     setPattern(pat => buildPattern(generateMusicalPattern({
       ...params,
       steps: stepsToUse,
       octaves: { min: minOctave, max: maxOctave }
+      // Le seed est passé automatiquement via ...params s'il est présent
     }), stepsToUse, minOctave, maxOctave));
     
+    // Enregistrer les paramètres pour réutilisation
     setRandomParams(params);
     setRandomVisible(false);
   }
@@ -609,12 +612,21 @@ export default function MelodySequencer() {
     // Utiliser le nombre de pas des derniers paramètres ou le nombre de pas actuel
     const stepsToUse = randomParams.steps || steps;
     
+    // Générer un nouveau seed aléatoire si on avait un seed, sinon on garde undefined
+    const newSeed = randomParams.seed !== undefined ? Math.floor(Math.random() * 100000) : undefined;
+    
     // Générer un nouveau pattern avec les mêmes paramètres que précédemment
     setPattern(pat => buildPattern(generateMusicalPattern({
       ...randomParams,
       steps: stepsToUse,
-      octaves: { min: minOctave, max: maxOctave }
+      octaves: { min: minOctave, max: maxOctave },
+      seed: newSeed
     }), stepsToUse, minOctave, maxOctave));
+    
+    // Mettre à jour randomParams avec le nouveau seed pour les futurs appels
+    if (newSeed !== undefined) {
+      setRandomParams(prev => ({ ...prev, seed: newSeed }));
+    }
   }
 
   const handleClear = () => {

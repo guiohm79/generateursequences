@@ -46,6 +46,8 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
   const [mood, setMood] = useState(defaultParams?.mood || "default");
   const [part, setPart] = useState(defaultParams?.part || "lead");
   const [steps, setSteps] = useState(defaultParams?.steps || 16);
+  const [useSeed, setUseSeed] = useState(defaultParams?.seed !== undefined);
+  const [seed, setSeed] = useState(defaultParams?.seed || Math.floor(Math.random() * 100000));
 
   if (!visible) return null;
 
@@ -90,11 +92,50 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
             <option value="32">32 pas</option>
           </select>
         </label>
+        <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>
+          <label style={{ display: 'flex', alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={useSeed}
+              onChange={e => setUseSeed(e.target.checked)}
+              style={{ marginRight: '5px' }}
+            />
+            Utiliser une graine (seed)
+          </label>
+          {useSeed && (
+            <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="number"
+                value={seed}
+                onChange={e => setSeed(parseInt(e.target.value) || 0)}
+                style={{ width: '100px', marginRight: '5px' }}
+                min="0"
+                max="999999"
+              />
+              <button 
+                className="btn"
+                onClick={() => setSeed(Math.floor(Math.random() * 100000))}
+                style={{ padding: '3px 8px' }}
+                title="Générer une nouvelle graine aléatoire"
+              >
+                🎲
+              </button>
+            </div>
+          )}
+        </div>
         <div className="random-popup-actions">
           <button className="btn" onClick={onCancel}>Annuler</button>
           <button
             className="btn primary"
-            onClick={() => onValidate({ rootNote: root, scale, style, mood, part, steps })}
+            onClick={() => onValidate({ 
+              rootNote: root, 
+              scale, 
+              style, 
+              mood, 
+              part, 
+              steps,
+              seed: useSeed ? seed : undefined
+            })}
           >Générer</button>
         </div>
       </div>
