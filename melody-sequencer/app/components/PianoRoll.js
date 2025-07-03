@@ -46,11 +46,7 @@ export default function PianoRoll({
 
   // Debug pour suivre la cellule survolée
   useEffect(() => {
-    // Log uniquement quand la cellule change
-    if (hoveredCell.note !== null) {
-      console.log(`Cellule survolée: ${hoveredCell.note} pas ${hoveredCell.step}`);
-    }
-    
+   
     // Mettre à jour le hoverTarget seulement si c'est une note active
     if (hoveredCell.note !== null && hoveredCell.step !== null) {
       const cell = pattern[hoveredCell.note]?.[hoveredCell.step];

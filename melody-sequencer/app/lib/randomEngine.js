@@ -67,63 +67,59 @@ function clamp(idx, min, max) {
 }
 
 // -----------------------------------------------------------
-// PATTERNS BASSE
+// PATTERNS BASSE  (version +variée)
 // -----------------------------------------------------------
 function bassPattern({allNotes, rootNote, steps, style, mood}) {
   const pattern = {};
-  allNotes.forEach(n => { pattern[n] = emptyRow(steps); });
+  allNotes.forEach(n => (pattern[n] = emptyRow(steps)));
 
-  // Trouve l’index de la tonique la plus grave
-  const rootIndices = allNotes.reduce((arr,n,i)=>{if(n.startsWith(rootNote))arr.push(i);return arr;},[]);
-  const rootIdx     = rootIndices[0] ?? 0;
+  // index de la fondamentale la plus grave
+  const rootIndices = allNotes.reduce((a, n, i) => {
+    if (n.startsWith(rootNote)) a.push(i);
+    return a;
+  }, []);
+  const rootIdx  = rootIndices[0] ?? 0;
+  const fifthIdx = clamp(rootIdx + 4, 0, allNotes.length - 1);
+  const octIdx   = clamp(rootIdx + 12, 0, allNotes.length - 1);
+  const notePool = [rootIdx, fifthIdx, octIdx];
 
-  const write = (noteIdx, pos, vel=110) => {
-    pattern[allNotes[noteIdx]][pos] = {on:true, velocity:vel};
-  };
+  const write = (idx, pos, vel = 110) =>
+    (pattern[allNotes[idx]][pos] = { on: true, velocity: vel });
 
-  switch(style) {
+  switch (style) {
     case 'goa':
     case 'psy':
-      // Roulement continu en 1/16 sauf sur le kick (pos %4 ===0)
-      for (let i=0;i<steps;i++){
-        if(i%4!==0){
-          const vel = (i%4===1?120:95) + (mood==='punchy'?5:0);
-          write(rootIdx,i,vel);
+      for (let i = 0; i < steps; i++) {
+        if (i % 4 !== 0) {
+          const vel = 90 + Math.random() * 30;
+          const idx =
+            Math.random() < 0.75 ? rootIdx : notePool[Math.random() * notePool.length | 0];
+          write(idx, i, vel);
         }
       }
       break;
 
     case 'prog':
-      // Off‑beat (2ème double‑croche)
-      for (let i=0;i<steps;i++){
-        if(i%4===2){
-          const vel = mood==='soft'?100:115;
-          write(rootIdx,i,vel);
+      for (let i = 0; i < steps; i++) {
+        if (i % 4 === 2) {
+          const idx = Math.random() < 0.2 ? fifthIdx : rootIdx;
+          write(idx, i, mood === 'soft' ? 100 : 115);
         }
       }
       break;
 
-    case 'deep':
-      // Pulse toutes les 8 étapes + sidechain fantôme (laisser trou sur le kick)
-      for (let i=0;i<steps;i+=8){
-        write(rootIdx,i+2,100);
-      }
-      break;
-
-    case 'downtempo':
-    default:
-      // 1 note sur 1/4 avec fill aléatoire
-      for(let i=0;i<steps;i++){
-        if(i%4===0){
-          write(rootIdx,i,90);
-        }else if(Math.random()<0.15 && mood!=='soft'){
-          write(rootIdx,i,70+Math.floor(Math.random()*25));
+    default: // deep / downtempo etc.
+      for (let i = 0; i < steps; i++) {
+        if (i % 4 === 0) {
+          write(rootIdx, i, 85 + Math.random() * 15);
+        } else if (Math.random() < 0.25) {
+          write(notePool[Math.random() * notePool.length | 0], i, 60 + Math.random() * 40);
         }
       }
-      break;
   }
   return pattern;
 }
+
 
 // -----------------------------------------------------------
 // PATTERNS LEAD / MELODY
@@ -192,15 +188,24 @@ function padPattern({allNotes, steps, style}) {
 }
 
 // -----------------------------------------------------------
-// PATTERNS ARPEGGIO (ascendant-descendant continu)
+// PATTERNS ARPEGGIO  (random-walk)
 // -----------------------------------------------------------
-function arpeggioPattern({allNotes,steps}){
-  const pattern={};
-  allNotes.forEach(n=>{pattern[n]=emptyRow(steps);});
-  const motif=[...allNotes,...allNotes.slice().reverse()];
-  for(let t=0;t<steps;t++){
-    const idx=motif[t%motif.length];
-    pattern[idx][t]={on:true,velocity:100};
+function arpeggioPattern({ allNotes, steps }) {
+  const pattern = {};
+  allNotes.forEach(n => (pattern[n] = emptyRow(steps)));
+
+  const write = (idx, pos, vel = 100) =>
+    (pattern[allNotes[idx]][pos] = { on: true, velocity: vel });
+
+  let idx = Math.floor(allNotes.length / 2);          // départ milieu de gamme
+  for (let t = 0; t < steps; t++) {
+    write(idx, t, 90 + Math.random() * 25);
+    // déplacement aléatoire de –2, –1, +1 ou +2 degrés
+    idx = clamp(
+      idx + [-2, -1, 1, 2][Math.random() * 4 | 0],
+      0,
+      allNotes.length - 1
+    );
   }
   return pattern;
 }

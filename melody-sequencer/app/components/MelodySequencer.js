@@ -602,6 +602,21 @@ export default function MelodySequencer() {
     setRandomVisible(false);
   }
 
+  // Fonction pour regénérer un pattern aléatoire avec les derniers paramètres utilisés
+  function regenerateRandomPattern() {
+    if (!randomParams) return;
+    
+    // Utiliser le nombre de pas des derniers paramètres ou le nombre de pas actuel
+    const stepsToUse = randomParams.steps || steps;
+    
+    // Générer un nouveau pattern avec les mêmes paramètres que précédemment
+    setPattern(pat => buildPattern(generateMusicalPattern({
+      ...randomParams,
+      steps: stepsToUse,
+      octaves: { min: minOctave, max: maxOctave }
+    }), stepsToUse, minOctave, maxOctave));
+  }
+
   const handleClear = () => {
     setPattern(buildPattern(null, steps, minOctave, maxOctave));
     setCurrentStep(0);
@@ -780,6 +795,19 @@ export default function MelodySequencer() {
           <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
           <button className="btn" id="clearBtn" onClick={handleClear}>Clear</button>
           <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}>Random</button>
+          <button 
+            className="btn" 
+            id="randomAgainBtn" 
+            onClick={regenerateRandomPattern} 
+            disabled={!randomParams}
+            title="Régénérer un pattern aléatoire avec les mêmes paramètres"
+            style={{ 
+              backgroundColor: randomParams ? '#ff9500' : '', 
+              color: randomParams ? '#000' : '' 
+            }}
+          >
+            Random Again
+          </button>
           <button
             className="btn"
             id="exportMidiBtn"
