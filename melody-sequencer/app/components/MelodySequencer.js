@@ -1251,7 +1251,7 @@ export default function MelodySequencer() {
         visible={variationPopupOpen}
         onValidate={handleVariationValidate}
         onCancel={() => setVariationPopupOpen(false)}
-        currentPattern="current"
+        currentPattern={pattern} // Passer le vrai pattern actuel au lieu de "current"
         octaves={{ min: minOctave, max: maxOctave }}
       />
     </div>

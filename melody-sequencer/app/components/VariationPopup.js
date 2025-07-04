@@ -74,7 +74,9 @@ const VariationPopup = ({
       midiData = fileBuffer;
     } else if (selectedSource === "current" && currentPattern) {
       // Utiliser le pattern actuel du séquenceur
-      midiData = currentPattern;
+      // Si c'est un objet pattern, on l'identifie par "current" pour que
+      // handleVariationValidate sache qu'il faut le convertir
+      midiData = "current";
     } else {
       alert("Veuillez sélectionner une source de données MIDI valide");
       return;
