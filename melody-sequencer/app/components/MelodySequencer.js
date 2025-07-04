@@ -1,14 +1,17 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as Tone from "tone";
+import { Midi } from "@tonejs/midi";
 import PianoRoll from "./PianoRoll";
 import RandomPopup from "./RandomPopup";
 import SynthPopup from "./SynthPopup";
 import MIDIOutputSettings from "./MIDIOutputSettings";
+import VariationPopup from "./VariationPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
+import { generateVariations } from "../lib/variationEngine";
 
 // Helpers pattern robustes
 function getAllNotes(minOct, maxOct) {
@@ -46,6 +49,7 @@ export default function MelodySequencer() {
   const [randomParams, setRandomParams] = useState(null);
   const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
   const [midiOutputEnabled, setMidiOutputEnabled] = useState(false);
+  const [variationPopupOpen, setVariationPopupOpen] = useState(false);
 
   // Référence pour le débogage de la popup MIDI
   const midiDebugRef = useRef(null);
@@ -466,6 +470,105 @@ export default function MelodySequencer() {
     }
   };
 
+  // Convertir le pattern actuel en données MIDI
+  const convertPatternToMidiData = () => {
+    // Créer un nouvel objet MIDI - avec le PPQ par défaut (480)
+    const midi = new Midi();
+    const track = midi.addTrack();
+    
+    // Note: PPQ is read-only in @tonejs/midi, it's already set to 480 by default
+    // We'll use the default PPQ value for timing calculations
+    const ppq = 480;
+    
+    // Parcourir le pattern pour ajouter les notes
+    Object.entries(pattern).forEach(([note, steps]) => {
+      if (Array.isArray(steps)) {
+        steps.forEach((cell, stepIndex) => {
+          if (cell && cell.on) {
+            // Calcul de la durée et du timing
+            const startTime = stepIndex * (ppq / (steps.length / 4)); // 4 noires par mesure
+            const duration = ppq / (steps.length / 4); // Durée en ticks (une double-croche par défaut)
+            
+            // Convertir la note en numéro MIDI
+            const midiNote = Tone.Frequency(note).toMidi();
+            
+            // Ajouter la note au track
+            track.addNote({
+              midi: midiNote,
+              time: startTime / 480,
+              duration: duration / 480,
+              velocity: (cell.velocity || 100) / 127
+            });
+          }
+        });
+      }
+    });
+    
+    return midi.toArray();
+  };
+  
+  // Fonction pour gérer la validation du popup de variation
+  const handleVariationValidate = async (midiData, options) => {
+    try {
+      // Si on utilise le pattern actuel, le convertir en MIDI
+      const sourceData = midiData === "current" ? convertPatternToMidiData() : midiData;
+      
+      // Générer les variations
+      const variations = generateVariations(sourceData, options);
+      
+      // Si aucune variation n'a été générée
+      if (!variations || variations.length === 0) {
+        alert("Aucune variation n'a été générée. Veuillez vérifier vos paramètres.");
+        return;
+      }
+      
+      // Utiliser la première variation (pour l'instant)
+      const variationData = variations[0];
+      
+      // Convertir les données MIDI en pattern pour le séquenceur
+      const newMidi = new Midi(variationData);
+      const newTrack = newMidi.tracks[0];
+      
+      // Créer un nouveau pattern vide
+      const newPattern = buildPattern(null, steps, minOctave, maxOctave);
+      
+      // Ajouter les notes du MIDI au pattern
+      if (newTrack && newTrack.notes) {
+        newTrack.notes.forEach(note => {
+          // Convertir le numéro MIDI en note + octave
+          const noteName = Tone.Frequency(note.midi, "midi").toNote();
+          
+          // Vérifier si la note est dans notre range d'octaves
+          if (newPattern[noteName]) {
+            // Calculer l'index du step correspondant au timing de la note
+            // PPQ est généralement 480 par défaut dans @tonejs/midi
+            const ppq = 480;
+            const stepIndex = Math.floor((note.time * ppq * steps) / (ppq * 4));
+            
+            // Si le step est dans notre range
+            if (stepIndex >= 0 && stepIndex < steps) {
+              // Ajouter la note au pattern
+              newPattern[noteName][stepIndex] = { 
+                on: true, 
+                velocity: Math.round(note.velocity * 127),
+                accent: false,
+                slide: false
+              };
+            }
+          }
+        });
+      }
+      
+      // Mettre à jour le pattern et fermer le popup
+      setPattern(newPattern);
+      setVariationPopupOpen(false);
+      
+    } catch (error) {
+      console.error("Erreur lors de la génération des variations:", error);
+      alert("Une erreur s'est produite lors de la génération des variations.");
+    }
+  };
+  
   function exportToMidi() {
     function noteNameToMidi(note) {
       const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -828,6 +931,19 @@ export default function MelodySequencer() {
           >Export MIDI</button>
 
           <button
+            className="btn"
+            id="variationBtn"
+            onClick={() => setVariationPopupOpen(true)}
+            disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+            style={{
+              backgroundColor: '#ff00ea',
+              color: '#000'
+            }}
+          >
+            Modification séquence
+          </button>
+
+          <button
             className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
             id="midiBtn"
             onClick={handleToggleMidi}
@@ -1131,6 +1247,13 @@ export default function MelodySequencer() {
           />
         </div>
       )}
+      <VariationPopup
+        visible={variationPopupOpen}
+        onValidate={handleVariationValidate}
+        onCancel={() => setVariationPopupOpen(false)}
+        currentPattern="current"
+        octaves={{ min: minOctave, max: maxOctave }}
+      />
     </div>
   );
 }

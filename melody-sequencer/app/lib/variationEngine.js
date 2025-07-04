@@ -64,7 +64,8 @@ export function generateVariations(midiData, opts = {}) {
 
   for (const semi of transpositions) {
     const out   = new Midi();
-    out.header.ppq = baseMidi.header.ppq;            // conserve le PPQ
+    // Note: ppq est une propriété en lecture seule, pas besoin de la définir
+    // out.header.ppq est déjà initialisé à 480 par défaut
     const trk   = out.addTrack();
 
     /* --------- Copie + transformation note par note --------- */
@@ -96,8 +97,10 @@ export function generateVariations(midiData, opts = {}) {
     /* e) humanisation & quantisation gamme */
     trk.notes.forEach(n => {
       if (humanize) {
-        n.ticks    += Math.floor((rng() * 2 - 1) * humanize);
-        n.velocity  = Math.min(1, Math.max(0, n.velocity + (rng() * 0.2 - 0.1)));
+        // Éviter les valeurs négatives pour les ticks
+        const humanizeAmount = Math.floor((rng() * 2 - 1) * humanize);
+        n.ticks = Math.max(0, n.ticks + humanizeAmount); // Assurer que ticks reste positif
+        n.velocity = Math.min(1, Math.max(0, n.velocity + (rng() * 0.2 - 0.1)));
       }
       if (keepScale) n.midi = quantizeToScale(n.midi, root, scale);
     });
