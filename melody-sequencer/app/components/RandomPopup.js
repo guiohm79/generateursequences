@@ -41,7 +41,7 @@ const STEPS_OPTIONS = [
 
 export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
   const [root, setRoot] = useState(defaultParams?.rootNote || "C");
-  const [scale, setScale] = useState(defaultParams?.scale || "major");
+  const [scale, setScale] = useState(defaultParams?.scale || "phrygian");
   const [style, setStyle] = useState(defaultParams?.style || "psy");
   const [mood, setMood] = useState(defaultParams?.mood || "default");
   const [part, setPart] = useState(defaultParams?.part || "lead");

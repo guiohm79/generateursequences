@@ -182,7 +182,7 @@ export function generateMusicalPattern({
   mood='default',
   part='bassline',
   steps=16,
-  octaves={min:3,max:5},
+  octaves={min:2,max:4},
   seed=null          // ← nouveau
 } = {}){
 
