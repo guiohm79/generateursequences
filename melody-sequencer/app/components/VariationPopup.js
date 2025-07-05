@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Midi } from '@tonejs/midi';
 import { SCALES } from '../lib/randomEngine';
 
@@ -12,6 +12,9 @@ const VariationPopup = ({
 }) => {
   // Si le popup n'est pas visible, ne pas le rendre
   if (!visible) return null;
+
+  // État pour suivre si on est en train de faire un drag
+  const [isDragging, setIsDragging] = useState(false);
 
   // États pour les options de variation
   const [selectedSource, setSelectedSource] = useState("current"); // "current" ou "import"
@@ -32,20 +35,50 @@ const VariationPopup = ({
   // Référence pour l'input de fichier
   const fileInputRef = useRef(null);
 
-  // Fonction pour gérer l'import de fichier MIDI
+  // Fonction pour gérer l'import de fichier MIDI via le sélecteur de fichiers
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // Vérifier l'extension du fichier plutôt que le type MIME qui peut varier
-      const fileName = file.name.toLowerCase();
-      if (fileName.endsWith('.mid') || fileName.endsWith('.midi')) {
-        setImportedFile(file);
-        setSelectedSource("import");
-      } else {
-        alert("Veuillez sélectionner un fichier MIDI valide (.mid ou .midi)");
-      }
+      processFile(file);
     } else {
       alert("Aucun fichier sélectionné");
+    }
+  };
+
+  // Fonction commune pour traiter un fichier MIDI
+  const processFile = (file) => {
+    // Vérifier l'extension du fichier plutôt que le type MIME qui peut varier
+    const fileName = file.name.toLowerCase();
+    if (fileName.endsWith('.mid') || fileName.endsWith('.midi')) {
+      setImportedFile(file);
+      setSelectedSource("import");
+    } else {
+      alert("Veuillez sélectionner un fichier MIDI valide (.mid ou .midi)");
+    }
+  };
+
+  // Gestionnaires pour le drag and drop
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    // Vérifier s'il y a des fichiers
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      processFile(file);
     }
   };
 
@@ -118,7 +151,12 @@ const VariationPopup = ({
       alignItems: 'center',
       zIndex: 1000
     }}>
-      <div className="popup-container" style={{
+      <div 
+        className="popup-container" 
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
         backgroundColor: '#1a1a2e',
         borderRadius: '12px',
         boxShadow: '0 0 25px rgba(0, 234, 255, 0.5)',
@@ -130,6 +168,32 @@ const VariationPopup = ({
         color: 'white',
         border: '1px solid #00eaff'
       }}>
+        {isDragging && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 234, 255, 0.2)',
+            borderRadius: '12px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10,
+            border: '2px dashed #00eaff'
+          }}>
+            <div style={{
+              backgroundColor: 'rgba(0, 0, 30, 0.8)',
+              padding: '20px',
+              borderRadius: '8px',
+              color: '#00eaff',
+              fontWeight: 'bold'
+            }}>
+              Déposez votre fichier MIDI ici
+            </div>
+          </div>
+        )}
         <h2 style={{
           fontSize: '24px',
           fontWeight: '700',

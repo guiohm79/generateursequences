@@ -532,18 +532,65 @@ export default function MelodySequencer() {
       // Créer un nouveau pattern vide
       const newPattern = buildPattern(null, steps, minOctave, maxOctave);
       
-      // Ajouter les notes du MIDI au pattern
-      if (newTrack && newTrack.notes) {
-        newTrack.notes.forEach(note => {
+      // Analyser le MIDI pour détecter la résolution et la longueur
+      if (newTrack && newTrack.notes && newTrack.notes.length > 0) {
+        // Analyser le fichier MIDI pour déterminer la résolution réelle et la longueur
+        let midiDuration = 0;
+        let minTimeGap = Infinity; // Pour estimer la résolution
+        let lastTimePoint = -1;
+        
+        // Trier les notes par temps
+        const sortedNotes = [...newTrack.notes].sort((a, b) => a.time - b.time);
+        
+        // Trouver la durée totale et la plus petite différence de temps entre notes
+        sortedNotes.forEach(note => {
+          // Mettre à jour la durée totale du MIDI
+          midiDuration = Math.max(midiDuration, note.time + note.duration);
+          
+          // Calculer l'écart de temps entre notes consécutives
+          if (lastTimePoint >= 0) {
+            const gap = note.time - lastTimePoint;
+            if (gap > 0.001) { // Ignorer les notes simultanées (gap très petit)
+              minTimeGap = Math.min(minTimeGap, gap);
+            }
+          }
+          lastTimePoint = note.time;
+        });
+        
+        // Si pas assez de notes pour détecter l'écart, utiliser une valeur par défaut
+        if (minTimeGap === Infinity) minTimeGap = 0.25; // Par défaut, considérer 1/16
+        
+        // Déduire si le MIDI est probablement en 1/32 ou autre résolution
+        const isHighResolution = minTimeGap < 0.2; // Seuil pour détecter résolution élevée
+        
+        // Estimer la longueur en pas (mesures)
+        const totalBeats = midiDuration * 4; // 4 temps par mesure
+        const estimatedSteps = Math.ceil(totalBeats / (isHighResolution ? 0.125 : 0.25)); // 0.125 pour 1/32, 0.25 pour 1/16
+        
+        // Message pour informer l'utilisateur si le MIDI est plus long que les pas disponibles
+        let truncationWarning = false;
+        if (estimatedSteps > steps) {
+          console.log(`Le MIDI importé contient ~${estimatedSteps} pas mais sera tronqué à ${steps} pas`);
+          truncationWarning = true;
+        }
+
+        // Ajouter les notes du MIDI au pattern
+        sortedNotes.forEach(note => {
           // Convertir le numéro MIDI en note + octave
           const noteName = Tone.Frequency(note.midi, "midi").toNote();
           
           // Vérifier si la note est dans notre range d'octaves
           if (newPattern[noteName]) {
-            // Calculer l'index du step correspondant au timing de la note
-            // PPQ est généralement 480 par défaut dans @tonejs/midi
-            const ppq = 480;
-            const stepIndex = Math.floor((note.time * ppq * steps) / (ppq * 4));
+            // Calculer l'index du step selon la résolution détectée
+            let stepIndex;
+            
+            if (isHighResolution) {
+              // Pour MIDI haute résolution (probablement 1/32), combiner deux pas en un
+              stepIndex = Math.floor((note.time * 8) / 2); // *8 pour 1/32, puis divisé par 2 pour ajuster à 1/16
+            } else {
+              // Pour résolution standard (1/16 ou inférieure)
+              stepIndex = Math.floor(note.time * 4); // *4 pour convertir en indices de 1/16
+            }
             
             // Si le step est dans notre range
             if (stepIndex >= 0 && stepIndex < steps) {
@@ -557,6 +604,13 @@ export default function MelodySequencer() {
             }
           }
         });
+        
+        // Afficher un avertissement si le MIDI a été tronqué
+        if (truncationWarning) {
+          setTimeout(() => {
+            alert(`Attention: Le fichier MIDI importé contient plus de pas que les ${steps} pas disponibles dans le séquenceur. Certaines notes ont été ignorées.`);
+          }, 100);
+        }
       }
       
       // Mettre à jour le pattern et fermer le popup
@@ -934,7 +988,7 @@ export default function MelodySequencer() {
             className="btn"
             id="variationBtn"
             onClick={() => setVariationPopupOpen(true)}
-            disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+            //disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
             style={{
               backgroundColor: '#ff00ea',
               color: '#000'
