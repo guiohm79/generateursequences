@@ -35,7 +35,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 20px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 95%; /* Élargissement de la largeur maximale à 95% de la fenêtre */
     padding: 40px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 100px rgba(0, 212, 255, 0.1);
     backdrop-filter: blur(20px);

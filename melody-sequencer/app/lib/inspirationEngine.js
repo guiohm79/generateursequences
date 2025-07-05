@@ -58,7 +58,7 @@ function euclid(steps,pulses){
  */
 export function generateInspiration(midiData, opts={}){
   const {
-    lenBars   = 4,
+    lenBars   = 2,
     seed      = null,
     root      = 'C',
     scale     = 'minor',

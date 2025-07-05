@@ -180,21 +180,37 @@ export default function PianoRoll({
             className={`btn steps-btn${steps === 32 ? " active" : ""}`}
             onClick={() => onChangeSteps(32)}
           >32 Steps</button>
+          <button
+            className={`btn steps-btn${steps === 64 ? " active" : ""}`}
+            onClick={() => onChangeSteps(64)}
+          >64 Steps</button>
         </div>
       </div>
       {/* Header steps avec surbrillance */}
-      <div className="note-row step-header-row" style={{ userSelect: "none", position: "sticky", top: 0, zIndex: 2, background: "#191c23" }}>
-        <div 
-          className="note-label" 
-          style={{ 
-            background: "transparent", 
-            border: "none",
-            width: "60px" // Même largeur que les labels de notes (60px)
-          }}
-        ></div>
+      <div className="grid-container" style={{
+        display: "grid",
+        gridTemplateColumns: `60px repeat(${steps}, 1fr)`,
+        width: "100%",
+        position: "relative",
+        boxSizing: "border-box"
+      }}>
+        {/* Cellule vide en haut à gauche */}
+        <div style={{ 
+          background: "transparent", 
+          border: "none",
+          gridColumn: "1 / 2",
+          gridRow: "1 / 2",
+          zIndex: 3,
+          position: "sticky",
+          top: 0,
+          left: 0,
+          boxSizing: "border-box"
+        }}></div>
+        
+        {/* En-têtes des colonnes (numéros de pas) */}
         {Array(steps).fill().map((_, i) => (
           <div
-            key={i}
+            key={`header-${i}`}
             className={`step-header-cell${currentStep === i ? " current-step" : ""}`}
             style={{
               ...(currentStep === i ? {
@@ -202,12 +218,20 @@ export default function PianoRoll({
                 color: "#00eaff",
                 fontWeight: 700
               } : {}),
-              width: "28px", // Même largeur que les cellules
+              gridColumn: `${i + 2} / ${i + 3}`,
+              gridRow: "1 / 2",
               height: "24px",
-              margin: "1px", // Même marge que les cellules
               display: "flex",
               justifyContent: "center",
-              alignItems: "center"
+              alignItems: "center",
+              fontSize: steps > 32 ? "0.65rem" : "0.8rem",
+              background: currentStep === i ? "#00eaff44" : "#191c23",
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
+              boxSizing: "border-box",
+              margin: 0,
+              padding: 0
             }}
           >
             {i + 1}
@@ -217,139 +241,150 @@ export default function PianoRoll({
       <div
         className="piano-grid"
         style={{
-          maxHeight: "65vh", // Augmentation de la hauteur maximale
+          maxHeight: "70vh", // Augmentation de la hauteur maximale
           overflowY: "auto",
           overflowX: "auto",
           borderRadius: 12, // Bordure plus arrondie
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)", // Ajout d'une ombre
           padding: "4px 0", // Ajout de padding vertical
+          width: "100%", // Toujours utiliser la largeur maximale disponible
+          display: "grid", // Utiliser Grid au lieu de flex
+          gridTemplateColumns: `60px repeat(${steps}, 1fr)` // Même structure de grille que l'en-tête
         }}
       >
-{pianoNotes.map(note => (
-  <div className="note-row" key={note} style={{ marginBottom: "2px" }}> {/* Espacement entre les rangées */}
-    <div 
-      className={`note-label${note.includes("#") ? " black-key" : ""}`}
-      style={{ 
-        width: "60px", // Encore plus large pour les labels de notes
-        fontSize: "0.95rem", // Texte légèrement plus grand
-        fontWeight: note.includes("#") ? "normal" : "bold", // Notes naturelles en gras
-        borderRadius: "6px 0 0 6px", // Coins plus arrondis côté gauche
-        display: "flex",
-        alignItems: "center", // Centrer verticalement
-        justifyContent: "flex-end", // Aligner à droite
-        paddingRight: "10px", // Espace à droite
-        boxShadow: note.includes("#") ? "inset 0 0 0 1px rgba(255,255,255,0.1)" : "inset 0 0 0 1px rgba(255,255,255,0.2)", // Bordure subtile
-        background: note.includes("#") ? "linear-gradient(to right, #1a1c25, #252736)" : "linear-gradient(to right, #252736, #2c2e40)", // Dégradé subtil
-        color: note.includes("#") ? "#8af" : "#fff", // Couleur différente pour les dièses
-        letterSpacing: "0.5px", // Espacement des lettres
-      }}
-    >
-      {/* Afficher la note de manière plus lisible */}
-      <span style={{ fontWeight: "bold" }}>{note.replace(/([0-9])/g, '')}</span>
-      <span style={{ opacity: 0.7, fontSize: "0.8em", marginLeft: "2px" }}>
-        {note.match(/[0-9]/)?.[0]}
-      </span>
-    </div>
-    {Array(steps).fill().map((_, i) => {
-      const cell = pattern[note] && pattern[note][i] !== undefined ? pattern[note][i] : null;
-      const vel = cell && cell.on ? (cell.velocity || 100) : null;
-      return (
-        <div
-          key={i}
-          className={
-            "step-cell" +
-            (cell && cell.on ? " active" : "") +
-            (currentStep === i && cell && cell.on ? " playing" : "") +
-            (currentStep === i ? " current-column" : "") + 
-            ((hoveredCell.note === note && hoveredCell.step === i) ? " hovered" : "")
-          }
-          style={{
-            ...(cell && cell.on ? {
-              background: `linear-gradient(to top, #00eaff ${(vel/127)*100}%, #252736 ${(vel/127)*100}%)`,
-              boxShadow: "0 0 8px rgba(0, 234, 255, 0.4)", // Lueur pour les notes actives
-            } : {}),
-            position: "relative",
-          }}
-          title={vel ? `Vélocité: ${vel}${cell?.accent ? " - Accent" : ""}${cell?.slide ? " - Slide" : ""}` : ""}
-          onMouseDown={e => handleMouseDown(note, i, e)}
-          onMouseEnter={() => {
-            // Mettre à jour la cellule survolée pour TOUTES les cellules (pas seulement actives)
-            setHoveredCell({ note, step: i });
-          }}
-          onMouseLeave={() => {
-            // Réinitialiser lorsqu'on quitte la cellule
-            if (hoveredCell.note === note && hoveredCell.step === i) {
-              setHoveredCell({ note: null, step: null });
-            }
-          }}
-        >
-          {/* Contrôles pour accent/slide directement sur la cellule si elle est active */}
-          {cell && cell.on && (
-            <div className="cell-controls">
-              <div 
-                className={`accent-button ${cell.accent ? 'active' : ''}`}
-                onMouseDown={(e) => {
-                  e.stopPropagation(); // Empêcher le déclenchement du handleMouseDown
+        {/* Labels des notes (première colonne) */}
+        {pianoNotes.map((note, rowIndex) => (
+          <div 
+            key={`label-${note}`}
+            className={`note-label${note.includes("#") ? " black-key" : ""}`}
+            style={{ 
+              gridColumn: "1 / 2",
+              gridRow: `${rowIndex + 2} / ${rowIndex + 3}`,
+              fontSize: "0.95rem",
+              fontWeight: note.includes("#") ? "normal" : "bold",
+              borderRadius: "6px 0 0 6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              paddingRight: "10px",
+              height: "24px",
+              boxShadow: note.includes("#") ? "inset 0 0 0 1px rgba(255,255,255,0.1)" : "inset 0 0 0 1px rgba(255,255,255,0.2)",
+              background: note.includes("#") ? "linear-gradient(to right, #1a1c25, #252736)" : "linear-gradient(to right, #252736, #2c2e40)",
+              color: note.includes("#") ? "#8af" : "#fff",
+              letterSpacing: "0.5px",
+              boxSizing: "border-box",
+              margin: "1px 0"
+            }}
+          >
+            <span style={{ fontWeight: "bold" }}>{note.replace(/([0-9])/g, '')}</span>
+            <span style={{ opacity: 0.7, fontSize: "0.8em", marginLeft: "2px" }}>
+              {note.match(/[0-9]/)?.[0]}
+            </span>
+          </div>
+        ))}
+        
+        {/* Cellules de notes (grille principale) */}
+        {pianoNotes.map((note, rowIndex) => {
+          return Array(steps).fill().map((_, i) => {
+            const cell = pattern[note] && pattern[note][i] !== undefined ? pattern[note][i] : null;
+            const vel = cell && cell.on ? (cell.velocity || 100) : null;
+            return (
+              <div
+                key={`cell-${note}-${i}`}
+                className={
+                  "step-cell" +
+                  (cell && cell.on ? " active" : "") +
+                  (currentStep === i && cell && cell.on ? " playing" : "") +
+                  (currentStep === i ? " current-column" : "") + 
+                  ((hoveredCell.note === note && hoveredCell.step === i) ? " hovered" : "")
+                }
+                style={{
+                  ...(cell && cell.on ? {
+                    background: `linear-gradient(to top, #00eaff ${(vel/127)*100}%, #252736 ${(vel/127)*100}%)`,
+                    boxShadow: "0 0 8px rgba(0, 234, 255, 0.4)",
+                  } : {}),
+                  position: "relative",
+                  gridColumn: `${i + 2} / ${i + 3}`,
+                  gridRow: `${rowIndex + 2} / ${rowIndex + 3}`,
+                  height: "24px",
+                  margin: "1px",
+                  boxSizing: "border-box",
+                  borderRadius: "2px"
                 }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Utiliser setTimeout pour s'assurer que l'événement ne se propage pas
-                  setTimeout(() => onToggleAccent(note, i), 0);
+                title={vel ? `Vélocité: ${vel}${cell?.accent ? " - Accent" : ""}${cell?.slide ? " - Slide" : ""}` : ""}
+                onMouseDown={e => handleMouseDown(note, i, e)}
+                onMouseEnter={() => {
+                  setHoveredCell({ note, step: i });
                 }}
-                title="Accent (A)"
+                onMouseLeave={() => {
+                  if (hoveredCell.note === note && hoveredCell.step === i) {
+                    setHoveredCell({ note: null, step: null });
+                  }
+                }}
               >
-                A
+                {/* Contrôles pour accent/slide directement sur la cellule si elle est active */}
+                {cell && cell.on && (
+                  <div className="cell-controls">
+                    <div 
+                      className={`accent-button ${cell.accent ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTimeout(() => onToggleAccent(note, i), 0);
+                      }}
+                      title="Accent (A)"
+                    >
+                      A
+                    </div>
+                    <div 
+                      className={`slide-button ${cell.slide ? 'active' : ''}`}
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setTimeout(() => onToggleSlide(note, i), 0);
+                      }}
+                      title="Slide (S)"
+                    >
+                      S
+                    </div>
+                  </div>
+                )}
+                {/* Indicateurs visuels d'accent et slide */}
+                {cell && cell.on && cell.accent && (
+                  <div className="accent-indicator"></div>
+                )}
+                
+                {cell && cell.on && cell.slide && (
+                  <div className="slide-indicator"></div>
+                )}
+                
+                {/* Indicateur de sélection */}
+                {selectedCell.note === note && selectedCell.step === i && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "0",
+                      left: "0",
+                      width: "100%",
+                      height: "100%",
+                      border: "2px solid yellow",
+                      boxSizing: "border-box",
+                      zIndex: 1,
+                      pointerEvents: "none",
+                      borderRadius: "3px"
+                    }}
+                  />
+                )}
               </div>
-              <div 
-                className={`slide-button ${cell.slide ? 'active' : ''}`}
-                onMouseDown={(e) => {
-                  e.stopPropagation(); // Empêcher le déclenchement du handleMouseDown
-                }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Utiliser setTimeout pour s'assurer que l'événement ne se propage pas
-                  setTimeout(() => onToggleSlide(note, i), 0);
-                }}
-                title="Slide (S)"
-              >
-                S
-              </div>
-            </div>
-          )}
-          
-          {/* Indicateurs visuels d'accent et slide */}
-          {cell && cell.on && cell.accent && (
-            <div className="accent-indicator"></div>
-          )}
-          
-          {cell && cell.on && cell.slide && (
-            <div className="slide-indicator"></div>
-          )}
-
-          {/* Indicateur de sélection */}
-          {selectedCell.note === note && selectedCell.step === i && (
-            <div
-              style={{
-                position: "absolute",
-                top: "0",
-                left: "0",
-                width: "100%",
-                height: "100%",
-                border: "2px solid yellow",
-                boxSizing: "border-box",
-                zIndex: 1,
-                pointerEvents: "none",
-                borderRadius: "3px"
-              }}
-            />
-          )}
-        </div>
-      );
-    })}
-  </div>
-))}
+            );
+          })
+        })}
       </div>
     </div>
   );
