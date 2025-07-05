@@ -82,7 +82,10 @@ export function generateInspiration(midiData, opts={}){
   const totalSteps = lenBars*16;
   const rhythmMask = euclid(totalSteps, Math.round(totalSteps*density));
 
-  const out = new Midi(); out.header.ppq = srcMidi.header.ppq;
+  // Create a new Midi object with the same PPQ as the source
+const out = new Midi();
+// Note: We can't directly set ppq as it's read-only in @tonejs/midi
+// We'll work with the default PPQ (480) instead
   const trk = out.addTrack();
 
   // point de départ : deux premières notes de la source
@@ -93,7 +96,7 @@ export function generateInspiration(midiData, opts={}){
 
   // Pose les deux premières
   [[...lastPitches][0],[...lastPitches][1]].forEach((p,i)=>{
-    trk.addNote({midi:p,velocity:notes[i].velocity,startTicks:cursor,durationTicks:lastDurs[i]});
+    trk.addNote({midi:p,velocity:notes[i].velocity,ticks:cursor,durationTicks:lastDurs[i]});
     cursor += lastDurs[i];
   });
 
@@ -114,7 +117,7 @@ export function generateInspiration(midiData, opts={}){
       trk.addNote({
         midi: pitchFixed,
         velocity: 0.8,
-        startTicks: cursor,
+        ticks: cursor,
         durationTicks: nextDur
       });
     }
