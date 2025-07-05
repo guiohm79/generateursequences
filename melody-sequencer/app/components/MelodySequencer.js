@@ -536,60 +536,78 @@ export default function MelodySequencer() {
       if (newTrack && newTrack.notes && newTrack.notes.length > 0) {
         // Analyser le fichier MIDI pour déterminer la résolution réelle et la longueur
         let midiDuration = 0;
-        let minTimeGap = Infinity; // Pour estimer la résolution
-        let lastTimePoint = -1;
         
         // Trier les notes par temps
         const sortedNotes = [...newTrack.notes].sort((a, b) => a.time - b.time);
         
-        // Trouver la durée totale et la plus petite différence de temps entre notes
+        // 1. Trouver la durée totale du MIDI et la note la plus tardive
         sortedNotes.forEach(note => {
-          // Mettre à jour la durée totale du MIDI
           midiDuration = Math.max(midiDuration, note.time + note.duration);
-          
-          // Calculer l'écart de temps entre notes consécutives
-          if (lastTimePoint >= 0) {
-            const gap = note.time - lastTimePoint;
-            if (gap > 0.001) { // Ignorer les notes simultanées (gap très petit)
-              minTimeGap = Math.min(minTimeGap, gap);
-            }
-          }
-          lastTimePoint = note.time;
         });
         
-        // Si pas assez de notes pour détecter l'écart, utiliser une valeur par défaut
-        if (minTimeGap === Infinity) minTimeGap = 0.25; // Par défaut, considérer 1/16
+        // 2. Analyser la structure temporelle du MIDI pour une meilleure détection de résolution
+        let timePoints = [];
+        sortedNotes.forEach(note => timePoints.push(note.time));
         
-        // Déduire si le MIDI est probablement en 1/32 ou autre résolution
-        const isHighResolution = minTimeGap < 0.2; // Seuil pour détecter résolution élevée
+        // Trier et dédupliquer les points temporels
+        timePoints = [...new Set(timePoints)].sort((a, b) => a - b);
         
-        // Estimer la longueur en pas (mesures)
+        // Calculer les écarts temporels entre tous les points
+        const timeDiffs = [];
+        for (let i = 1; i < timePoints.length; i++) {
+          const diff = timePoints[i] - timePoints[i - 1];
+          if (diff > 0.001) timeDiffs.push(diff); // Éviter les écarts nuls ou très petits
+        }
+        
+        // 3. Trouver le plus petit commun diviseur approximatif des écarts temporels
+        // pour déduire la "granularité" du MIDI
+        let smallestGap = Math.min(...timeDiffs, 0.25); // Valeur par défaut si pas d'écarts détectés
+        
+        console.log(`Détection MIDI - Durée totale: ${midiDuration}, Plus petit écart: ${smallestGap}`);
+        
+        // 4. Déterminer la résolution effective pour le mapping
+        // Si smallestGap est très petit, nous avons probablement un MIDI à haute résolution
+        const isVeryHighResolution = smallestGap < 0.05; // ~1/64 et plus fin
+        const isHighResolution = smallestGap < 0.2 && !isVeryHighResolution; // ~1/32
+        
+        // 5. Estimer le nombre total de pas nécessaires
+        const stepsPerBeat = isVeryHighResolution ? 16 : (isHighResolution ? 8 : 4); // 16=1/64, 8=1/32, 4=1/16
         const totalBeats = midiDuration * 4; // 4 temps par mesure
-        const estimatedSteps = Math.ceil(totalBeats / (isHighResolution ? 0.125 : 0.25)); // 0.125 pour 1/32, 0.25 pour 1/16
+        const estimatedSteps = Math.ceil(totalBeats * stepsPerBeat / 4); // Convertir en nombre de pas
         
-        // Message pour informer l'utilisateur si le MIDI est plus long que les pas disponibles
+        // Afficher un avertissement si le MIDI pourrait être tronqué
         let truncationWarning = false;
         if (estimatedSteps > steps) {
-          console.log(`Le MIDI importé contient ~${estimatedSteps} pas mais sera tronqué à ${steps} pas`);
+          console.log(`Le MIDI importé pourrait nécessiter ~${estimatedSteps} pas mais sera adapté à ${steps} pas`);
           truncationWarning = true;
         }
 
-        // Ajouter les notes du MIDI au pattern
+        // 6. Calculer le facteur de scaling pour préserver l'espacement relatif des notes
+        // tout en rentrant dans le nombre de pas disponibles
+        const scalingFactor = Math.min(steps / estimatedSteps, 1);
+        
+        console.log(`Résolution détectée: ${isVeryHighResolution ? 'très haute' : isHighResolution ? 'haute' : 'standard'}, Facteur d'échelle: ${scalingFactor}`);
+
+        // 7. Ajouter les notes du MIDI au pattern avec le bon espacement
         sortedNotes.forEach(note => {
           // Convertir le numéro MIDI en note + octave
           const noteName = Tone.Frequency(note.midi, "midi").toNote();
           
           // Vérifier si la note est dans notre range d'octaves
           if (newPattern[noteName]) {
-            // Calculer l'index du step selon la résolution détectée
+            // Calculer l'index du step en préservant l'espacement relatif
             let stepIndex;
             
-            if (isHighResolution) {
-              // Pour MIDI haute résolution (probablement 1/32), combiner deux pas en un
-              stepIndex = Math.floor((note.time * 8) / 2); // *8 pour 1/32, puis divisé par 2 pour ajuster à 1/16
+            if (isVeryHighResolution) {
+              // Pour MIDI à très haute résolution (1/64 ou plus fin)
+              // Multiplier par un facteur plus grand pour capturer toute la précision
+              stepIndex = Math.floor(note.time * 16 * scalingFactor);
+            } else if (isHighResolution) {
+              // Pour MIDI haute résolution (~1/32)
+              stepIndex = Math.floor(note.time * 8 * scalingFactor);
             } else {
               // Pour résolution standard (1/16 ou inférieure)
-              stepIndex = Math.floor(note.time * 4); // *4 pour convertir en indices de 1/16
+              stepIndex = Math.floor(note.time * 4 * scalingFactor);
             }
             
             // Si le step est dans notre range
@@ -605,10 +623,10 @@ export default function MelodySequencer() {
           }
         });
         
-        // Afficher un avertissement si le MIDI a été tronqué
+        // Afficher un message d'information adapté
         if (truncationWarning) {
           setTimeout(() => {
-            alert(`Attention: Le fichier MIDI importé contient plus de pas que les ${steps} pas disponibles dans le séquenceur. Certaines notes ont été ignorées.`);
+            alert(`Le fichier MIDI importé a été adapté pour tenir dans les ${steps} pas du séquenceur. La structure rythmique a été préservée mais comprimée.`);
           }, 100);
         }
       }
