@@ -266,7 +266,7 @@ export default function MelodySequencer() {
         }
         
         // Envoyer en MIDI si activé
-        if (midiOutputEnabled && midiOutput && midiOutput.isInitialized()) {
+        if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
           // Gérer accent et slide en temps réel pour MIDI
           const hasAccent = stepVal.accent || false;
           const hasSlide = stepVal.slide || false;
@@ -366,7 +366,7 @@ export default function MelodySequencer() {
           }
           
           // Sortie MIDI externe
-          else if (midiOutputEnabled && midiOutput && midiOutput.isInitialized()) {
+          else if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
             // Ajuster la vélocité pour l'accent
             let adjustedVelocity = noteData.velocity;
             if (noteData.accent) {
