@@ -1,7 +1,3 @@
-// inspirationEngine.js – générateur Markov + Euclide (2025-07-05)
-import { Midi } from '@tonejs/midi';
-import { mulberry32, SCALES, NOTE_ORDER } from './randomEngine.js';
-
 // inspirationEngine.js  (2025-07-05)
 // Besoin : npm i @tonejs/midi
 import { Midi } from '@tonejs/midi';
@@ -130,4 +126,4 @@ export function generateInspiration(midiData, opts={}){
   return out.toArray();
 }
 
-export function generateInspiration(midiData, opts={ /* root, scale… */ }) { /* … */ }
+//export function generateInspiration(midiData, opts={ /* root, scale… */ }) { /* … */ }

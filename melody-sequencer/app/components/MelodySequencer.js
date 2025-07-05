@@ -12,6 +12,7 @@ import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
+import { generateInspiration } from "../lib/inspirationEngine";
 
 // Helpers pattern robustes
 function getAllNotes(minOct, maxOct) {
@@ -539,7 +540,9 @@ export default function MelodySequencer() {
       const sourceData = midiData === "current" ? convertPatternToMidiData() : midiData;
       
       // Générer les variations
-      const variations = generateVariations(sourceData, options);
+      const variations = options.useInspiration
+      ? [ generateInspiration(sourceData, options) ]   // mode « Inspiration »
+      : generateVariations(sourceData, options);       // mode « Variations »
       
       // Si aucune variation n'a été générée
       if (!variations || variations.length === 0) {

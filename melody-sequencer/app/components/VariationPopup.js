@@ -31,6 +31,7 @@ const VariationPopup = ({
   const [root, setRoot] = useState("C");
   const [scale, setScale] = useState("minor");
   const [keepScale, setKeepScale] = useState(false);
+  const [useInspiration, setUseInspiration] = useState(false);   // NEW
   
   // Référence pour l'input de fichier
   const fileInputRef = useRef(null);
@@ -125,7 +126,8 @@ const VariationPopup = ({
       seed: seed ? parseInt(seed, 10) : null,
       root,
       scale,
-      keepScale
+      keepScale,
+      useInspiration
     };
 
     // Appeler la fonction onValidate avec les options et les données MIDI
@@ -249,7 +251,8 @@ const VariationPopup = ({
         {/* Section Options */}
         <div style={{ marginBottom: '20px' }}>
           <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#00eaff' }}>Options de variation</h3>
-          
+
+
           {/* Transpositions */}
           <div style={{ marginBottom: '15px' }}>
             <label style={{ display: 'block', marginBottom: '5px' }}>Transpositions (demi-tons)</label>
@@ -356,6 +359,18 @@ const VariationPopup = ({
                 Inversion mélodique
               </label>
             </div>
+
+
+            <label style={{ display:'flex',alignItems:'center',cursor:'pointer' }}>
+            <input
+              type="checkbox"
+              checked={useInspiration}
+              onChange={e=>setUseInspiration(e.target.checked)}
+              style={{ marginRight:'8px' }}
+            />
+            Mode Inspiration (Markov + Euclid)
+          </label>
+
           </div>
           
           {/* Seed */}
