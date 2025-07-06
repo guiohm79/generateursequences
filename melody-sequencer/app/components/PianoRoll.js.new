@@ -18,8 +18,8 @@ function isBlackKey(noteName) {
 export default function PianoRoll({ 
   pattern, 
   onToggleStep, 
-  onToggleAccent, // Renommé pour correspondre au nom dans MelodySequencer
-  onToggleSlide, // Renommé pour correspondre au nom dans MelodySequencer
+  onChangeAccent,
+  onChangeSlide,
   onChangeVelocity,
   currentStep,
   showVelocity = true,
@@ -27,24 +27,11 @@ export default function PianoRoll({
   steps = 16 
 }) {
   const [hoveredCell, setHoveredCell] = useState({ note: null, step: null });
-  const dragRef = useRef({ note: null, step: null, startY: 0, startVelocity: 0 });
-  const containerRef = useRef(null);
-  const [containerWidth, setContainerWidth] = useState(0);
+  const dragRef = useRef({ note: null, step: null, startY: null, startVelocity: null });
   
   // Constants pour la tessiture des notes
   const minOctave = 2;
   const maxOctave = 5;
-  
-  // Définir une valeur par défaut pour cellWidth en fonction du nombre de steps
-  const defaultCellWidth = steps === 16 ? 36 : steps === 32 ? 24 : 18;
-  
-  // Calculer dynamiquement la largeur des cellules en fonction de l'espace disponible
-  // et du nombre de steps, tout en respectant une taille minimum pour l'utilisabilité
-  const minCellWidth = steps === 16 ? 24 : steps === 32 ? 18 : 14;
-  const keyboardWidth = 60; // Largeur de la colonne des touches de piano
-  const availableWidth = containerWidth - keyboardWidth - 5; // 5px de marge
-  const calculatedWidth = Math.max(minCellWidth, availableWidth / steps);
-  const cellWidth = containerWidth > 0 ? calculatedWidth : defaultCellWidth;
   
   // Générer les notes pour le piano roll
   const pianoNotes = getAllNotes(minOctave, maxOctave);
@@ -76,7 +63,7 @@ export default function PianoRoll({
     if (note === null || step === null) return;
     const isActive = getNoteActive(note, step);
     if (isActive) {
-      onToggleAccent(note, step, !getNoteAccent(note, step));
+      onChangeAccent(note, step, !getNoteAccent(note, step));
     }
   }
   
@@ -85,7 +72,7 @@ export default function PianoRoll({
     if (note === null || step === null) return;
     const isActive = getNoteActive(note, step);
     if (isActive) {
-      onToggleSlide(note, step, !getNoteSlide(note, step));
+      onChangeSlide(note, step, !getNoteSlide(note, step));
     }
   }
   
@@ -114,72 +101,35 @@ export default function PianoRoll({
   function handleMouseDown(note, idx, e) {
     const cell = getCellData(note, idx);
     
-    // On utilise un timer pour distinguer clic et début de drag
-    const mouseDownTime = Date.now();
-    
-    // Si la note est active, on prépare pour un potentiel drag de vélocité
+    // Si la note est active, on peut modifier sa vélocité
     if (cell && cell.on) {
       // Stocker la position initiale et la vélocité actuelle
-      // mais ne pas encore activer le drag (attendre le premier mouvement)
       dragRef.current = { 
         note, 
         step: idx, 
         startY: e.clientY, 
-        startVelocity: cell.velocity || 100,
-        isDragging: false, // Le flag sera activé seulement dans handleMouseMove
-        mouseDownTime: mouseDownTime
+        startVelocity: cell.velocity || 100 
       };
       
       // Ajouter les listeners pour le mouvement et le relâchement
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
+    } else {
+      // Si la note n'est pas active, on l'active simplement
+      onToggleStep(note, idx);
     }
-    // Le clic pour activer/désactiver la note est géré par onClick
   }
   
   function handleMouseMove(e) {
-    const { note, step, startY, startVelocity, isDragging, mouseDownTime } = dragRef.current;
+    const { note, step, startY, startVelocity } = dragRef.current;
     if (note === null || step === null) return;
-    
-    // Au premier mouvement, activer le mode dragging si on est sur une note active
-    if (!isDragging) {
-      // Vérifions qu'on a dépassé un seuil minimal de mouvement (3 pixels)
-      const moveDistance = Math.abs(e.clientY - startY);
-      if (moveDistance > 3) {
-        // Activer le mode dragging
-        dragRef.current.isDragging = true;
-        
-        // Empêcher l'activation/désactivation de la note (onClick)
-        e.preventDefault();
-        e.stopPropagation();
-      } else {
-        // Mouvement trop faible, on continue d'attendre
-        return;
-      }
-    }
-    
-    // Empêcher les événements par défaut et la propagation pour éviter la sélection de notes
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Amélioration de la sensibilité et fluidité du contrôle de vélocité
-    // Diminution du facteur de multiplication pour rendre le changement plus progressif
     let delta = startY - e.clientY;
-    
-    // Facteur de sensibilité réduit pour plus de précision
-    const sensitivityFactor = 0.5;
-    
-    // Utilisation de Math.floor pour stabiliser les petits changements
-    let newVel = Math.min(127, Math.max(20, startVelocity + Math.floor(delta * sensitivityFactor)));
-    
-    // Ne mettre à jour que si la valeur a réellement changé
-    if (newVel !== getNoteVelocity(note, step)) {
-      onChangeVelocity(note, step, newVel);
-    }
+    let newVel = Math.min(127, Math.max(20, startVelocity + Math.round(delta * 0.8)));
+    onChangeVelocity(note, step, newVel);
   }
   
   function handleMouseUp() {
-    dragRef.current = { note: null, step: null, startY: null, startVelocity: null, isDragging: false };
+    dragRef.current = { note: null, step: null, startY: null, startVelocity: null };
     window.removeEventListener("mousemove", handleMouseMove);
     window.removeEventListener("mouseup", handleMouseUp);
   }
@@ -207,35 +157,11 @@ export default function PianoRoll({
     }
   };
   
-  // Effet pour détecter la largeur du conteneur et l'ajuster en cas de redimensionnement
-  useEffect(() => {
-    if (!containerRef.current) return;
-    
-    // Fonction pour mesurer la largeur actuelle du conteneur
-    const updateWidth = () => {
-      if (containerRef.current) {
-        setContainerWidth(containerRef.current.clientWidth);
-      }
-    };
-    
-    // Mesurer la largeur initiale
-    updateWidth();
-    
-    // Mettre en place un observateur de redimensionnement
-    const resizeObserver = new ResizeObserver(updateWidth);
-    resizeObserver.observe(containerRef.current);
-    
-    // Nettoyer l'observateur lors du démontage du composant
-    return () => {
-      if (containerRef.current) {
-        resizeObserver.unobserve(containerRef.current);
-      }
-      resizeObserver.disconnect();
-    };
-  }, [containerRef]);
+  // Calculer la largeur de chaque step en fonction du nombre de pas
+  const cellWidth = steps === 16 ? 36 : (steps === 32 ? 24 : 18);
   
   return (
-    <div className="piano-roll" ref={containerRef}>
+    <div className="piano-roll">
       {/* Instructions et contrôles */}
       <div style={{ 
         marginBottom: "10px", 
@@ -380,9 +306,6 @@ export default function PianoRoll({
               const backgroundColor = isMeasure ? "#2c3142" : (isBeat ? "#242836" : "#1e222a");
               const isCurrentStepHeader = currentStep === i;
               
-              // Maintenant que l'espace est optimisé, on peut afficher tous les numéros
-              const shouldShowNumber = true;
-              
               return (
                 <div 
                   key={`header-${i}`}
@@ -392,9 +315,8 @@ export default function PianoRoll({
                     background: isCurrentStepHeader ? "#404c6e" : backgroundColor,
                     color: isCurrentStepHeader ? "#fff" : "#aaa",
                     borderRight: isBeat ? "1px solid #444" : "1px solid #333",
-                    // Taille de police adaptée au nombre de steps et à l'espace disponible
                     fontSize: steps <= 16 ? "12px" : steps <= 32 ? "10px" : "8px",
-                    fontWeight: isBeat || isCurrentStepHeader ? "bold" : "normal",
+                    fontWeight: isBeat ? "bold" : "normal",
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
@@ -402,7 +324,7 @@ export default function PianoRoll({
                     boxSizing: "border-box"
                   }}
                 >
-                  {shouldShowNumber ? (i + 1) : ""}
+                  {i + 1}
                 </div>
               );
             })}
@@ -465,7 +387,7 @@ export default function PianoRoll({
                         {/* Indicateur de vélocité */}
                         {showVelocity && isNoteActive && (
                           <>
-                            {/* Barre de vélocité visuelle - toujours affichée pour les notes actives */}
+                            {/* Barre de vélocité visuelle */}
                             <div style={{
                               position: "absolute",
                               bottom: "3px",
@@ -479,19 +401,16 @@ export default function PianoRoll({
                               zIndex: 1
                             }}></div>
                             
-                            {/* Valeur numérique de vélocité - affichée uniquement pour les grandes cellules 
-                                ou lors du survol/sélection de la cellule */}
-                            {(steps <= 32 || hoveredCell.note === note && hoveredCell.step === i) && (
-                              <div style={{
-                                position: "absolute",
-                                fontSize: steps <= 16 ? "10px" : "9px",
-                                fontWeight: "bold",
-                                color: "rgba(255,255,255,0.8)",
-                                zIndex: 2
-                              }}>
-                                {vel}
-                              </div>
-                            )}
+                            {/* Valeur numérique de vélocité */}
+                            <div style={{
+                              position: "absolute",
+                              fontSize: steps <= 16 ? "10px" : "9px",
+                              fontWeight: "bold",
+                              color: "rgba(255,255,255,0.8)",
+                              zIndex: 2
+                            }}>
+                              {vel}
+                            </div>
                           </>
                         )}
                         

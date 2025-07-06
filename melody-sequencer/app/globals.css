@@ -271,13 +271,8 @@ body {
     padding: 24px;
     margin-bottom: 32px;
     overflow-x: auto;
-}
-
-.piano-roll-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .steps-control {
@@ -341,26 +336,8 @@ body {
     font-style: italic;
 }
 
-.step-cell {
-    width: 28px;
-    min-width: 28px;
-    max-width: 28px;
-    aspect-ratio: 1;
-    background: var(--step-inactive);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    margin: 1px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-sizing: border-box;
-    color: transparent;  /* Rendre le texte invisible */
-    font-size: 0;       /* Réduire la taille du texte à zéro */
-}
+/* Suppression des règles de step-cell qui interfèrent avec l'alignement des cellules du piano roll */
+/* Ces styles sont maintenant gérés directement par le composant React */
 
 .step-cell.active {
     color: white;       /* Rendre le texte visible uniquement pour les cellules actives */
