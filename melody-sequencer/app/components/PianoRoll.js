@@ -426,7 +426,8 @@ export default function PianoRoll({
                     const cell = pattern[note] && pattern[note][i] !== undefined ? pattern[note][i] : null;
                     const isNoteActive = cell && cell.on;
                     const isCurrentCol = currentStep === i;
-                    const vel = isNoteActive ? (cell.velocity || 100) : 0;
+                    // Vitesse seulement pour les notes actives, ne pas définir pour les inactives
+                    const vel = isNoteActive ? (cell.velocity || 100) : null;
                     const hasAccent = isNoteActive && cell.accent;
                     const hasSlide = isNoteActive && cell.slide;
                     
@@ -489,7 +490,7 @@ export default function PianoRoll({
                             )}
                           </>
                         )}
-                        {/* Arrière-plan texturé léger pour les cellules inactives */}
+                        {/* Arrière-plan opaque pour les cellules inactives pour masquer les "000" */}
                         {!isNoteActive && (
                           <div style={{
                             position: "absolute",
@@ -497,9 +498,24 @@ export default function PianoRoll({
                             left: 0,
                             right: 0,
                             bottom: 0,
-                            background: "repeating-linear-gradient(45deg, rgba(0,0,0,0.03), rgba(0,0,0,0.03) 2px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)",
-                            zIndex: 0
-                          }}></div>
+                            background: isBlack ? "#252831" : "#2a2e38", /* Couleur de fond identique au fond de la cellule */
+                            zIndex: 5, /* Z-index plus élevé pour être au-dessus du texte */
+                            display: "flex", 
+                            justifyContent: "center",
+                            alignItems: "center",
+                            borderRadius: "2px"
+                          }}>
+                            {/* Pattern texturé léger pour les cellules inactives */}
+                            <div style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              background: "repeating-linear-gradient(45deg, rgba(0,0,0,0.03), rgba(0,0,0,0.03) 2px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)",
+                              zIndex: 6
+                            }}></div>
+                          </div>
                         )}
                         
                         {/* Indicateurs pour accent et slide */}
