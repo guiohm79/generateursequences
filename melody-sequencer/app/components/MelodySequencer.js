@@ -1171,21 +1171,9 @@ export default function MelodySequencer() {
           {/* Contrôle du son */}
           <div className="control-group">
             <span className="control-label">Son</span>
-            <select
-              id="soundSelector"
-              className="input-field"
-              style={{ maxWidth: "120px" }}
-              value={presetKey}
-              onChange={e => setPresetKey(e.target.value)}
-              disabled={isPlaying}
-            >
-              {SYNTH_PRESETS.map(opt =>
-                <option key={opt.key} value={opt.key}>{opt.label}</option>
-              )}
-            </select>
             <button
               className="btn"
-              style={{ marginLeft: 10, minWidth: 80 }}
+              style={{ minWidth: 80 }}
               onClick={() => setSynthPopupOpen(true)}
               disabled={isPlaying}
             >
