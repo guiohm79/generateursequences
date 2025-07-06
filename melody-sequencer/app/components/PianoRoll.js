@@ -190,18 +190,13 @@ export default function PianoRoll({
 
     const octave = parseInt(note.match(/\d/)[0], 10);
     
-    // Couleurs de base pour les notes actives (verte pour la première moitié, rouge pour la seconde)
+    // Couleurs basées uniquement sur l'octave et la lecture
     if (isCurrentStep) {
-      // Notes en cours de lecture (plus brillantes)
+      // Notes en cours de lecture (jaune brillant)
       return '#ffcc00';
-    } else if (currentStep < steps/2) {
-      // Première moitié de la séquence (vert)
-      const baseColor = [150, 210, 140];
-      const intensity = 0.7 + (octave - minOctave) * 0.1;
-      return `rgba(${baseColor[0] * intensity}, ${baseColor[1] * intensity}, ${baseColor[2] * intensity}, 0.95)`;
     } else {
-      // Seconde moitié de la séquence (rouge)
-      const baseColor = [210, 140, 140];
+      // Notes actives toujours en vert quelle que soit la position du curseur
+      const baseColor = [150, 210, 140]; // Vert
       const intensity = 0.7 + (octave - minOctave) * 0.1;
       return `rgba(${baseColor[0] * intensity}, ${baseColor[1] * intensity}, ${baseColor[2] * intensity}, 0.95)`;
     }
@@ -462,8 +457,8 @@ export default function PianoRoll({
                           }
                         }}
                       >
-                        {/* Indicateur de vélocité */}
-                        {showVelocity && isNoteActive && (
+                        {/* Indicateur de vélocité pour notes actives uniquement */}
+                        {isNoteActive && (
                           <>
                             {/* Barre de vélocité visuelle - toujours affichée pour les notes actives */}
                             <div style={{
@@ -479,9 +474,9 @@ export default function PianoRoll({
                               zIndex: 1
                             }}></div>
                             
-                            {/* Valeur numérique de vélocité - affichée uniquement pour les grandes cellules 
-                                ou lors du survol/sélection de la cellule */}
-                            {(steps <= 32 || hoveredCell.note === note && hoveredCell.step === i) && (
+                            {/* Valeur numérique de vélocité - affichée uniquement pour les notes actives 
+                                et si l'option showVelocity est activée */}
+                            {showVelocity && (steps <= 32 || hoveredCell.note === note && hoveredCell.step === i) && (
                               <div style={{
                                 position: "absolute",
                                 fontSize: steps <= 16 ? "10px" : "9px",
@@ -494,20 +489,40 @@ export default function PianoRoll({
                             )}
                           </>
                         )}
+                        {/* Arrière-plan texturé léger pour les cellules inactives */}
+                        {!isNoteActive && (
+                          <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: "repeating-linear-gradient(45deg, rgba(0,0,0,0.03), rgba(0,0,0,0.03) 2px, rgba(0,0,0,0) 2px, rgba(0,0,0,0) 4px)",
+                            zIndex: 0
+                          }}></div>
+                        )}
                         
                         {/* Indicateurs pour accent et slide */}
                         <div style={{ position: "absolute", top: "2px", right: "4px", display: "flex" }}>
                           {hasAccent && (
                             <span style={{ 
-                              fontSize: "10px", 
-                              color: "white",
-                              marginRight: "2px" 
+                              fontSize: "11px", 
+                              fontWeight: "bold",
+                              color: "#FFCC00", /* Jaune vif pour plus de contraste */
+                              marginRight: "3px",
+                              padding: "0px 2px",
+                              background: "rgba(0,0,0,0.4)", /* Fond semi-transparent */
+                              borderRadius: "3px"
                             }}>A</span>
                           )}
                           {hasSlide && (
                             <span style={{ 
-                              fontSize: "10px", 
-                              color: "white" 
+                              fontSize: "11px", 
+                              fontWeight: "bold",
+                              color: "#00FFCC", /* Cyan pour contraster avec l'accent */
+                              padding: "0px 2px",
+                              background: "rgba(0,0,0,0.4)", /* Fond semi-transparent */
+                              borderRadius: "3px"
                             }}>S</span>
                           )}
                         </div>
