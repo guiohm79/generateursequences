@@ -1,5 +1,12 @@
-// /app/lib/randomEngine.js – seedable rev 2025-07-03
-// Inspiré du « Guide de génération musicale algorithmique (1995-2025) »
+// /app/lib/randomEngine.js – seedable rev 2025-07-13 (enhanced)
+// Améliorations inspirées de la « Synthèse algorithmique – Goa/Psy/Prog/Deep »
+// ---------------------------------------------------------------
+// * Bassline Goa/Psy : variations subtiles (mute, glide, quinte/seconde mineure),
+//   drop fantôme & slide final pour effet "wow".
+// * Lead Goa : pondération Phrygienne (tonique, 2m, quinte) + gimmicks triplets.
+// * Nouvelle propriété optionnelle "slide" sur les cellules pour portamento.
+// * Aucune signature publique changée => ré‑intégration plug‑and‑play.
+// ---------------------------------------------------------------
 
 /////////////////////////
 // NOTES & SCALES
@@ -13,7 +20,7 @@ export const SCALES = {
   phrygian:         [0,1,3,5,7,8,10],
   phrygianDominant: [0,1,4,5,7,8,10],
   dorian:           [0,2,3,5,7,9,10],
-  perso:            [0,4,11]        // ta gamme 1-3-7-8
+  perso:            [0,4,11]        // gamme perso 1‑3‑7‑8
 };
 
 // Renvoie toutes les notes de la gamme sur une plage d’octaves
@@ -60,31 +67,40 @@ function bassPattern({allNotes, rootNote, steps, style, mood, rng}){
   const roots = allNotes.reduce((a,n,i)=>{if(n.startsWith(rootNote))a.push(i);return a;},[]);
   const rootIdx = roots[0]??0;
   const fifthIdx= clamp(rootIdx+4,0,allNotes.length-1);
+  const minor2Idx= clamp(rootIdx+1,0,allNotes.length-1);
   const octIdx  = clamp(rootIdx+12,0,allNotes.length-1);
-  const notePool= [rootIdx,fifthIdx,octIdx];
+  const notePool= [rootIdx,fifthIdx,minor2Idx,octIdx];
 
-  const write = (idx,pos,vel=110)=>{pattern[allNotes[idx]][pos]={on:true,velocity:vel};};
+  const write = (idx,pos,vel=110,extra={})=>{pattern[allNotes[idx]][pos]={on:true,velocity:vel,...extra};};
 
   switch(style){
     case 'goa':
-    case 'psy':
+    case 'psy':{
+      const muteProb=0.1;        // mini‑silence dramatique
+      const varyProb=0.15;       // quinte / 2m occasionnelle
+      const glideProb=0.25;      // slide sur dernière note
       for(let i=0;i<steps;i++){
+        // Kick supposé sur pas 0,4,8,12 (i%4===0) => on remplit le reste
         if(i%4!==0){
+          if(i===steps-1 && rng()<muteProb){
+            continue; // petit trou avant le drop
+          }
+          const idx = (rng()<varyProb)? notePool[rng()*notePool.length|0] : rootIdx;
           const vel = 90 + rng()*30;
-          const idx = rng()<0.75 ? rootIdx : notePool[rng()*notePool.length|0];
-          write(idx,i,vel);
+          const extra = (i===steps-1 && rng()<glideProb)? {slide:true} : {};
+          write(idx,i,vel,extra);
         }
       }
-      break;
+      break;}
 
-    case 'prog':
+    case 'prog':{
       for(let i=0;i<steps;i++){
         if(i%4===2){
           const idx = rng()<0.2?fifthIdx:rootIdx;
           write(idx,i,mood==='soft'?100:115);
         }
       }
-      break;
+      break;}
 
     default: // deep / downtempo
       for(let i=0;i<steps;i++){
@@ -101,7 +117,7 @@ function bassPattern({allNotes, rootNote, steps, style, mood, rng}){
 /////////////////////////
 // PATTERN : PAD
 /////////////////////////
-function padPattern({allNotes, steps, style, rng}){
+function padPattern({allNotes, steps, style, mood, rng}){
   const pattern={}; allNotes.forEach(n=>pattern[n]=emptyRow(steps));
   const upper = allNotes.slice(allNotes.length/2);
 
@@ -140,6 +156,8 @@ function leadPattern({allNotes, rootNote, steps, style, rng}){
 
   const roots=allNotes.reduce((a,n,i)=>{if(n.startsWith(rootNote))a.push(i);return a;},[]);
   const midRoot=roots[Math.floor(roots.length/2)]??0;
+  const minor2 = clamp(midRoot+1,0,allNotes.length-1);
+  const fifth  = clamp(midRoot+4,0,allNotes.length-1);
   let current=midRoot;
 
   const write=(i,p,v)=>{pattern[allNotes[i]][p]={on:true,velocity:v};};
@@ -148,27 +166,41 @@ function leadPattern({allNotes, rootNote, steps, style, rng}){
   const baseVel  = style==='goa'?105:95;
   const motif=[];
 
+  // pondération phrygienne pour Goa : tonique > 2m > quinte > reste
+  function weightedNext(){
+    const r=rng();
+    if(r<0.4) return midRoot;          // 40% tonique
+    if(r<0.7) return minor2;           // 30% seconde mineure
+    if(r<0.9) return fifth;            // 20% quinte
+    // autre note aléatoire proche
+    return clamp(current+([-3,-2,-1,1,2,3][rng()*6|0]),0,allNotes.length-1);
+  }
+
   for(let i=0;i<motifLen;i++){
-    if(i===0 || rng()>(style==='goa'?0.05:0.4)){
+    const silenceProb = style==='goa'?0.05:0.4;
+    if(i===0 || rng()>silenceProb){
       if(i!==0){
-        current=clamp(current+(rng()*5|0)-2,0,allNotes.length-1);
-        if(rng()<0.1 && style==='goa') current=midRoot;
+        current = (style==='goa')? weightedNext() : clamp(current+(rng()*5|0)-2,0,allNotes.length-1);
       }
       motif[i]=current;
     }else motif[i]=null;
   }
 
+  // Écriture + petite option triolets (psy triplet riff)
+  const triplet = (style==='psy' && rng()<0.25);
   for(let t=0;t<steps;t++){
-    const m=motif[t%motifLen];
+    const pos = triplet? Math.floor((t*3)%steps) : t;
+    const m=motif[pos%motifLen];
     if(m!==null) write(m,t,baseVel+rng()*25|0);
   }
 
+  // hook fixe pour prog
   if(style==='prog'){
-    pattern[allNotes[midRoot]][0]={on:true,velocity:100};
-    if(steps>=32) pattern[allNotes[midRoot]][16]={on:true,velocity:100};
-    const fifth=clamp(midRoot+4,0,allNotes.length-1);
-    pattern[allNotes[fifth]][steps/2|0]={on:true,velocity:100};
+    write(midRoot,0,100);
+    if(steps>=32) write(midRoot,16,100);
+    write(fifth,steps/2|0,100);
   }
+
   return pattern;
 }
 
@@ -183,7 +215,7 @@ export function generateMusicalPattern({
   part='bassline',
   steps=16,
   octaves={min:2,max:4},
-  seed=null          // ← nouveau
+  seed=null
 } = {}){
 
   const rng = seed!==null ? mulberry32(seed) : Math.random;
@@ -199,7 +231,7 @@ export function generateMusicalPattern({
     default:          pattern=leadPattern(common);
   }
 
-  // -------- Ambiance post-traitement --------
+  // -------- Ambiance post‑traitement --------
   if(mood==='dark'){
     mapPatternCells(pattern,c=>({...c,velocity:Math.max(35,c.velocity-30)}));
   }else if(mood==='uplifting'){
