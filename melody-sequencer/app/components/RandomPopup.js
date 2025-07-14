@@ -3,14 +3,16 @@ import React, { useState } from "react";
 
 const ROOT_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const SCALES = [
-  { key: "major", label: "Majeur" },
-  { key: "minor", label: "Mineur" },
-  { key: "harmonicMinor", label: "Mineur Harmonique" },
   { key: "phrygian", label: "Phrygien" },
-  { key: "phrygianDominant", label: "Phrygien Dominant" },
+  { key: "harmonicMinor", label: "Mineur Harmonique" },
+  { key: "hungarianMinor", label: "Hongrois Mineur (Dark)" },
+  { key: "doubleHarmonic", label: "Double Harmonique" },
+  { key: "neapolitanMinor", label: "Napolitain Mineur" },
   { key: "dorian", label: "Dorien" },
-  { key: "perso", label: "Perso" },
-
+  { key: "perso", label: "Perso Campo" },
+  { key: "perso2", label: "Perso twin" },
+  { key: "minimalDark", label: "Minimal Dark" },
+  { key: "acidTriad", label: "Acid Triad" },
 ];
 const STYLES = [
   { key: "psy", label: "Psytrance" },
