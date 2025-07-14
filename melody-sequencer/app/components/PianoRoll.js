@@ -5,8 +5,13 @@ import React, { useState, useEffect, useRef } from "react";
 function getAllNotes(minOct, maxOct) {
   const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const all = [];
+  
+  // On génère de l'octave la plus haute vers la plus basse
   for (let octave = maxOct; octave >= minOct; octave--) {
-    notes.forEach(note => all.push(note + octave));
+    // Et dans chaque octave, on va de B vers C (ordre inverse)
+    for (let i = notes.length - 1; i >= 0; i--) {
+      all.push(notes[i] + octave);
+    }
   }
   return all;
 }
