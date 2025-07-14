@@ -221,7 +221,7 @@ export function generateMusicalPattern({
   const rng = seed!==null ? mulberry32(seed) : Math.random;
 
   const allNotes = buildScale(rootNote, scale, octaves);
-  const common   = {allNotes, rootNote, steps, style, mood, rng};
+  const common   = {allNotes, rootNote, steps, style, mood, scale, rng};
   let pattern;
 
   switch(part){
@@ -250,82 +250,24 @@ export function generateMusicalPattern({
 }
 
 /////////////////////////
-// PATTERN : HYPNOTIQUE LEAD
+// PATTERN : HYPNOTIQUE LEAD (Version qui bouge vraiment !)
 /////////////////////////
 function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, scale, rng}){
   const pattern = {};
   allNotes.forEach(n => pattern[n] = emptyRow(steps));
 
-  // Trouve les octaves de la note fondamentale
-  const roots = allNotes.reduce((a, n, i) => {
-    if(n.startsWith(rootNote)) a.push(i);
-    return a;
+  if(allNotes.length === 0) return pattern;
+
+  // Au lieu de se limiter à une octave, on utilise TOUTE la gamme disponible
+  const noteIndices = allNotes.map((_, i) => i);
+  
+  // On trouve toutes les toniques dans toutes les octaves
+  const rootIndices = allNotes.reduce((acc, note, i) => {
+    if(note.startsWith(rootNote)) acc.push(i);
+    return acc;
   }, []);
-  
-  if(roots.length === 0) return pattern;
 
-  // Prend l'octave du milieu comme base
-  const midRoot = roots[Math.floor(roots.length / 2)];
-  
-  // Index des notes importantes selon la théorie de ta doc
-  const rootIdx = midRoot;
-  const minor2Idx = clamp(rootIdx + 1, 0, allNotes.length - 1);  // 2nde mineure (dissonance Goa)
-  const minor3Idx = clamp(rootIdx + 3, 0, allNotes.length - 1);  // tierce mineure
-  const fifthIdx = clamp(rootIdx + 4, 0, allNotes.length - 1);   // quinte
-  const minor7Idx = clamp(rootIdx + 10, 0, allNotes.length - 1); // 7ème mineure
-  const octaveIdx = clamp(rootIdx + 12, 0, allNotes.length - 1); // octave
-
-  // Pool de notes pondérées selon l'importance dans la trance hypnotique
-  let weightedNotePool;
-  
-  // Pour la gamme perso, pondération spéciale
-  if(scale === 'perso') {
-    weightedNotePool = [
-      { idx: rootIdx, weight: 40 },      // 1 - Tonique encore plus présente
-      { idx: clamp(rootIdx + 4, 0, allNotes.length - 1), weight: 25 },  // 3 - La tierce majeure qui claque
-      { idx: clamp(rootIdx + 10, 0, allNotes.length - 1), weight: 20 }, // 7 - Tension parfaite
-      { idx: clamp(rootIdx + 11, 0, allNotes.length - 1), weight: 15 }, // 8 - Résolution
-    ];
-  } else {
-    // Pondération classique pour les autres gammes
-    weightedNotePool = [
-      { idx: rootIdx, weight: 30 },      // Tonique - note de repos
-      { idx: minor2Idx, weight: 15 },    // 2nde mineure - tension phrygienne
-      { idx: fifthIdx, weight: 20 },     // Quinte - stabilité
-      { idx: minor3Idx, weight: 12 },    // Tierce mineure - couleur
-      { idx: minor7Idx, weight: 8 },     // 7ème mineure - couleur
-      { idx: octaveIdx, weight: 10 },    // Octave - retour élargi
-    ];
-  }
-
-  // Fonction pour choisir une note selon la pondération
-  function getWeightedNote() {
-    const totalWeight = weightedNotePool.reduce((sum, note) => sum + note.weight, 0);
-    let random = rng() * totalWeight;
-    
-    for(const note of weightedNotePool) {
-      random -= note.weight;
-      if(random <= 0) return note.idx;
-    }
-    return rootIdx; // fallback
-  }
-
-  // Fonction pour éviter les répétitions et gros sauts
-  function getSafeNextNote(currentIdx, lastIdx) {
-    let attempts = 0;
-    let nextIdx;
-    
-    do {
-      nextIdx = getWeightedNote();
-      attempts++;
-    } while(
-      attempts < 10 && 
-      (nextIdx === currentIdx || nextIdx === lastIdx || // Évite 3 notes identiques
-       Math.abs(nextIdx - currentIdx) > 12) // Évite saut > 1 octave
-    );
-    
-    return nextIdx;
-  }
+  if(rootIndices.length === 0) return pattern;
 
   const write = (idx, pos, vel = 100, extra = {}) => {
     if(idx >= 0 && idx < allNotes.length) {
@@ -333,135 +275,145 @@ function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, scale, rng
     }
   };
 
-  // Génération du pattern hypnotique évolutif
-  let currentNote = rootIdx;
-  let lastNote = rootIdx;
+  // Génère une séquence hypnotique qui évolue vraiment
+  let currentIdx = rootIndices[Math.floor(rootIndices.length / 2)]; // Start au milieu
   
-  // Divise les 64 pas en 4 phases évolutives de 16 pas chacune
-  const phaseLength = Math.floor(steps / 4);
+  // Paramètres selon le style
+  let jumpRange = 3; // Combien de notes on peut sauter d'un coup
+  let returnToRootProb = 0.3; // Probabilité de retour à une tonique
+  let silenceProb = 0.2; // Probabilité de silence
+  let stepDirection = 1; // Direction générale (1 = montant, -1 = descendant)
   
-  for(let phase = 0; phase < 4; phase++) {
-    const phaseStart = phase * phaseLength;
-    const phaseEnd = Math.min(phaseStart + phaseLength, steps);
-    
-    // Paramètres évolutifs par phase
-    const phaseParams = getPhaseParams(phase, style, mood);
-    
-    // Génère un motif de base pour cette phase
-    const motif = generatePhaseMotif(phaseParams, rng);
-    
-    for(let i = phaseStart; i < phaseEnd; i++) {
-      const relativePos = i - phaseStart;
-      const motifPos = relativePos % motif.length;
+  if(style === 'goa') {
+    jumpRange = 4;
+    returnToRootProb = 0.4;
+    silenceProb = 0.15;
+  } else if(style === 'prog') {
+    jumpRange = 2;
+    returnToRootProb = 0.5;
+    silenceProb = 0.3;
+  }
+
+  if(mood === 'dark') {
+    jumpRange = Math.max(1, jumpRange - 1);
+    silenceProb += 0.1;
+  } else if(mood === 'uplifting') {
+    jumpRange += 1;
+    silenceProb = Math.max(0.1, silenceProb - 0.1);
+  }
+
+  // Génère le pattern avec une logique d'évolution
+  for(let step = 0; step < steps; step++) {
+    // Tous les 16 pas, on change potentiellement de direction
+    if(step % 16 === 0 && step > 0) {
+      if(rng() < 0.3) {
+        stepDirection *= -1; // Change de direction
+      }
+    }
+
+    // Décision : jouer une note ou faire silence
+    if(rng() < silenceProb) {
+      continue; // Silence pour que ça respire
+    }
+
+    // Décision : retourner à une tonique ou continuer l'exploration
+    if(rng() < returnToRootProb) {
+      // Retour à une tonique (peut être dans une autre octave)
+      currentIdx = rootIndices[Math.floor(rng() * rootIndices.length)];
+    } else {
+      // Mouvement mélodique
+      let nextIdx = currentIdx;
       
-      if(motif[motifPos].active) {
-        // Choix de la note
-        if(motif[motifPos].returnToRoot && rng() < 0.7) {
-          currentNote = rootIdx; // Retour à la tonique
-        } else {
-          currentNote = getSafeNextNote(currentNote, lastNote);
+      // Choix du prochain pas selon le style
+      if(style === 'goa') {
+        // Mouvement plus libre pour la goa
+        const jump = Math.floor(rng() * jumpRange * 2) - jumpRange; // -jumpRange à +jumpRange
+        nextIdx = clamp(currentIdx + jump, 0, allNotes.length - 1);
+      } else {
+        // Mouvement plus contrôlé pour les autres styles
+        const possibilities = [];
+        
+        // Ajoute les notes proches dans la direction courante
+        for(let i = 1; i <= jumpRange; i++) {
+          const upIdx = currentIdx + i;
+          const downIdx = currentIdx - i;
+          
+          if(stepDirection > 0 && upIdx < allNotes.length) {
+            possibilities.push(upIdx);
+          }
+          if(stepDirection < 0 && downIdx >= 0) {
+            possibilities.push(downIdx);
+          }
+          
+          // Ajoute aussi quelques possibilités dans l'autre direction (moins probable)
+          if(rng() < 0.3) {
+            if(stepDirection > 0 && downIdx >= 0) {
+              possibilities.push(downIdx);
+            }
+            if(stepDirection < 0 && upIdx < allNotes.length) {
+              possibilities.push(upIdx);
+            }
+          }
         }
         
-        // Calcul de la vélocité progressive
-        const baseVelocity = phaseParams.baseVelocity;
-        const phaseProgress = relativePos / (phaseEnd - phaseStart);
-        const evolutionBonus = Math.floor(phaseProgress * phaseParams.velocityEvolution);
-        const randomVariation = (rng() - 0.5) * 20;
-        
-        const velocity = clamp(
-          baseVelocity + evolutionBonus + randomVariation,
-          40, 127
-        );
-        
-        // Effets spéciaux
-        const extra = {};
-        if(motif[motifPos].slide && rng() < phaseParams.slideProb) {
-          extra.slide = true;
+        if(possibilities.length > 0) {
+          nextIdx = possibilities[Math.floor(rng() * possibilities.length)];
         }
-        if(motif[motifPos].accent && rng() < phaseParams.accentProb) {
-          extra.accent = true;
+      }
+      
+      currentIdx = nextIdx;
+    }
+
+    // Calcule la vélocité avec des vagues d'intensité
+    const cycleLength = 32; // Cycle plus long pour plus de subtilité
+    const cyclePos = (step % cycleLength) / cycleLength;
+    const wave1 = Math.sin(cyclePos * Math.PI * 2) * 0.2; // Vague principale
+    const wave2 = Math.sin(cyclePos * Math.PI * 6) * 0.1; // Vague secondaire plus rapide
+    const waveIntensity = 0.7 + wave1 + wave2; // Oscille entre ~0.4 et ~1.0
+
+    let baseVelocity = 85;
+    if(style === 'goa') baseVelocity = 100;
+    if(style === 'prog') baseVelocity = 75;
+    if(mood === 'dark') baseVelocity -= 15;
+    if(mood === 'uplifting') baseVelocity += 20;
+
+    const velocity = clamp(
+      baseVelocity * waveIntensity + (rng() - 0.5) * 15,
+      45, 127
+    );
+
+    // Effets spéciaux
+    const extra = {};
+    
+    // Slide plus fréquent en fin de phrase
+    if(step > 0 && (step % 16 === 15 || step % 8 === 7) && rng() < 0.4) {
+      extra.slide = true;
+    }
+    
+    // Accent sur les temps forts
+    if(step % 8 === 0 && rng() < 0.3) {
+      extra.accent = true;
+    }
+
+    write(currentIdx, step, velocity, extra);
+  }
+
+  // Ajoute quelques "événements" pour casser la monotonie
+  if(steps >= 32) {
+    for(let i = 0; i < 3; i++) {
+      const eventStep = Math.floor(rng() * steps);
+      const eventNote = rootIndices[Math.floor(rng() * rootIndices.length)];
+      
+      // Petite explosion de notes autour de l'événement
+      for(let j = -1; j <= 1; j++) {
+        const step = eventStep + j;
+        if(step >= 0 && step < steps && rng() < 0.6) {
+          const noteIdx = clamp(eventNote + j * 2, 0, allNotes.length - 1);
+          write(noteIdx, step, 110 + rng() * 17);
         }
-        
-        write(currentNote, i, velocity, extra);
-        
-        lastNote = currentNote;
       }
     }
   }
 
   return pattern;
 }
-
-// Paramètres évolutifs par phase
-function getPhaseParams(phase, style, mood) {
-  const baseParams = {
-    baseVelocity: 85,
-    velocityEvolution: 20,
-    slideProb: 0.1,
-    accentProb: 0.15,
-    density: 0.6
-  };
-
-  // Ajustements par style
-  if(style === 'goa') {
-    baseParams.baseVelocity = 95;
-    baseParams.velocityEvolution = 25;
-    baseParams.slideProb = 0.15;
-    baseParams.density = 0.8;
-  } else if(style === 'prog') {
-    baseParams.baseVelocity = 75;
-    baseParams.velocityEvolution = 15;
-    baseParams.slideProb = 0.05;
-    baseParams.density = 0.4;
-  }
-
-  // Ajustements par mood
-  if(mood === 'dark') {
-    baseParams.baseVelocity -= 15;
-    baseParams.slideProb += 0.1;
-  } else if(mood === 'uplifting') {
-    baseParams.baseVelocity += 20;
-    baseParams.velocityEvolution += 10;
-  }
-
-  // Évolution par phase
-  const phaseMultipliers = [
-    { vel: 0.8, evo: 0.5, density: 0.6 },  // Phase 1: Introduction calme
-    { vel: 1.0, evo: 1.0, density: 0.8 },  // Phase 2: Développement
-    { vel: 1.2, evo: 1.5, density: 1.0 },  // Phase 3: Climax
-    { vel: 0.9, evo: 0.8, density: 0.7 }   // Phase 4: Résolution
-  ];
-
-  const mult = phaseMultipliers[phase] || phaseMultipliers[0];
-  
-  return {
-    baseVelocity: Math.floor(baseParams.baseVelocity * mult.vel),
-    velocityEvolution: Math.floor(baseParams.velocityEvolution * mult.evo),
-    slideProb: baseParams.slideProb,
-    accentProb: baseParams.accentProb,
-    density: baseParams.density * mult.density
-  };
-}
-
-// Génère un motif rythmique pour une phase
-function generatePhaseMotif(params, rng) {
-  const motifLength = 16; // Motif de 16 pas
-  const motif = [];
-  
-  for(let i = 0; i < motifLength; i++) {
-    const active = rng() < params.density;
-    const returnToRoot = (i % 8 === 0 || i % 8 === 7); // Retour à la tonique aux points forts
-    const slide = (i > 0 && i % 4 === 3); // Slide en fin de phrase
-    const accent = (i % 4 === 0); // Accent sur les temps forts
-    
-    motif.push({
-      active,
-      returnToRoot,
-      slide,
-      accent
-    });
-  }
-  
-  return motif;
-}
-
