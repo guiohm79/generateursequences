@@ -39,8 +39,8 @@ export default function MelodySequencer() {
   // États principaux
   const [tempo, setTempo] = useState(120); // BPM
   const [steps, setSteps] = useState(16); // Nombre de pas (16 ou 32)
-  const [minOctave, setMinOctave] = useState(3);
-  const [maxOctave, setMaxOctave] = useState(5);
+  const [minOctave, setMinOctave] = useState(2);
+  const [maxOctave, setMaxOctave] = useState(4);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
   const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
