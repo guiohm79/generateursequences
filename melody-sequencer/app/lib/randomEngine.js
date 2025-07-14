@@ -252,7 +252,7 @@ export function generateMusicalPattern({
 /////////////////////////
 // PATTERN : HYPNOTIQUE LEAD
 /////////////////////////
-function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, rng}){
+function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, scale, rng}){
   const pattern = {};
   allNotes.forEach(n => pattern[n] = emptyRow(steps));
 
@@ -276,14 +276,27 @@ function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, rng}){
   const octaveIdx = clamp(rootIdx + 12, 0, allNotes.length - 1); // octave
 
   // Pool de notes pondérées selon l'importance dans la trance hypnotique
-  const weightedNotePool = [
-    { idx: rootIdx, weight: 30 },      // Tonique - note de repos
-    { idx: minor2Idx, weight: 15 },    // 2nde mineure - tension phrygienne
-    { idx: fifthIdx, weight: 20 },     // Quinte - stabilité
-    { idx: minor3Idx, weight: 12 },    // Tierce mineure - couleur
-    { idx: minor7Idx, weight: 8 },     // 7ème mineure - couleur
-    { idx: octaveIdx, weight: 10 },    // Octave - retour élargi
-  ];
+  let weightedNotePool;
+  
+  // Pour la gamme perso, pondération spéciale
+  if(scale === 'perso') {
+    weightedNotePool = [
+      { idx: rootIdx, weight: 40 },      // 1 - Tonique encore plus présente
+      { idx: clamp(rootIdx + 4, 0, allNotes.length - 1), weight: 25 },  // 3 - La tierce majeure qui claque
+      { idx: clamp(rootIdx + 10, 0, allNotes.length - 1), weight: 20 }, // 7 - Tension parfaite
+      { idx: clamp(rootIdx + 11, 0, allNotes.length - 1), weight: 15 }, // 8 - Résolution
+    ];
+  } else {
+    // Pondération classique pour les autres gammes
+    weightedNotePool = [
+      { idx: rootIdx, weight: 30 },      // Tonique - note de repos
+      { idx: minor2Idx, weight: 15 },    // 2nde mineure - tension phrygienne
+      { idx: fifthIdx, weight: 20 },     // Quinte - stabilité
+      { idx: minor3Idx, weight: 12 },    // Tierce mineure - couleur
+      { idx: minor7Idx, weight: 8 },     // 7ème mineure - couleur
+      { idx: octaveIdx, weight: 10 },    // Octave - retour élargi
+    ];
+  }
 
   // Fonction pour choisir une note selon la pondération
   function getWeightedNote() {
@@ -451,3 +464,4 @@ function generatePhaseMotif(params, rng) {
   
   return motif;
 }
+
