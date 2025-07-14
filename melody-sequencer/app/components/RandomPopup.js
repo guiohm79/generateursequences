@@ -13,6 +13,11 @@ const SCALES = [
   { key: "perso2", label: "Perso twin" },
   { key: "minimalDark", label: "Minimal Dark" },
   { key: "acidTriad", label: "Acid Triad" },
+  { key: "bluesScale", label: "Blues Scale" },
+  { key: "japanese", label: "Japonaise" },
+  { key: "arabicMaqam", label: "Maqam Arabe" },
+  { key: "wholetone", label: "Tons Entiers" },
+  { key: "enigmatic", label: "Énigmatique" },
 ];
 const STYLES = [
   { key: "psy", label: "Psytrance" },

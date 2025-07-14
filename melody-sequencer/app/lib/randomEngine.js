@@ -32,6 +32,9 @@ export const SCALES = {
   perso2:           [0,3,7,8,10],
   minimalDark:      [0,1,7],             // Ultra minimal pour dark techno
   acidTriad:        [0,3,7],             // Basique mais efficace pour acid
+  bluesScale:       [0,3,5,6,7,10],      // Pour du groove
+  japanese:         [0,1,5,7,8],         // Pentatonique japonaise
+  arabicMaqam:      [0,1,4,5,7,8,10],    // Couleur orientale
 };
 
 // Renvoie toutes les notes de la gamme sur une plage d’octaves
