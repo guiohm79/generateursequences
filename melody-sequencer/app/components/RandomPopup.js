@@ -33,10 +33,12 @@ const PARTS = [
   { key: "bassline", label: "Bassline" },
   { key: "pad", label: "Pad" },
   { key: "arpeggio", label: "Arpège" },
+   { key: "hypnoticLead", label: "Hypnotique Lead" }, 
 ];
 const STEPS_OPTIONS = [
   { value: 16, label: "16 pas" },
-  { value: 32, label: "32 pas" }
+  { value: 32, label: "32 pas" },
+    { value: 64, label: "64 pas" }
 ];
 
 export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
@@ -90,6 +92,7 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
           <select value={steps} onChange={e => setSteps(parseInt(e.target.value))}>
             <option value="16">16 pas</option>
             <option value="32">32 pas</option>
+            <option value="64">64 pas</option>
           </select>
         </label>
         <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>

@@ -50,7 +50,7 @@ export default function MelodySequencer() {
   const [randomParams, setRandomParams] = useState(null);
   const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
   const [midiOutputEnabled, setMidiOutputEnabled] = useState(false);
-  const [noteLength, setNoteLength] = useState("1/16"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
+  const [noteLength, setNoteLength] = useState("1/32"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
 
   // Référence pour le débogage de la popup MIDI

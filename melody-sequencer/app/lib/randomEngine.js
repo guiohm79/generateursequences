@@ -20,7 +20,7 @@ export const SCALES = {
   phrygian:         [0,1,3,5,7,8,10],
   phrygianDominant: [0,1,4,5,7,8,10],
   dorian:           [0,2,3,5,7,9,10],
-  perso:            [0,4,11]        // gamme perso 1‑3‑7‑8
+  perso:            [0,3,7,8],        // gamme perso 1‑3‑7‑8
 };
 
 // Renvoie toutes les notes de la gamme sur une plage d’octaves
@@ -228,6 +228,7 @@ export function generateMusicalPattern({
     case 'bassline':  pattern=bassPattern(common);            break;
     case 'pad':       pattern=padPattern(common);             break;
     case 'arpeggio':  pattern=arpeggioPattern(common);        break;
+    case 'hypnoticLead': pattern = hypnoticLeadPattern(common);    break;  
     default:          pattern=leadPattern(common);
   }
 
@@ -246,4 +247,207 @@ export function generateMusicalPattern({
   }
 
   return pattern;
+}
+
+/////////////////////////
+// PATTERN : HYPNOTIQUE LEAD
+/////////////////////////
+function hypnoticLeadPattern({allNotes, rootNote, steps, style, mood, rng}){
+  const pattern = {};
+  allNotes.forEach(n => pattern[n] = emptyRow(steps));
+
+  // Trouve les octaves de la note fondamentale
+  const roots = allNotes.reduce((a, n, i) => {
+    if(n.startsWith(rootNote)) a.push(i);
+    return a;
+  }, []);
+  
+  if(roots.length === 0) return pattern;
+
+  // Prend l'octave du milieu comme base
+  const midRoot = roots[Math.floor(roots.length / 2)];
+  
+  // Index des notes importantes selon la théorie de ta doc
+  const rootIdx = midRoot;
+  const minor2Idx = clamp(rootIdx + 1, 0, allNotes.length - 1);  // 2nde mineure (dissonance Goa)
+  const minor3Idx = clamp(rootIdx + 3, 0, allNotes.length - 1);  // tierce mineure
+  const fifthIdx = clamp(rootIdx + 4, 0, allNotes.length - 1);   // quinte
+  const minor7Idx = clamp(rootIdx + 10, 0, allNotes.length - 1); // 7ème mineure
+  const octaveIdx = clamp(rootIdx + 12, 0, allNotes.length - 1); // octave
+
+  // Pool de notes pondérées selon l'importance dans la trance hypnotique
+  const weightedNotePool = [
+    { idx: rootIdx, weight: 30 },      // Tonique - note de repos
+    { idx: minor2Idx, weight: 15 },    // 2nde mineure - tension phrygienne
+    { idx: fifthIdx, weight: 20 },     // Quinte - stabilité
+    { idx: minor3Idx, weight: 12 },    // Tierce mineure - couleur
+    { idx: minor7Idx, weight: 8 },     // 7ème mineure - couleur
+    { idx: octaveIdx, weight: 10 },    // Octave - retour élargi
+  ];
+
+  // Fonction pour choisir une note selon la pondération
+  function getWeightedNote() {
+    const totalWeight = weightedNotePool.reduce((sum, note) => sum + note.weight, 0);
+    let random = rng() * totalWeight;
+    
+    for(const note of weightedNotePool) {
+      random -= note.weight;
+      if(random <= 0) return note.idx;
+    }
+    return rootIdx; // fallback
+  }
+
+  // Fonction pour éviter les répétitions et gros sauts
+  function getSafeNextNote(currentIdx, lastIdx) {
+    let attempts = 0;
+    let nextIdx;
+    
+    do {
+      nextIdx = getWeightedNote();
+      attempts++;
+    } while(
+      attempts < 10 && 
+      (nextIdx === currentIdx || nextIdx === lastIdx || // Évite 3 notes identiques
+       Math.abs(nextIdx - currentIdx) > 12) // Évite saut > 1 octave
+    );
+    
+    return nextIdx;
+  }
+
+  const write = (idx, pos, vel = 100, extra = {}) => {
+    if(idx >= 0 && idx < allNotes.length) {
+      pattern[allNotes[idx]][pos] = {on: true, velocity: vel, ...extra};
+    }
+  };
+
+  // Génération du pattern hypnotique évolutif
+  let currentNote = rootIdx;
+  let lastNote = rootIdx;
+  
+  // Divise les 64 pas en 4 phases évolutives de 16 pas chacune
+  const phaseLength = Math.floor(steps / 4);
+  
+  for(let phase = 0; phase < 4; phase++) {
+    const phaseStart = phase * phaseLength;
+    const phaseEnd = Math.min(phaseStart + phaseLength, steps);
+    
+    // Paramètres évolutifs par phase
+    const phaseParams = getPhaseParams(phase, style, mood);
+    
+    // Génère un motif de base pour cette phase
+    const motif = generatePhaseMotif(phaseParams, rng);
+    
+    for(let i = phaseStart; i < phaseEnd; i++) {
+      const relativePos = i - phaseStart;
+      const motifPos = relativePos % motif.length;
+      
+      if(motif[motifPos].active) {
+        // Choix de la note
+        if(motif[motifPos].returnToRoot && rng() < 0.7) {
+          currentNote = rootIdx; // Retour à la tonique
+        } else {
+          currentNote = getSafeNextNote(currentNote, lastNote);
+        }
+        
+        // Calcul de la vélocité progressive
+        const baseVelocity = phaseParams.baseVelocity;
+        const phaseProgress = relativePos / (phaseEnd - phaseStart);
+        const evolutionBonus = Math.floor(phaseProgress * phaseParams.velocityEvolution);
+        const randomVariation = (rng() - 0.5) * 20;
+        
+        const velocity = clamp(
+          baseVelocity + evolutionBonus + randomVariation,
+          40, 127
+        );
+        
+        // Effets spéciaux
+        const extra = {};
+        if(motif[motifPos].slide && rng() < phaseParams.slideProb) {
+          extra.slide = true;
+        }
+        if(motif[motifPos].accent && rng() < phaseParams.accentProb) {
+          extra.accent = true;
+        }
+        
+        write(currentNote, i, velocity, extra);
+        
+        lastNote = currentNote;
+      }
+    }
+  }
+
+  return pattern;
+}
+
+// Paramètres évolutifs par phase
+function getPhaseParams(phase, style, mood) {
+  const baseParams = {
+    baseVelocity: 85,
+    velocityEvolution: 20,
+    slideProb: 0.1,
+    accentProb: 0.15,
+    density: 0.6
+  };
+
+  // Ajustements par style
+  if(style === 'goa') {
+    baseParams.baseVelocity = 95;
+    baseParams.velocityEvolution = 25;
+    baseParams.slideProb = 0.15;
+    baseParams.density = 0.8;
+  } else if(style === 'prog') {
+    baseParams.baseVelocity = 75;
+    baseParams.velocityEvolution = 15;
+    baseParams.slideProb = 0.05;
+    baseParams.density = 0.4;
+  }
+
+  // Ajustements par mood
+  if(mood === 'dark') {
+    baseParams.baseVelocity -= 15;
+    baseParams.slideProb += 0.1;
+  } else if(mood === 'uplifting') {
+    baseParams.baseVelocity += 20;
+    baseParams.velocityEvolution += 10;
+  }
+
+  // Évolution par phase
+  const phaseMultipliers = [
+    { vel: 0.8, evo: 0.5, density: 0.6 },  // Phase 1: Introduction calme
+    { vel: 1.0, evo: 1.0, density: 0.8 },  // Phase 2: Développement
+    { vel: 1.2, evo: 1.5, density: 1.0 },  // Phase 3: Climax
+    { vel: 0.9, evo: 0.8, density: 0.7 }   // Phase 4: Résolution
+  ];
+
+  const mult = phaseMultipliers[phase] || phaseMultipliers[0];
+  
+  return {
+    baseVelocity: Math.floor(baseParams.baseVelocity * mult.vel),
+    velocityEvolution: Math.floor(baseParams.velocityEvolution * mult.evo),
+    slideProb: baseParams.slideProb,
+    accentProb: baseParams.accentProb,
+    density: baseParams.density * mult.density
+  };
+}
+
+// Génère un motif rythmique pour une phase
+function generatePhaseMotif(params, rng) {
+  const motifLength = 16; // Motif de 16 pas
+  const motif = [];
+  
+  for(let i = 0; i < motifLength; i++) {
+    const active = rng() < params.density;
+    const returnToRoot = (i % 8 === 0 || i % 8 === 7); // Retour à la tonique aux points forts
+    const slide = (i > 0 && i % 4 === 3); // Slide en fin de phrase
+    const accent = (i % 4 === 0); // Accent sur les temps forts
+    
+    motif.push({
+      active,
+      returnToRoot,
+      slide,
+      accent
+    });
+  }
+  
+  return motif;
 }
