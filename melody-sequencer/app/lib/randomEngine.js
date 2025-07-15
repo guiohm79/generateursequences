@@ -30,6 +30,7 @@ export const SCALES = {
   
   perso:            [0,4,10,11],         // Ta gamme corrigée avec le 8ème ?
   perso2:           [0,3,7,8,10],
+  perso3:           [0,4,7,11,12],         // Autres variantes perso
   minimalDark:      [0,1,7],             // Ultra minimal pour dark techno
   acidTriad:        [0,3,7],             // Basique mais efficace pour acid
   bluesScale:       [0,3,5,6,7,10],      // Pour du groove

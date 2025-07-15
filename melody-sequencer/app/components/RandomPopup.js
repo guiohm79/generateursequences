@@ -11,6 +11,7 @@ const SCALES = [
   { key: "dorian", label: "Dorien" },
   { key: "perso", label: "Perso Campo" },
   { key: "perso2", label: "Perso twin" },
+  { key: "perso3", label: "Perso 3" },
   { key: "minimalDark", label: "Minimal Dark" },
   { key: "acidTriad", label: "Acid Triad" },
   { key: "bluesScale", label: "Blues Scale" },
