@@ -178,43 +178,53 @@ export default function MelodySequencer() {
       return { ...prev, [note]: line };
     });
   };
-  // Playback via Tone.Transport - Optimisé pour réduire la latence et support MIDI output
-  const playStep = useCallback((step, time) => {
 
-    // Déterminer la durée de la note en fonction de la longueur sélectionnée
-    const noteDurationMap = {
-      "1/4": "4n",   // Noire
-      "1/8": "8n",   // Croche
-      "1/16": "16n", // Double-croche (défaut)
-      "1/32": "32n", // Triple-croche
-      "1/64": "64n"  // Quadruple-croche
-    };
-    const noteDuration = noteDurationMap[noteLength] || "16n";
-    //const noteDuration = "16n";
-    // Calcul de la durée en millisecondes basé sur l'intervalle choisi
+
+ useEffect(() => {
+  if (transportId.current) {
+    Tone.Transport.clear(transportId.current);
+    transportId.current = null;
+  }
+  
+  if (!isPlaying) {
+    Tone.Transport.stop();
+    previousMonoNote.current = null;
+    return;
+  }
+  
+  // Configuration précise du transport
+  Tone.Transport.bpm.value = tempo;
+  Tone.Transport.cancel();
+  
+  setCurrentStep(0);
+  let step = 0;
+  
+  // SOLUTION : Redéfinir playStep ici, pas en useCallback
+  const playCurrentStep = (stepIndex, time) => {
+    // Copier tout le contenu de ta fonction playStep ici
+    const noteDuration = noteLength || "16n";
+    
     const durationMs = {
-      "4n": (60000 / tempo) / 4,     // Durée d'une noire
-      "8n": (60000 / tempo) / 8,     // Durée d'une croche
-      "16n": (60000 / tempo) / 16,   // Durée d'une double-croche
-      "32n": (60000 / tempo) / 32,   // Durée d'une triple-croche
-      "64n": (60000 / tempo) / 64    // Durée d'une quadruple-croche
+      "4n": (60000 / tempo) / 4,
+      "8n": (60000 / tempo) / 8,
+      "16n": (60000 / tempo) / 16,
+      "32n": (60000 / tempo) / 32,
+      "64n": (60000 / tempo) / 64
     }[noteLength] || (60000 / tempo) / 16;
     
     const synth = synthRef.current;
     const midiOutput = getMIDIOutput();
     
-    // Mode Mono (une seule note à la fois)
+    // Utilise `pattern` directement ici (pas de closure)
     if (currentPreset.voiceMode === "mono") {
-      // Trouver la note la plus haute à ce pas
       let highestNote = null;
       let highestMidiNote = -1;
       let velocity = 100;
       let stepVal = null;
       
       Object.entries(pattern).forEach(([note, steps]) => {
-        const val = steps[step];
+        const val = steps[stepIndex];
         if (val && val.on) {
-          // Calculer le numéro de note MIDI pour comparer la hauteur
           const noteParts = note.match(/([A-G]#?)([0-9])/);
           if (noteParts) {
             const noteName = noteParts[1];
@@ -222,7 +232,6 @@ export default function MelodySequencer() {
             const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
             const midiNote = (octave + 1) * 12 + noteNames.indexOf(noteName);
             
-            // Si c'est la note la plus haute trouvée jusqu'à présent
             if (midiNote > highestMidiNote) {
               highestMidiNote = midiNote;
               highestNote = note;
@@ -233,89 +242,64 @@ export default function MelodySequencer() {
         }
       });
       
-      // Si une note est active à ce pas
       if (highestNote) {
-        // Jouer avec le synthétiseur interne
         if (synth && !midiOutputEnabled) {
-          // Récupérer les propriétés accent et slide
           const hasAccent = stepVal.accent || false;
           const hasSlide = stepVal.slide || false;
           
-          // Ajuster la vélocité pour l'accent (augmentation de 20%)
           let adjustedVelocity = velocity;
           if (hasAccent) {
             adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
           }
           
-          // Avec slide, on utilise portamento
           if (hasSlide && previousMonoNote.current) {
-            // Augmenter le temps de portamento pour le slide
-            synth.portamento = 0.15; // 150ms de glissement
+            synth.portamento = 0.15;
           } else {
-            synth.portamento = 0.01; // valeur par défaut très faible
+            synth.portamento = 0.01;
           }
           
-          // Appliquer l'enveloppe attack plus courte pour l'accent
-          if (hasAccent && synth.envelope) {
-            const origAttack = synth.envelope.attack;
-            synth.envelope.attack = Math.max(0.01, origAttack * 0.7); // Réduire l'attaque de 30%
-            
-            synth.triggerAttackRelease(highestNote, noteDuration, time, adjustedVelocity / 127);
-            
-            // Rétablir l'attaque d'origine après un court délai
-            setTimeout(() => {
-              synth.envelope.attack = origAttack;
-            }, 50);
-          } else {
-            synth.triggerAttackRelease(highestNote, noteDuration, time, adjustedVelocity / 127);
-          }
+          synth.triggerAttackRelease(highestNote, noteDuration, time, adjustedVelocity / 127);
         }
         
-        // Envoyer en MIDI si activé
         if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-          // Gérer accent et slide en temps réel pour MIDI
           const hasAccent = stepVal.accent || false;
           const hasSlide = stepVal.slide || false;
           
-          // Ajuster la vélocité pour l'accent
           let adjustedVelocity = velocity;
           if (hasAccent) {
             adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
           }
           
           if (hasAccent) {
-            midiOutput.sendControlChange(16, 127); // CC#16 pour accent
+            midiOutput.sendControlChange(16, 127);
           }
           if (hasSlide) {
-            midiOutput.sendControlChange(17, 127); // CC#17 pour slide
+            midiOutput.sendControlChange(17, 127);
           }
           
           midiOutput.sendNoteOn(highestNote, adjustedVelocity);
           
-          // Programmer la note off et reset des contrôleurs
           setTimeout(() => {
             if (hasAccent) {
-              midiOutput.sendControlChange(16, 0); // Reset accent
+              midiOutput.sendControlChange(16, 0);
             }
             if (hasSlide) {
-              midiOutput.sendControlChange(17, 0); // Reset slide
+              midiOutput.sendControlChange(17, 0);
             }
             midiOutput.sendNoteOff(highestNote);
-          }, durationMs); // Utiliser la durée adaptée à la longueur sélectionnée
+          }, durationMs);
         }
         
         previousMonoNote.current = highestNote;
       } else {
         previousMonoNote.current = null;
       }
-    } 
-    // Mode Poly: toutes les notes sont jouées
-    else {
+    } else {
+      // Mode Poly - copier le même principe
       const activeNotes = [];
       
-      // Trouver toutes les notes actives à ce pas
       Object.entries(pattern).forEach(([note, steps]) => {
-        const val = steps[step];
+        const val = steps[stepIndex];
         if (val && val.on) {
           activeNotes.push({
             note,
@@ -326,135 +310,66 @@ export default function MelodySequencer() {
         }
       });
       
-      // Jouer les notes uniquement si elles existent
       if (activeNotes.length > 0) {
         activeNotes.forEach(noteData => {
-          // Jouer avec Tone.js seulement si MIDI n'est pas activé
           if (synth && !midiOutputEnabled) {
-            // Ajuster la vélocité pour l'accent
             let velocity = noteData.velocity / 127;
             if (noteData.accent) {
               velocity = Math.min(1, velocity * 1.2);
             }
-            
-            // Pour les synthés qui supportent le voice.portamento individuel par note
-            if (noteData.slide && synth.get) {
-              try {
-                // Activer le portamento pour cette note spécifique si possible
-                synth.set({ portamento: 0.15 });
-                setTimeout(() => {
-                  synth.set({ portamento: 0.01 }); // Revenir au réglage normal
-                }, 100);
-              } catch (e) {
-
-              }
-            }
-            
-            // Appliquer une attaque plus courte pour l'accent si possible
-            if (noteData.accent && synth.set) {
-              try {
-                const origAttack = synth.get().attack || 0.1;
-                synth.set({ attack: Math.max(0.01, origAttack * 0.7) });
-                
-                synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
-                
-                // Rétablir l'attaque d'origine
-                setTimeout(() => {
-                  synth.set({ attack: origAttack });
-                }, 50);
-              } catch (e) {
-                // Fallback si synth.set n'est pas supporté
-                synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
-              }
-            } else {
-              synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
-            }
+            synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
           }
           
-          // Sortie MIDI externe
           else if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-            // Ajuster la vélocité pour l'accent
             let adjustedVelocity = noteData.velocity;
             if (noteData.accent) {
               adjustedVelocity = Math.min(127, Math.round(adjustedVelocity * 1.2));
             }
             
-            // Envoyer les contrôleurs d'abord
             if (noteData.accent) {
-              midiOutput.sendControlChange(16, 127); // CC#16 pour accent
+              midiOutput.sendControlChange(16, 127);
             }
             if (noteData.slide) {
-              midiOutput.sendControlChange(17, 127); // CC#17 pour slide
+              midiOutput.sendControlChange(17, 127);
             }
             
-            // Attendre un petit moment avant d'envoyer la note
             setTimeout(() => {
               midiOutput.sendNoteOn(noteData.note, adjustedVelocity);
               
-              // Programmer la note off et reset des contrôleurs
               setTimeout(() => {
                 if (noteData.accent) {
-                  midiOutput.sendControlChange(16, 0); // Reset accent
+                  midiOutput.sendControlChange(16, 0);
                 }
                 if (noteData.slide) {
-                  midiOutput.sendControlChange(17, 0); // Reset slide
+                  midiOutput.sendControlChange(17, 0);
                 }
                 midiOutput.sendNoteOff(noteData.note);
-              }, durationMs); // Utiliser la durée en ms adaptée à la longueur sélectionnée
-            }, 10); // Délai de 10ms entre CC et Note
+              }, durationMs);
+            }, 10);
           }
         });
       }
     }
-  }, [pattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
-
-    useEffect(() => {
-
+  };
+  
+  transportId.current = Tone.Transport.scheduleRepeat((time) => {
+    playCurrentStep(step, time);
+    step = (step + 1) % steps;
+    setCurrentStep(step);
+  }, noteLength, 0);
+  
+  Tone.context.resume().then(() => {
+    Tone.Transport.start();
+  });
+  
+  return () => {
     if (transportId.current) {
       Tone.Transport.clear(transportId.current);
       transportId.current = null;
     }
-    
-    if (!isPlaying) {
-      Tone.Transport.stop();
-      previousMonoNote.current = null;
-      return;
-    }
-    
-    // Configuration précise du transport
-    Tone.Transport.bpm.value = tempo;
-    Tone.Transport.cancel();
-    
-    // TEST : Vérifier que Tone.js comprend les valeurs
-
-    
-    setCurrentStep(0);
-    let step = 0;
-    let lastTime = 0;
-    
-    transportId.current = Tone.Transport.scheduleRepeat((time) => {
-      const deltaTime = time - lastTime;
-
-      lastTime = time;
-      
-      playStep(step, time);
-      step = (step + 1) % steps;
-      setCurrentStep(step);
-    }, noteLength, 0);
-    
-    Tone.context.resume().then(() => {
-
-      Tone.Transport.start();
-    });
-    
-    return () => {
-      if (transportId.current) {
-        Tone.Transport.clear(transportId.current);
-        transportId.current = null;
-      }
-      Tone.Transport.stop();
-    };
-  }, [isPlaying, steps, tempo, noteLength]);
+    Tone.Transport.stop();
+  };
+}, [isPlaying, steps, tempo, noteLength, pattern, currentPreset, midiOutputEnabled]);
 
   const handlePlay = async () => {
     try {
