@@ -342,7 +342,7 @@ export default function PianoRoll({
                   borderBottom: "1px solid #444",
                   position: "relative",
                   fontWeight: "bold",
-                  fontSize: "11px"
+                  fontSize: "12px"
                 }}
               >
                 <span style={{ 

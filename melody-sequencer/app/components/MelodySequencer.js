@@ -50,7 +50,7 @@ export default function MelodySequencer() {
   const [randomParams, setRandomParams] = useState(null);
   const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
   const [midiOutputEnabled, setMidiOutputEnabled] = useState(false);
-  const [noteLength, setNoteLength] = useState("1/32"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
+  const [noteLength, setNoteLength] = useState("16n"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
 
   // Référence pour le débogage de la popup MIDI
@@ -60,7 +60,7 @@ export default function MelodySequencer() {
   const handleToggleMIDI = async () => {
     try {
       const newState = !midiOutputEnabled;
-      console.log("Toggle MIDI:", newState);
+
       
       if (newState) {
         // Initialisation du système MIDI si on l'active
@@ -68,7 +68,7 @@ export default function MelodySequencer() {
         const success = await midiOutput.initialize();
         
         if (success) {
-          console.log("MIDI initialisé avec succès");
+
           setMidiOutputEnabled(true);
           setMidiSettingsOpen(true); // Ouvrir automatiquement les paramètres
         } else {
@@ -180,20 +180,25 @@ export default function MelodySequencer() {
   };
   // Playback via Tone.Transport - Optimisé pour réduire la latence et support MIDI output
   const playStep = useCallback((step, time) => {
+
     // Déterminer la durée de la note en fonction de la longueur sélectionnée
     const noteDurationMap = {
-      "1/16": "16n", // Durée standard
-      "1/32": "32n", // Durée plus courte
-      "1/64": "64n"  // Durée très courte
+      "1/4": "4n",   // Noire
+      "1/8": "8n",   // Croche
+      "1/16": "16n", // Double-croche (défaut)
+      "1/32": "32n", // Triple-croche
+      "1/64": "64n"  // Quadruple-croche
     };
     const noteDuration = noteDurationMap[noteLength] || "16n";
-    
-    // Calcul de la durée en millisecondes pour MIDI
+    //const noteDuration = "16n";
+    // Calcul de la durée en millisecondes basé sur l'intervalle choisi
     const durationMs = {
-      "1/16": (60000 / tempo) / 4,    // Durée standard d'une double-croche
-      "1/32": (60000 / tempo) / 8,    // Moitié d'une double-croche
-      "1/64": (60000 / tempo) / 16    // Quart d'une double-croche
-    }[noteLength] || (60000 / tempo) / 4;
+      "4n": (60000 / tempo) / 4,     // Durée d'une noire
+      "8n": (60000 / tempo) / 8,     // Durée d'une croche
+      "16n": (60000 / tempo) / 16,   // Durée d'une double-croche
+      "32n": (60000 / tempo) / 32,   // Durée d'une triple-croche
+      "64n": (60000 / tempo) / 64    // Durée d'une quadruple-croche
+    }[noteLength] || (60000 / tempo) / 16;
     
     const synth = synthRef.current;
     const midiOutput = getMIDIOutput();
@@ -341,7 +346,7 @@ export default function MelodySequencer() {
                   synth.set({ portamento: 0.01 }); // Revenir au réglage normal
                 }, 100);
               } catch (e) {
-                console.log("Portamento par voice non supporté", e);
+
               }
             }
             
@@ -403,12 +408,13 @@ export default function MelodySequencer() {
     }
   }, [pattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
 
+    useEffect(() => {
 
-  useEffect(() => {
     if (transportId.current) {
       Tone.Transport.clear(transportId.current);
       transportId.current = null;
     }
+    
     if (!isPlaying) {
       Tone.Transport.stop();
       previousMonoNote.current = null;
@@ -417,31 +423,28 @@ export default function MelodySequencer() {
     
     // Configuration précise du transport
     Tone.Transport.bpm.value = tempo;
-    Tone.Transport.cancel(); // Annuler tous les événements précédents
+    Tone.Transport.cancel();
     
-    // Initialiser currentStep à 0 au début
+    // TEST : Vérifier que Tone.js comprend les valeurs
+
+    
     setCurrentStep(0);
     let step = 0;
+    let lastTime = 0;
     
-    // Jouer le premier pas immédiatement
-    const scheduleFirstStep = () => {
-      // Utiliser l'API précise de Tone.js avec contexte AudioContext
-      const startTime = Tone.immediate();
-      playStep(0, startTime);
-    };
-    
-    // Planifier les pas suivants avec précision - toujours avec un intervalle 16n fixe
     transportId.current = Tone.Transport.scheduleRepeat((time) => {
-      // Incrémenter le pas après avoir joué le pas actuel
+      const deltaTime = time - lastTime;
+
+      lastTime = time;
+      
+      playStep(step, time);
       step = (step + 1) % steps;
       setCurrentStep(step);
-      playStep(step, time);
-    }, "16n"); // Toujours 16n pour la séquence de pas
+    }, noteLength, 0);
     
-    // Démarrer le transport avec le minimum de latence
     Tone.context.resume().then(() => {
+
       Tone.Transport.start();
-      scheduleFirstStep();
     });
     
     return () => {
@@ -451,8 +454,7 @@ export default function MelodySequencer() {
       }
       Tone.Transport.stop();
     };
-    // eslint-disable-next-line
-  }, [isPlaying, steps, tempo, playStep]);
+  }, [isPlaying, steps, tempo, noteLength]);
 
   const handlePlay = async () => {
     try {
@@ -587,14 +589,12 @@ export default function MelodySequencer() {
           if (diff > 0.001) timeDiffs.push(diff); // Éviter les écarts nuls ou très petits
         }
         
-        // Afficher les différences temporelles détectées pour le débogage
-        console.log("Différences temporelles détectées:", timeDiffs);
+
         
         // 3. Trouver le plus petit commun diviseur approximatif des écarts temporels
         // pour déduire la "granularité" du MIDI
         let smallestGap = Math.min(...timeDiffs, 0.25); // Valeur par défaut si pas d'écarts détectés
         
-        console.log(`Détection MIDI - Durée totale: ${midiDuration}, Plus petit écart: ${smallestGap}`);
         
         // 4. Déterminer la résolution effective pour le mapping
         // Si smallestGap est très petit, nous avons probablement un MIDI à haute résolution
@@ -609,7 +609,7 @@ export default function MelodySequencer() {
         // Afficher un avertissement si le MIDI pourrait être tronqué
         let truncationWarning = false;
         if (estimatedSteps > steps) {
-          console.log(`Le MIDI importé pourrait nécessiter ~${estimatedSteps} pas mais sera adapté à ${steps} pas`);
+
           truncationWarning = true;
         }
 
@@ -617,7 +617,7 @@ export default function MelodySequencer() {
         // tout en rentrant dans le nombre de pas disponibles
         const scalingFactor = Math.min(steps / estimatedSteps, 1);
         
-        console.log(`Résolution détectée: ${isVeryHighResolution ? 'très haute' : isHighResolution ? 'haute' : 'standard'}, Facteur d'échelle: ${scalingFactor}`);
+       
 
         // 7. Ajouter les notes du MIDI au pattern avec le bon espacement
         sortedNotes.forEach(note => {
@@ -713,9 +713,11 @@ export default function MelodySequencer() {
     
     // Définir les ticks par pas selon la longueur de note sélectionnée
     const ticksPerStepMap = {
-      "1/16": 24,   // Valeur standard (96 PPQ / 4 = 24 ticks par 1/16)
-      "1/32": 12,   // 96 PPQ / 8 = 12 ticks par 1/32
-      "1/64": 6     // 96 PPQ / 16 = 6 ticks par 1/64
+      "4n": 96,    // 96 ticks par noire (PPQ standard)
+      "8n": 48,    // 48 ticks par croche
+      "16n": 24,   // 24 ticks par double-croche
+      "32n": 12,   // 12 ticks par triple-croche
+      "64n": 6     // 6 ticks par quadruple-croche
     };
     const ticksPerStep = ticksPerStepMap[noteLength] || 24;
     
@@ -1075,10 +1077,12 @@ export default function MelodySequencer() {
               marginRight: "5px",
               display: "block",
               textAlign: "center"
-            }}>Longueur note</label>
+            }}>Vitesse</label>
             <select 
               value={noteLength}
-              onChange={(e) => setNoteLength(e.target.value)}
+              onChange={(e) => {
+                setNoteLength(e.target.value);
+              }}
               className="note-length-selector"
               style={{
                 padding: "5px",
@@ -1089,11 +1093,13 @@ export default function MelodySequencer() {
                 cursor: "pointer",
                 fontWeight: "bold"
               }}
-              title="Sélectionner la durée de maintien des notes (gate time)"
+              title="Sélectionner la vitesse de lecture des pas"
             >
-              <option value="1/16">1/16</option>
-              <option value="1/32">1/32</option>
-              <option value="1/64">1/64</option>
+              <option value="4n">1/4 (Lent)</option>
+              <option value="8n">1/8 (Modéré)</option>
+              <option value="16n">1/16 (Normal)</option>
+              <option value="32n">1/32 (Rapide)</option>
+              <option value="64n">1/64 (Très rapide)</option>
             </select>
           </div>
           
@@ -1183,7 +1189,6 @@ export default function MelodySequencer() {
               className="btn"
               style={{ marginLeft: 10, minWidth: 80, backgroundColor: midiOutputEnabled ? '#0c9' : '#999', color: '#000' }}
               onClick={() => {
-                console.log('Ouverture des paramètres MIDI');
                 setMidiSettingsOpen(true);
               }}
               disabled={!midiOutputEnabled}
@@ -1352,13 +1357,11 @@ export default function MelodySequencer() {
         onSelect={preset => {
           // Si on reçoit un objet preset complet
           if (typeof preset === 'object' && preset !== null) {
-            console.log('Reçu preset complet:', preset);
             setPresetKey(preset.key); // Garder la clé pour compatibilité
             setCurrentPreset(preset); // Stocker l'objet preset complet
           } 
           // Si on reçoit juste une clé (ancien comportement)
           else if (typeof preset === 'string') {
-            console.log('Reçu preset key:', preset);
             setPresetKey(preset);
             // Rechercher parmi tous les presets (par défaut + personnalisés)
             const allPresets = PresetStorage.getAllPresets();
