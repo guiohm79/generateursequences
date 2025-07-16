@@ -3,7 +3,10 @@ import React, { useState } from "react";
 
 const ROOT_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const SCALES = [
+  { key: "major", label: "Majeure" },
+  { key: "minor", label: "Mineure" },
   { key: "phrygian", label: "Phrygien" },
+  { key: "phrygianDominant", label: "Phrygian Dominant" },
   { key: "harmonicMinor", label: "Mineur Harmonique" },
   { key: "hungarianMinor", label: "Hongrois Mineur (Dark)" },
   { key: "doubleHarmonic", label: "Double Harmonique" },
