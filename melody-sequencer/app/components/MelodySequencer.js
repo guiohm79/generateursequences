@@ -428,18 +428,18 @@ export default function MelodySequencer() {
       if (Array.isArray(steps)) {
         steps.forEach((cell, stepIndex) => {
           if (cell && cell.on) {
-            // Calcul de la durée et du timing
-            const startTime = stepIndex * (ppq / (steps.length / 4)); // 4 noires par mesure
-            const duration = ppq / (steps.length / 4); // Durée en ticks (une double-croche par défaut)
+            // Calcul de la durée et du timing en ticks
+            const startTicks = stepIndex * (ppq / (steps.length / 4)); // 4 noires par mesure
+            const durationTicks = ppq / (steps.length / 4); // Durée en ticks (une double-croche par défaut)
             
             // Convertir la note en numéro MIDI
             const midiNote = Tone.Frequency(note).toMidi();
             
-            // Ajouter la note au track
+            // Ajouter la note au track avec ticks au lieu de time
             track.addNote({
               midi: midiNote,
-              time: startTime / 480,
-              duration: duration / 480,
+              ticks: startTicks,
+              durationTicks: durationTicks,
               velocity: (cell.velocity || 100) / 127
             });
           }

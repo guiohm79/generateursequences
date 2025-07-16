@@ -325,13 +325,16 @@ const VariationPopup = ({
             <input 
               type="range" 
               min="0" 
-              max="50" 
+              max="20" 
               step="1" 
               value={humanize} 
               onChange={(e) => setHumanize(parseInt(e.target.value, 10))}
               style={{ width: '200px' }}
             />
             <span style={{ marginLeft: '10px' }}>{humanize}ms</span>
+            <div style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
+              Recommandé : 2-5ms pour du groove naturel, 8-15ms pour un effet plus marqué
+            </div>
           </div>
           
           {/* Options de transformation */}
