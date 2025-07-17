@@ -474,6 +474,7 @@ export default function MelodySequencer() {
       const newMidi = new Midi(variationData);
       const newTrack = newMidi.tracks[0];
       
+
       // Créer un nouveau pattern vide
       const newPattern = buildPattern(null, steps, minOctave, maxOctave);
       
@@ -532,29 +533,21 @@ export default function MelodySequencer() {
         // tout en rentrant dans le nombre de pas disponibles
         const scalingFactor = Math.min(steps / estimatedSteps, 1);
         
-       
-
         // 7. Ajouter les notes du MIDI au pattern avec le bon espacement
-        sortedNotes.forEach(note => {
+        sortedNotes.forEach((note, i) => {
+          
           // Convertir le numéro MIDI en note + octave
           const noteName = Tone.Frequency(note.midi, "midi").toNote();
           
           // Vérifier si la note est dans notre range d'octaves
           if (newPattern[noteName]) {
-            // Calculer l'index du step en préservant l'espacement relatif
-            let stepIndex;
+            // Calculer l'index du step en se basant sur le temps
+            // Diviser par la durée d'un step (midiDuration / steps)
+            const stepDuration = midiDuration / steps;
+            let stepIndex = Math.round(note.time / stepDuration);
             
-            if (isVeryHighResolution) {
-              // Pour MIDI à très haute résolution (1/64 ou plus fin)
-              // Multiplier par un facteur plus grand pour capturer toute la précision
-              stepIndex = Math.floor(note.time * 16 * scalingFactor);
-            } else if (isHighResolution) {
-              // Pour MIDI haute résolution (~1/32)
-              stepIndex = Math.floor(note.time * 8 * scalingFactor);
-            } else {
-              // Pour résolution standard (1/16 ou inférieure)
-              stepIndex = Math.floor(note.time * 4 * scalingFactor);
-            }
+            // Alternative : utiliser la grille des 16èmes
+            // let stepIndex = Math.round(note.time * 16); // 16 sixteenths per 4 beats
             
             // Si le step est dans notre range
             if (stepIndex >= 0 && stepIndex < steps) {
@@ -568,7 +561,7 @@ export default function MelodySequencer() {
             }
           }
         });
-        
+                
         // Afficher un message d'information adapté
         if (truncationWarning) {
           setTimeout(() => {

@@ -76,9 +76,14 @@ function applyContextualHumanization(note, index, allNotes, rng, amountInTicks) 
   const phrasePosition = index / allNotes.length;
   const timingFactor = 1 - (phrasePosition * 0.3); // Les notes tardives sont plus "lâches"
   
-  // Timing (amount est déjà en ticks)
-  const timingVariation = (rng() - 0.5) * amountInTicks * timingFactor;
-  result.ticks = Math.max(0, result.ticks + timingVariation);
+  // Timing : modifier directement TIME au lieu de ticks
+  const ppq = 480;
+  const timingVariationTicks = (rng() - 0.5) * amountInTicks * timingFactor;
+  const timingVariationTime = timingVariationTicks / ppq;
+  
+  result.time = Math.max(0, result.time + timingVariationTime);
+  
+  console.log(`Note ${index}: time ${note.time} -> ${result.time} (variation: ${timingVariationTime}s)`);
   
   // Vélocité avec tendance légèrement décroissante
   const velocityBase = result.velocity * (1 - phrasePosition * 0.1);
@@ -177,17 +182,24 @@ export function generateVariations(midiData, opts = {}) {
       });
     }
 
-    // 5. Humanisation (avec fonction contextuelle)
+    // 5. Humanisation (timing et vélocité)
     if (humanize) {
-      // Convertir les millisecondes en ticks MIDI
-      const ppq = baseMidi.header.ppq || 480;
-      const bpmReference = 120;
-      const msToTicks = (ppq * bpmReference) / (60 * 1000);
-      const humanizeInTicks = humanize * msToTicks;
-      
       transformedNotes.forEach((n, idx) => {
-        const humanizedNote = applyContextualHumanization(n, idx, transformedNotes, rng, humanizeInTicks);
-        Object.assign(n, humanizedNote);
+        // S'assurer qu'on a une valeur time valide
+        if (n.time === undefined || n.time === null || isNaN(n.time)) {
+          // Calculer time à partir de ticks si nécessaire
+          const ppq = 480;
+          n.time = n.ticks / ppq;
+        }
+        
+        // Humanisation du timing
+        const timingVariationMs = (rng() - 0.5) * humanize;
+        const timingVariationSec = timingVariationMs / 1000;
+        n.time = Math.max(0, n.time + timingVariationSec);
+        
+        // Humanisation de la vélocité
+        const velocityVariation = (rng() - 0.5) * 0.15;
+        n.velocity = Math.min(1, Math.max(0.1, n.velocity + velocityVariation));
       });
     }
 

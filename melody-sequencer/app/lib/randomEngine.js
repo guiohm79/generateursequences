@@ -28,7 +28,7 @@ export const SCALES = {
   enigmatic:        [0,1,4,6,8,10,11],   // Vraiment bizarre mais hypnotique
   wholetone:        [0,2,4,6,8,10],      // Complètement barré mais ça peut le faire
   
-  perso:            [0,4,10,11],         // Ta gamme corrigée avec le 8ème ?
+  perso:            [0,3,10,12],         // Ta gamme corrigée avec le 8ème ?
   perso2:           [0,3,7,8,10],
   perso3:           [0,4,7,11,12],         // Autres variantes perso
   minimalDark:      [0,1,7],             // Ultra minimal pour dark techno
