@@ -118,11 +118,9 @@ export class MIDIOutput {
     try {
       // Message MIDI Note On: [0x90 | canal, note, vélocité]
       const velocityValue = Math.min(127, Math.max(0, Math.round(velocity)));
-      console.log(`Envoi MIDI: Note On ${note} (${midiNote}), vélocité ${velocityValue}, canal ${this.midiChannel}`);
       this.outputDevice.send([0x90 | this.midiChannel, midiNote, velocityValue]);
       return true;
     } catch (error) {
-      console.error("Erreur d'envoi MIDI Note On:", error);
       return false;
     }
   }
@@ -169,11 +167,9 @@ export class MIDIOutput {
       // Message MIDI Control Change: [0xB0 | canal, contrôleur, valeur]
       const controllerValue = Math.min(127, Math.max(0, Math.round(controller)));
       const dataValue = Math.min(127, Math.max(0, Math.round(value)));
-      console.log(`Envoi MIDI: CC ${controllerValue}, valeur ${dataValue}, canal ${this.midiChannel}`);
       this.outputDevice.send([0xB0 | this.midiChannel, controllerValue, dataValue]);
       return true;
     } catch (error) {
-      console.error("Erreur d'envoi MIDI Control Change:", error);
       return false;
     }
   }

@@ -179,43 +179,31 @@ export default function MelodySequencer() {
     });
   };
 
-
- useEffect(() => {
-  if (transportId.current) {
-    Tone.Transport.clear(transportId.current);
-    transportId.current = null;
-  }
-  
-  if (!isPlaying) {
-    Tone.Transport.stop();
-    previousMonoNote.current = null;
-    return;
-  }
-  
-  // Configuration précise du transport
-  Tone.Transport.bpm.value = tempo;
-  Tone.Transport.cancel();
-  
-  setCurrentStep(0);
-  let step = 0;
-  
-  // SOLUTION : Redéfinir playStep ici, pas en useCallback
-  const playCurrentStep = (stepIndex, time) => {
-    // Copier tout le contenu de ta fonction playStep ici
-    const noteDuration = noteLength || "16n";
+ // Fonction playStep définie avec useCallback
+  const playStep = useCallback((stepIndex, time) => {
+    // Mapping pour les durées de notes en fonction du noteLength
+    const noteDurationMap = {
+      "4n": "4n",     // Noire
+      "8n": "8n",     // Croche  
+      "16n": "16n",   // Double-croche (standard)
+      "32n": "32n",   // Triple-croche
+      "64n": "64n"    // Quadruple-croche
+    };
+    const noteDuration = noteDurationMap[noteLength] || "16n";
     
+    // Calcul de la durée en millisecondes pour MIDI
     const durationMs = {
-      "4n": (60000 / tempo) / 4,
-      "8n": (60000 / tempo) / 8,
-      "16n": (60000 / tempo) / 16,
-      "32n": (60000 / tempo) / 32,
-      "64n": (60000 / tempo) / 64
-    }[noteLength] || (60000 / tempo) / 16;
-    
+      "4n": (60000 / tempo),       // Durée d'une noire
+      "8n": (60000 / tempo) / 2,   // Durée d'une croche
+      "16n": (60000 / tempo) / 4,  // Durée standard d'une double-croche
+      "32n": (60000 / tempo) / 8,  // Durée d'une triple-croche
+      "64n": (60000 / tempo) / 16  // Durée d'une quadruple-croche
+    }[noteLength] || (60000 / tempo) / 4;
+        
     const synth = synthRef.current;
     const midiOutput = getMIDIOutput();
     
-    // Utilise `pattern` directement ici (pas de closure)
+    // Mode Mono (une seule note à la fois)
     if (currentPreset.voiceMode === "mono") {
       let highestNote = null;
       let highestMidiNote = -1;
@@ -295,7 +283,7 @@ export default function MelodySequencer() {
         previousMonoNote.current = null;
       }
     } else {
-      // Mode Poly - copier le même principe
+      // Mode Poly
       const activeNotes = [];
       
       Object.entries(pattern).forEach(([note, steps]) => {
@@ -350,26 +338,57 @@ export default function MelodySequencer() {
         });
       }
     }
-  };
-  
-  transportId.current = Tone.Transport.scheduleRepeat((time) => {
-    playCurrentStep(step, time);
-    step = (step + 1) % steps;
-    setCurrentStep(step);
-  }, noteLength, 0);
-  
-  Tone.context.resume().then(() => {
-    Tone.Transport.start();
-  });
-  
-  return () => {
+  }, [pattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
+
+  // useEffect pour gérer le transport
+  useEffect(() => {
     if (transportId.current) {
       Tone.Transport.clear(transportId.current);
       transportId.current = null;
     }
-    Tone.Transport.stop();
-  };
-}, [isPlaying, steps, tempo, noteLength, pattern, currentPreset, midiOutputEnabled]);
+    
+    if (!isPlaying) {
+      Tone.Transport.stop();
+      previousMonoNote.current = null;
+      return;
+    }
+    
+    // Configuration précise du transport
+    Tone.Transport.bpm.value = tempo;
+    Tone.Transport.cancel();
+    
+    setCurrentStep(0);
+    let step = 0;
+    
+    // Calculer l'intervalle de répétition selon noteLength
+    const intervalMap = {
+      "4n": "4n",
+      "8n": "8n",
+      "16n": "16n", 
+      "32n": "32n",
+      "64n": "64n"
+    };
+    const interval = intervalMap[noteLength] || "16n";
+
+    transportId.current = Tone.Transport.scheduleRepeat((time) => {
+      step = (step + 1) % steps;
+      setCurrentStep(step);
+      playStep(step, time);
+    }, interval);
+    
+    Tone.context.resume().then(() => {
+      Tone.Transport.start();
+    });
+    
+    return () => {
+      if (transportId.current) {
+        Tone.Transport.clear(transportId.current);
+        transportId.current = null;
+      }
+      Tone.Transport.stop();
+    };
+  }, [isPlaying, steps, tempo, noteLength, playStep]);
+
 
   const handlePlay = async () => {
     try {
@@ -579,7 +598,7 @@ export default function MelodySequencer() {
       alert("Une erreur s'est produite lors de la génération des variations.");
     }
   };
-  
+
   function exportToMidi() {
     function noteNameToMidi(note) {
       const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -588,6 +607,7 @@ export default function MelodySequencer() {
       let n = notes.indexOf(noteName);
       return (octave + 1) * 12 + n;
     }
+    
     function writeVarLen(value) {
       let buffer = [];
       let bufferVal = value & 0x7F;
@@ -602,103 +622,153 @@ export default function MelodySequencer() {
       }
       return buffer;
     }
+    
+    // Résolution MIDI standard
+    const ppq = 480;
+    
+    // Header MIDI
     let header = [
       0x4d, 0x54, 0x68, 0x64,
       0x00, 0x00, 0x00, 0x06,
       0x00, 0x00,
       0x00, 0x01,
-      0x00, 0x60
+      (ppq >> 8) & 0xFF, ppq & 0xFF
     ];
+    
     let track = [];
+    
+    // Tempo
     let microsecPerBeat = Math.round(60000000 / tempo);
-    track.push(0x00, 0xFF, 0x51, 0x03, (microsecPerBeat >> 16) & 0xFF, (microsecPerBeat >> 8) & 0xFF, microsecPerBeat & 0xFF);
+    track.push(0x00, 0xFF, 0x51, 0x03, 
+      (microsecPerBeat >> 16) & 0xFF, 
+      (microsecPerBeat >> 8) & 0xFF, 
+      microsecPerBeat & 0xFF
+    );
     
-    // Définition des contrôleurs MIDI pour accent et slide
-    const CC_ACCENT = 16; // CC#16 pour l'accent
-    const CC_SLIDE = 17;  // CC#17 pour le slide (portamento)
+    // Définition des contrôleurs MIDI
+    const CC_ACCENT = 16;
+    const CC_SLIDE = 17;
     
-    const notesList = Object.keys(pattern);
-    
-    // Définir les ticks par pas selon la longueur de note sélectionnée
-    const ticksPerStepMap = {
-      "4n": 96,    // 96 ticks par noire (PPQ standard)
-      "8n": 48,    // 48 ticks par croche
-      "16n": 24,   // 24 ticks par double-croche
-      "32n": 12,   // 12 ticks par triple-croche
-      "64n": 6     // 6 ticks par quadruple-croche
+    // NOUVELLE LOGIQUE : Calculer l'espacement temporel basé sur noteLength
+    // noteLength détermine l'intervalle entre chaque step dans le séquenceur
+    const stepIntervalMap = {
+      "4n": ppq,        // 1 noire = 480 ticks (très lent)
+      "8n": ppq / 2,    // 1 croche = 240 ticks (lent) 
+      "16n": ppq / 4,   // 1 double-croche = 120 ticks (normal)
+      "32n": ppq / 8,   // 1 triple-croche = 60 ticks (rapide)
+      "64n": ppq / 16   // 1 quadruple-croche = 30 ticks (très rapide)
     };
-    const ticksPerStep = ticksPerStepMap[noteLength] || 24;
     
-    // Pour chaque pas de la séquence
-    for (let i = 0; i < steps; i++) {
-      let delta = (i === 0) ? 0 : ticksPerStep;
-      let notesOn = [];
+    const ticksPerStep = stepIntervalMap[noteLength] || ppq / 4;
+    
+    // La durée de chaque note : légèrement plus courte que l'intervalle pour éviter les chevauchements
+    const noteDurationTicks = Math.round(ticksPerStep * 0.8);
+    
+    console.log(`Export MIDI: noteLength=${noteLength}, ticksPerStep=${ticksPerStep}, noteDuration=${noteDurationTicks}, steps=${steps}`);
+    
+    // Collecter toutes les notes avec leur timing
+    const midiEvents = [];
+    
+    // Parcourir chaque step
+    for (let stepIndex = 0; stepIndex < steps; stepIndex++) {
+      const stepStartTime = stepIndex * ticksPerStep;
+      const noteEndTime = stepStartTime + noteDurationTicks;
       
-      // Pour chaque note à ce pas
-      notesList.forEach(note => {
-        let val = pattern[note][i];
-        if (val && val.on) {
-          // Générer les messages Control Change pour accent et slide si activés
-          if (val.accent) {
-            // Accent: CC#16, valeur 127 (max)
-            track.push(...writeVarLen(delta), 0xB0, CC_ACCENT, 127);
-            delta = 0; // Réinitialiser delta après le premier événement
-          }
-          
-          if (val.slide) {
-            // Slide/portamento: CC#17, valeur 127 (max)
-            track.push(...writeVarLen(delta), 0xB0, CC_SLIDE, 127);
-            delta = 0; // Réinitialiser delta après le premier événement
-          }
-          
-          // Note On avec vélocité
-          // Si un accent est présent, augmenter la vélocité (mais ne pas dépasser 127)
-          let velocity = Math.round(val.velocity || 100);
-          if (val.accent) {
-            // Augmenter la vélocité de 20% pour les notes accentuées, max 127
-            velocity = Math.min(127, Math.round(velocity * 1.2));
-          }
-          
-          track.push(...writeVarLen(delta), 0x90, noteNameToMidi(note), velocity);
-          notesOn.push({
+      // Collecter toutes les notes actives à ce step
+      const activeNotes = [];
+      Object.entries(pattern).forEach(([note, stepArray]) => {
+        const cell = stepArray[stepIndex];
+        if (cell && cell.on) {
+          activeNotes.push({
             note,
-            hasSlide: val.slide || false,
-            hasAccent: val.accent || false
+            midiNote: noteNameToMidi(note),
+            velocity: Math.round(cell.velocity || 100),
+            accent: cell.accent || false,
+            slide: cell.slide || false
           });
-          delta = 0;
         }
       });
       
-      // Note Off pour toutes les notes actives
-      if (notesOn.length > 0) {
-        notesOn.forEach(noteInfo => {
-          track.push(...writeVarLen(ticksPerStep), 0x80, noteNameToMidi(noteInfo.note), 0x00);
-          
-          // Réinitialiser les contrôleurs après la note
-          if (noteInfo.hasAccent) {
-            track.push(...writeVarLen(0), 0xB0, CC_ACCENT, 0);
-          }
-          
-          if (noteInfo.hasSlide) {
-            track.push(...writeVarLen(0), 0xB0, CC_SLIDE, 0);
-          }
+      // Ajouter les événements MIDI pour toutes les notes de ce step
+      activeNotes.forEach((noteData) => {
+        // Note On
+        midiEvents.push({
+          time: stepStartTime,
+          type: 'noteOn',
+          note: noteData.midiNote,
+          velocity: noteData.accent ? Math.min(127, Math.round(noteData.velocity * 1.2)) : noteData.velocity,
+          accent: noteData.accent,
+          slide: noteData.slide
         });
-      }
+        
+        // Note Off
+        midiEvents.push({
+          time: noteEndTime,
+          type: 'noteOff',
+          note: noteData.midiNote,
+          accent: noteData.accent,
+          slide: noteData.slide
+        });
+      });
     }
+    
+    // Trier tous les événements par temps
+    midiEvents.sort((a, b) => a.time - b.time);
+    
+    // Convertir les événements en données MIDI
+    let currentTime = 0;
+    
+    midiEvents.forEach(event => {
+      const deltaTime = event.time - currentTime;
+      currentTime = event.time;
+      
+      if (event.type === 'noteOn') {
+        // Control Changes pour accent et slide
+        if (event.accent) {
+          track.push(...writeVarLen(deltaTime), 0xB0, CC_ACCENT, 127);
+          track.push(...writeVarLen(0), 0x90, event.note, event.velocity);
+        } else if (event.slide) {
+          track.push(...writeVarLen(deltaTime), 0xB0, CC_SLIDE, 127);
+          track.push(...writeVarLen(0), 0x90, event.note, event.velocity);
+        } else {
+          track.push(...writeVarLen(deltaTime), 0x90, event.note, event.velocity);
+        }
+      } else if (event.type === 'noteOff') {
+        track.push(...writeVarLen(deltaTime), 0x80, event.note, 0);
+        
+        // Reset des contrôleurs
+        if (event.accent) {
+          track.push(...writeVarLen(0), 0xB0, CC_ACCENT, 0);
+        }
+        if (event.slide) {
+          track.push(...writeVarLen(0), 0xB0, CC_SLIDE, 0);
+        }
+      }
+    });
+    
+    // End of track
     track.push(0x00, 0xFF, 0x2F, 0x00);
+    
+    // Calcul de la longueur du track
     let trackLen = track.length;
     let trackHeader = [
       0x4d, 0x54, 0x72, 0x6b,
-      (trackLen >> 24) & 0xFF, (trackLen >> 16) & 0xFF, (trackLen >> 8) & 0xFF, trackLen & 0xFF
+      (trackLen >> 24) & 0xFF, 
+      (trackLen >> 16) & 0xFF, 
+      (trackLen >> 8) & 0xFF, 
+      trackLen & 0xFF
     ];
+    
+    // Assemblage final
     let midi = new Uint8Array([...header, ...trackHeader, ...track]);
     let blob = new Blob([midi], { type: 'audio/midi' });
     let url = URL.createObjectURL(blob);
     let a = document.createElement('a');
     a.href = url;
-    a.download = 'melody-sequencer.mid';
+    a.download = `melody_${tempo}bpm_${noteLength.replace('/', '')}_${steps}steps.mid`;
     document.body.appendChild(a);
     a.click();
+    
     setTimeout(() => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
