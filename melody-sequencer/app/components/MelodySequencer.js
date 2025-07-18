@@ -250,34 +250,40 @@ export default function MelodySequencer() {
         }
         
         if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-          const hasAccent = stepVal.accent || false;
-          const hasSlide = stepVal.slide || false;
-          
-          let adjustedVelocity = velocity;
-          if (hasAccent) {
-            adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
-          }
-          
-          if (hasAccent) {
-            midiOutput.sendControlChange(16, 127);
-          }
-          if (hasSlide) {
-            midiOutput.sendControlChange(17, 127);
-          }
-          
-          midiOutput.sendNoteOn(highestNote, adjustedVelocity);
-          
-          setTimeout(() => {
-            if (hasAccent) {
-              midiOutput.sendControlChange(16, 0);
-            }
-            if (hasSlide) {
-              midiOutput.sendControlChange(17, 0);
-            }
-            midiOutput.sendNoteOff(highestNote);
-          }, durationMs);
-        }
-        
+                  const hasAccent = stepVal.accent || false;
+                  const hasSlide = stepVal.slide || false;
+                  
+                  let adjustedVelocity = velocity;
+                  if (hasAccent) {
+                    adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
+                  }
+                  
+                  // Envoyer les Control Changes avant la note (sans délai)
+                  if (hasAccent) {
+                    midiOutput.sendControlChange(16, 127);
+                  }
+                  if (hasSlide) {
+                    midiOutput.sendControlChange(17, 127);
+                  }
+                  
+                  // Envoyer la note immédiatement
+                  midiOutput.sendNoteOn(highestNote, adjustedVelocity);
+                  
+                  // Programmer le Note Off avec une durée plus courte et optimisée
+                  const optimizedDuration = Math.max(50, Math.min(durationMs * 0.8, 200)); // Entre 50ms et 200ms max
+                  
+                  setTimeout(() => {
+                    midiOutput.sendNoteOff(highestNote);
+                    // Reset des contrôleurs après la note off
+                    if (hasAccent) {
+                      midiOutput.sendControlChange(16, 0);
+                    }
+                    if (hasSlide) {
+                      midiOutput.sendControlChange(17, 0);
+                    }
+                  }, optimizedDuration);
+                }
+
         previousMonoNote.current = highestNote;
       } else {
         previousMonoNote.current = null;
@@ -308,33 +314,38 @@ export default function MelodySequencer() {
             synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
           }
           
-          else if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-            let adjustedVelocity = noteData.velocity;
-            if (noteData.accent) {
-              adjustedVelocity = Math.min(127, Math.round(adjustedVelocity * 1.2));
-            }
-            
-            if (noteData.accent) {
-              midiOutput.sendControlChange(16, 127);
-            }
-            if (noteData.slide) {
-              midiOutput.sendControlChange(17, 127);
-            }
-            
-            setTimeout(() => {
-              midiOutput.sendNoteOn(noteData.note, adjustedVelocity);
-              
-              setTimeout(() => {
-                if (noteData.accent) {
-                  midiOutput.sendControlChange(16, 0);
+
+      else if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
+                  let adjustedVelocity = noteData.velocity;
+                  if (noteData.accent) {
+                    adjustedVelocity = Math.min(127, Math.round(adjustedVelocity * 1.2));
+                  }
+                  
+                  // Envoyer les Control Changes et la note immédiatement
+                  if (noteData.accent) {
+                    midiOutput.sendControlChange(16, 127);
+                  }
+                  if (noteData.slide) {
+                    midiOutput.sendControlChange(17, 127);
+                  }
+                  
+                  midiOutput.sendNoteOn(noteData.note, adjustedVelocity);
+                  
+                  // Durée optimisée pour réduire la latence
+                  const optimizedDuration = Math.max(50, Math.min(durationMs * 0.8, 200));
+                  
+                  setTimeout(() => {
+                    midiOutput.sendNoteOff(noteData.note);
+                    if (noteData.accent) {
+                      midiOutput.sendControlChange(16, 0);
+                    }
+                    if (noteData.slide) {
+                      midiOutput.sendControlChange(17, 0);
+                    }
+                  }, optimizedDuration);
                 }
-                if (noteData.slide) {
-                  midiOutput.sendControlChange(17, 0);
-                }
-                midiOutput.sendNoteOff(noteData.note);
-              }, durationMs);
-            }, 10);
-          }
+
+
         });
       }
     }
