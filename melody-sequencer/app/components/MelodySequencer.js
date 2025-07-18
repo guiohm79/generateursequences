@@ -53,6 +53,10 @@ export default function MelodySequencer() {
   const [noteLength, setNoteLength] = useState("16n"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
 
+  // Historique des patterns pour le bouton retour arrière
+  const [patternHistory, setPatternHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+
   // Référence pour le débogage de la popup MIDI
   const midiDebugRef = useRef(null);
   
@@ -93,6 +97,43 @@ export default function MelodySequencer() {
     setPattern(prev => buildPattern(prev, steps, minOctave, maxOctave));
     setCurrentStep(0);
   }, [steps, minOctave, maxOctave]);
+
+  // Fonction pour sauvegarder le pattern actuel dans l'historique
+  const saveToHistory = (newPattern) => {
+    setPatternHistory(prev => {
+      const newHistory = [...prev];
+      // Supprimer les éléments après l'index actuel si on n'est pas à la fin
+      if (historyIndex >= 0 && historyIndex < newHistory.length - 1) {
+        newHistory.splice(historyIndex + 1);
+      }
+      // Ajouter le nouveau pattern
+      newHistory.push(JSON.parse(JSON.stringify(newPattern)));
+      // Limiter l'historique à 50 éléments
+      if (newHistory.length > 50) {
+        newHistory.shift();
+      }
+      return newHistory;
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
+  };
+
+  // Fonction pour revenir en arrière dans l'historique
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setPattern(JSON.parse(JSON.stringify(patternHistory[newIndex])));
+    }
+  };
+
+  // Fonction pour aller vers l'avant dans l'historique
+  const handleRedo = () => {
+    if (historyIndex < patternHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setPattern(JSON.parse(JSON.stringify(patternHistory[newIndex])));
+    }
+  };
 
   // Synthé et playback
   const synthRef = useRef(null);
@@ -136,7 +177,10 @@ export default function MelodySequencer() {
       const line = Array.isArray(prev[note]) ? prev[note].slice() : Array(steps).fill(0);
       // Toggle on/off (désactive si déjà on)
       line[idx] = !line[idx] || line[idx] === 0 ? { on: true, velocity: 100, accent: false, slide: false } : 0;
-      return { ...prev, [note]: line };
+      const newPattern = { ...prev, [note]: line };
+      // Sauvegarder dans l'historique
+      saveToHistory(newPattern);
+      return newPattern;
     });
   };
   
@@ -600,7 +644,8 @@ export default function MelodySequencer() {
         }
       }
       
-      // Mettre à jour le pattern et fermer le popup
+      // Sauvegarder dans l'historique avant de mettre à jour le pattern
+      saveToHistory(newPattern);
       setPattern(newPattern);
       setVariationPopupOpen(false);
       
@@ -797,12 +842,16 @@ export default function MelodySequencer() {
     
     // Générer le pattern avec les paramètres sélectionnés
     // Inclut maintenant le seed si présent dans params
-    setPattern(pat => buildPattern(generateMusicalPattern({
+    const newPattern = buildPattern(generateMusicalPattern({
       ...params,
       steps: stepsToUse,
       octaves: { min: minOctave, max: maxOctave }
       // Le seed est passé automatiquement via ...params s'il est présent
-    }), stepsToUse, minOctave, maxOctave));
+    }), stepsToUse, minOctave, maxOctave);
+    
+    // Sauvegarder dans l'historique avant de définir le nouveau pattern
+    saveToHistory(newPattern);
+    setPattern(newPattern);
     
     // Enregistrer les paramètres pour réutilisation
     setRandomParams(params);
@@ -820,12 +869,16 @@ export default function MelodySequencer() {
     const newSeed = randomParams.seed !== undefined ? Math.floor(Math.random() * 100000) : undefined;
     
     // Générer un nouveau pattern avec les mêmes paramètres que précédemment
-    setPattern(pat => buildPattern(generateMusicalPattern({
+    const newPattern = buildPattern(generateMusicalPattern({
       ...randomParams,
       steps: stepsToUse,
       octaves: { min: minOctave, max: maxOctave },
       seed: newSeed
-    }), stepsToUse, minOctave, maxOctave));
+    }), stepsToUse, minOctave, maxOctave);
+    
+    // Sauvegarder dans l'historique avant de définir le nouveau pattern
+    saveToHistory(newPattern);
+    setPattern(newPattern);
     
     // Mettre à jour randomParams avec le nouveau seed pour les futurs appels
     if (newSeed !== undefined) {
@@ -834,7 +887,10 @@ export default function MelodySequencer() {
   }
 
   const handleClear = () => {
-    setPattern(buildPattern(null, steps, minOctave, maxOctave));
+    const newPattern = buildPattern(null, steps, minOctave, maxOctave);
+    // Sauvegarder dans l'historique avant de vider
+    saveToHistory(newPattern);
+    setPattern(newPattern);
     setCurrentStep(0);
     // Arrête toute note, tout synthé, TOUT DE SUITE :
     if (synthRef.current) {
@@ -931,7 +987,8 @@ export default function MelodySequencer() {
       }
     });
     
-    // Mettre à jour le pattern
+    // Sauvegarder dans l'historique et mettre à jour le pattern
+    saveToHistory(newPattern);
     setPattern(newPattern);
   };
   
@@ -984,7 +1041,8 @@ export default function MelodySequencer() {
       }
     });
     
-    // Mettre à jour le pattern
+    // Sauvegarder dans l'historique et mettre à jour le pattern
+    saveToHistory(newPattern);
     setPattern(newPattern);
   };
 
@@ -1010,6 +1068,19 @@ export default function MelodySequencer() {
           <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}>Play</button>
           <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
           <button className="btn" id="clearBtn" onClick={handleClear}>Clear</button>
+          <button 
+            className="btn" 
+            id="undoBtn" 
+            onClick={handleUndo} 
+            disabled={historyIndex <= 0}
+            title="Annuler la dernière action"
+            style={{ 
+              backgroundColor: historyIndex > 0 ? '#4CAF50' : '', 
+              color: historyIndex > 0 ? '#000' : '' 
+            }}
+          >
+            ↶ Retour
+          </button>
           <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}>Random</button>
           <button 
             className="btn" 
