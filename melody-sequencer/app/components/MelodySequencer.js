@@ -7,12 +7,14 @@ import RandomPopup from "./RandomPopup";
 import SynthPopup from "./SynthPopup";
 import MIDIOutputSettings from "./MIDIOutputSettings";
 import VariationPopup from "./VariationPopup";
+import FavoritesPopup from "./FavoritesPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
+import { FavoritesStorage } from "../lib/favoritesStorage";
 
 // Helpers pattern robustes
 function getAllNotes(minOct, maxOct) {
@@ -52,6 +54,7 @@ export default function MelodySequencer() {
   const [midiOutputEnabled, setMidiOutputEnabled] = useState(false);
   const [noteLength, setNoteLength] = useState("16n"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
+  const [favoritesPopupOpen, setFavoritesPopupOpen] = useState(false);
 
   // Historique des patterns pour le bouton retour arrière
   const [patternHistory, setPatternHistory] = useState([]);
@@ -655,6 +658,77 @@ export default function MelodySequencer() {
     }
   };
 
+  // ========== GESTION DES FAVORIS ==========
+
+  // Fonction pour charger un favori
+  const handleLoadFavorite = (favorite) => {
+    try {
+      console.log("Chargement du favori:", favorite.name);
+      
+      // Charger le pattern
+      if (favorite.pattern) {
+        // Adapter le pattern aux octaves actuelles si nécessaire
+        const adaptedPattern = buildPattern(favorite.pattern, steps, minOctave, maxOctave);
+        
+        // Sauvegarder dans l'historique avant de changer
+        saveToHistory(adaptedPattern);
+        setPattern(adaptedPattern);
+      }
+      
+      // Charger les paramètres du séquenceur si disponibles
+      if (favorite.sequencerSettings) {
+        const settings = favorite.sequencerSettings;
+        
+        // Appliquer les réglages si ils diffèrent des actuels
+        if (settings.tempo && settings.tempo !== tempo) {
+          setTempo(settings.tempo);
+        }
+        if (settings.steps && settings.steps !== steps) {
+          setSteps(settings.steps);
+        }
+        if (settings.noteLength && settings.noteLength !== noteLength) {
+          setNoteLength(settings.noteLength);
+        }
+        if (settings.octaves) {
+          if (settings.octaves.min !== minOctave) {
+            setMinOctave(settings.octaves.min);
+          }
+          if (settings.octaves.max !== maxOctave) {
+            setMaxOctave(settings.octaves.max);
+          }
+        }
+      }
+      
+      // Si le favori a des paramètres de génération, les sauvegarder pour "Random Again"
+      if (favorite.generationParams) {
+        setRandomParams(favorite.generationParams);
+      }
+      
+      console.log(`Favori "${favorite.name}" chargé avec succès`);
+      
+    } catch (error) {
+      console.error("Erreur lors du chargement du favori:", error);
+      alert("Erreur lors du chargement du favori");
+    }
+  };
+
+  // Fonction pour récupérer les paramètres actuels du séquenceur pour la sauvegarde
+  const getCurrentSequencerSettings = () => {
+    return {
+      tempo,
+      steps,
+      voiceMode: currentPreset?.voiceMode || 'poly',
+      noteLength,
+      octaves: { min: minOctave, max: maxOctave }
+    };
+  };
+
+  // Fonction pour récupérer les paramètres de génération actuels
+  const getCurrentGenerationParams = () => {
+    // Retourner les derniers paramètres utilisés pour la génération aléatoire
+    return randomParams || null;
+  };
+
   function exportToMidi() {
     function noteNameToMidi(note) {
       const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1117,6 +1191,20 @@ export default function MelodySequencer() {
           </button>
 
           <button
+            className="btn"
+            id="favoritesBtn"
+            onClick={() => setFavoritesPopupOpen(true)}
+            title="Gérer les patterns favoris"
+            style={{
+              backgroundColor: '#FFD700',
+              color: '#000',
+              fontWeight: 'bold'
+            }}
+          >
+            ⭐ Favoris
+          </button>
+
+          <button
             className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
             id="midiBtn"
             onClick={handleToggleMidi}
@@ -1445,6 +1533,14 @@ export default function MelodySequencer() {
         onCancel={() => setVariationPopupOpen(false)}
         currentPattern={pattern} // Passer le vrai pattern actuel au lieu de "current"
         octaves={{ min: minOctave, max: maxOctave }}
+      />
+      <FavoritesPopup
+        visible={favoritesPopupOpen}
+        onLoadFavorite={handleLoadFavorite}
+        onCancel={() => setFavoritesPopupOpen(false)}
+        currentPattern={pattern}
+        currentGenerationParams={getCurrentGenerationParams()}
+        sequencerSettings={getCurrentSequencerSettings()}
       />
     </div>
   );
