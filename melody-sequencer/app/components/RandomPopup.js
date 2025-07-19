@@ -1,28 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { ScalesStorage } from "../lib/scalesStorage";
 
 const ROOT_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const SCALES = [
-  { key: "major", label: "Majeure" },
-  { key: "minor", label: "Mineure" },
-  { key: "phrygian", label: "Phrygien" },
-  { key: "phrygianDominant", label: "Phrygian Dominant" },
-  { key: "harmonicMinor", label: "Mineur Harmonique" },
-  { key: "hungarianMinor", label: "Hongrois Mineur (Dark)" },
-  { key: "doubleHarmonic", label: "Double Harmonique" },
-  { key: "neapolitanMinor", label: "Napolitain Mineur" },
-  { key: "dorian", label: "Dorien" },
-  { key: "perso", label: "Perso Campo" },
-  { key: "perso2", label: "Perso twin" },
-  { key: "perso3", label: "Perso 3" },
-  { key: "minimalDark", label: "Minimal Dark" },
-  { key: "acidTriad", label: "Acid Triad" },
-  { key: "bluesScale", label: "Blues Scale" },
-  { key: "japanese", label: "Japonaise" },
-  { key: "arabicMaqam", label: "Maqam Arabe" },
-  { key: "wholetone", label: "Tons Entiers" },
-  { key: "enigmatic", label: "Énigmatique" },
-];
 const STYLES = [
   { key: "psy", label: "Psytrance" },
   { key: "goa", label: "Goa" },
@@ -52,7 +32,7 @@ const STEPS_OPTIONS = [
     { value: 64, label: "64 pas" }
 ];
 
-export default function RandomPopup({ visible, onValidate, onCancel, defaultParams }) {
+export default function RandomPopup({ visible, onValidate, onCancel, defaultParams, scalesUpdateTrigger }) {
   const [root, setRoot] = useState(defaultParams?.rootNote || "C");
   const [scale, setScale] = useState(defaultParams?.scale || "phrygian");
   const [style, setStyle] = useState(defaultParams?.style || "psy");
@@ -61,6 +41,36 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
   const [steps, setSteps] = useState(defaultParams?.steps || 16);
   const [useSeed, setUseSeed] = useState(defaultParams?.seed !== undefined);
   const [seed, setSeed] = useState(defaultParams?.seed || Math.floor(Math.random() * 100000));
+  const [availableScales, setAvailableScales] = useState([]);
+
+  // Fonction pour charger les gammes disponibles
+  const loadAvailableScales = () => {
+    try {
+      const allScales = ScalesStorage.getAllScales();
+      const scaleOptions = Object.entries(allScales).map(([key, scale]) => ({
+        key,
+        label: scale.name || key,
+        category: scale.category || 'Autre'
+      }));
+      setAvailableScales(scaleOptions);
+      console.log(`${scaleOptions.length} gammes chargées dans RandomPopup`);
+    } catch (error) {
+      console.error('Erreur lors du chargement des gammes:', error);
+      // Fallback vers une liste basique en cas d'erreur
+      setAvailableScales([
+        { key: "major", label: "Majeure", category: "Classique" },
+        { key: "minor", label: "Mineure", category: "Classique" },
+        { key: "phrygian", label: "Phrygien", category: "Modes" }
+      ]);
+    }
+  };
+
+  // Charger les gammes disponibles au montage du composant et quand elles sont mises à jour
+  useEffect(() => {
+    if (visible) {
+      loadAvailableScales();
+    }
+  }, [visible, scalesUpdateTrigger]);
 
   if (!visible) return null;
 
@@ -77,7 +87,24 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
         <label>
           Gamme&nbsp;:
           <select value={scale} onChange={e => setScale(e.target.value)}>
-            {SCALES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            {(() => {
+              // Grouper les gammes par catégorie
+              const groupedScales = availableScales.reduce((groups, scale) => {
+                const category = scale.category || 'Autre';
+                if (!groups[category]) groups[category] = [];
+                groups[category].push(scale);
+                return groups;
+              }, {});
+              
+              // Trier les catégories et créer les options
+              return Object.keys(groupedScales).sort().map(category => (
+                <optgroup key={category} label={category}>
+                  {groupedScales[category].map(s => (
+                    <option key={s.key} value={s.key}>{s.label}</option>
+                  ))}
+                </optgroup>
+              ));
+            })()}
           </select>
         </label>
         <label>

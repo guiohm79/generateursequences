@@ -58,6 +58,7 @@ export default function MelodySequencer() {
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
   const [favoritesPopupOpen, setFavoritesPopupOpen] = useState(false);
   const [scalesManagerOpen, setScalesManagerOpen] = useState(false);
+  const [scalesUpdateTrigger, setScalesUpdateTrigger] = useState(0);
 
   // Historique des patterns pour le bouton retour arrière
   const [patternHistory, setPatternHistory] = useState([]);
@@ -740,6 +741,9 @@ export default function MelodySequencer() {
       // Forcer le rechargement des gammes dans randomEngine
       refreshScales();
       console.log("Gammes rechargées dans le moteur de génération");
+      
+      // Déclencher un rechargement des composants qui utilisent les gammes
+      setScalesUpdateTrigger(prev => prev + 1);
     } catch (error) {
       console.error("Erreur lors du rechargement des gammes:", error);
     }
@@ -1528,6 +1532,7 @@ export default function MelodySequencer() {
           ...randomParams,
           octaves: { min: minOctave, max: maxOctave }
         }}
+        scalesUpdateTrigger={scalesUpdateTrigger}
       />
       <SynthPopup
         visible={synthPopupOpen}
