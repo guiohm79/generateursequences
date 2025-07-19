@@ -26,17 +26,19 @@ npm run lint
 
 ### Main Application Structure
 - **Entry Point**: `app/page.js` renders the main `MelodySequencer` component
-- **Main Component**: `app/components/MelodySequencer.js` (1450+ lines) - the heart of the application containing all sequencer logic
+- **Main Component**: `app/components/MelodySequencer.js` (1600+ lines) - the heart of the application containing all sequencer logic
 - **Piano Roll**: `app/components/PianoRoll.js` - the visual grid for note editing
-- **Popup Components**: RandomPopup, SynthPopup, VariationPopup, MIDIOutputSettings for various configuration dialogs
+- **Popup Components**: RandomPopup, SynthPopup, VariationPopup, MIDIOutputSettings, FavoritesPopup, ScalesManagerPopup for various configuration dialogs
 
 ### Core Libraries (`app/lib/`)
 - **midiOutput.js**: Web MIDI API wrapper with MIDIOutput class for external hardware/software communication
 - **randomEngine.js**: Musical pattern generation engine with multiple algorithms (Goa/Psy/Prog styles, scales, moods)
 - **synthPresets.js**: Tone.js synthesizer configurations (MonoSynth, PolySynth, FMSynth)
 - **presetStorage.js**: Browser localStorage management for user presets
-- **variationEngine.js**: Pattern modification and inspiration algorithms
-- **inspirationEngine.js**: AI-style pattern generation from existing MIDI data
+- **variationEngine.js**: Pattern modification and inspiration algorithms with robust error handling
+- **inspirationEngine.js**: AI-style pattern generation from existing MIDI data using Markov chains
+- **favoritesStorage.js**: Favorites management with hybrid pattern storage and metadata
+- **scalesStorage.js**: Dynamic scales management with custom scales support
 
 ### Key Dependencies
 - **Tone.js**: Web Audio API framework for sound synthesis and sequencing
@@ -98,6 +100,51 @@ The `randomEngine.js` supports:
 - **Categories and search** for organizing scales
 - **Visual preview** of scale intervals as note names
 
+### Favorites System
+- **Pattern storage** via FavoritesStorage with hybrid approach (seeds + full patterns)
+- **Metadata support**: name, tags, description, creation/modification dates
+- **Search and filtering** by name, tags, and categories
+- **Export/Import** functionality for sharing favorite patterns
+- **Auto-saving** of sequencer settings (tempo, octaves, note length)
+- **Quick access** through FavoritesPopup component
+
+### Variation Engine
+- **Multiple transformation types**: transposition, swing, humanization, retrograde, inversion
+- **Scale quantization** with custom scale support
+- **Advanced rhythm analysis** for contextual humanization
+- **Robust error handling** for retrograde with proper validation
+- **Inspiration mode** integration with Markov chains and Euclidean rhythms
+
+### User Interface Organization
+The interface is organized into **6 functional groups** for clarity:
+
+#### 🎮 **CONTRÔLES DE LECTURE** (blue)
+- Play/Pause, Stop, Clear, Undo buttons
+- Speed selector for note timing (1/4 to 1/64)
+
+#### 🎲 **GÉNÉRATION CRÉATIVE** (orange)  
+- Random pattern generation with parameters
+- "Again" button for regeneration with same params
+- Variations engine for pattern transformation
+
+#### ⭐ **GESTION & STOCKAGE** (gold)
+- Favorites management for pattern storage
+- Custom scales manager
+- MIDI export functionality
+
+#### 🔧 **AUDIO & MIDI** (green)
+- Sound/synthesis settings
+- MIDI output toggle and configuration
+- External hardware/VST integration
+
+#### 🎵 **MANIPULATION** (red-orange)
+- Octave shift buttons (up/down)
+- Real-time pattern transformation
+
+#### ⚙️ **PARAMÈTRES** (cyan)
+- Tempo control (60-240 BPM)
+- Octave range settings (min/max)
+
 ## Development Notes
 
 ### State Management
@@ -127,3 +174,20 @@ No formal test framework is configured. Manual testing focuses on:
 - Browser compatibility (Chrome/Edge recommended for Web MIDI)
 
 When making changes, always test both internal audio and MIDI output modes, and verify that pattern export/import maintains musical integrity.
+
+## Recent Updates & Bug Fixes
+
+### Version 2024-07 Updates
+- **Fixed retrograde crash bug**: Added robust validation and error handling in variationEngine.js to prevent application crashes from malformed MIDI data
+- **Added Favorites System**: Complete pattern storage with hybrid approach (seeds + full patterns), metadata, search/filtering
+- **Added Custom Scales Manager**: Dynamic scale creation/modification with real-time integration into random generation
+- **Fixed scales integration**: Resolved issue where custom scales weren't appearing in Random popup 
+- **UI Reorganization**: Completely restructured interface into 6 functional groups for better usability
+- **Enhanced error handling**: Improved MIDI processing with proper validation and fallbacks
+- **Cross-component communication**: Added trigger systems for real-time updates between managers and generators
+
+### Known Issues Fixed
+- ✅ Retrograde effect causing crashes (timing validation added)
+- ✅ Custom scales not showing in Random popup (dynamic loading implemented) 
+- ✅ Interface organization unclear (6-group structure implemented)
+- ✅ Import errors with getAvailableScales() (proper module imports fixed)
