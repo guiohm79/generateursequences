@@ -8,13 +8,15 @@ import SynthPopup from "./SynthPopup";
 import MIDIOutputSettings from "./MIDIOutputSettings";
 import VariationPopup from "./VariationPopup";
 import FavoritesPopup from "./FavoritesPopup";
+import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
 import { FavoritesStorage } from "../lib/favoritesStorage";
+import { ScalesStorage } from "../lib/scalesStorage";
 
 // Helpers pattern robustes
 function getAllNotes(minOct, maxOct) {
@@ -55,6 +57,7 @@ export default function MelodySequencer() {
   const [noteLength, setNoteLength] = useState("16n"); // Nouvelle state pour la longueur des notes (1/16, 1/32, 1/64)
   const [variationPopupOpen, setVariationPopupOpen] = useState(false);
   const [favoritesPopupOpen, setFavoritesPopupOpen] = useState(false);
+  const [scalesManagerOpen, setScalesManagerOpen] = useState(false);
 
   // Historique des patterns pour le bouton retour arrière
   const [patternHistory, setPatternHistory] = useState([]);
@@ -729,6 +732,19 @@ export default function MelodySequencer() {
     return randomParams || null;
   };
 
+  // ========== GESTION DES GAMMES ==========
+
+  // Fonction appelée quand les gammes sont mises à jour
+  const handleScalesUpdated = () => {
+    try {
+      // Forcer le rechargement des gammes dans randomEngine
+      refreshScales();
+      console.log("Gammes rechargées dans le moteur de génération");
+    } catch (error) {
+      console.error("Erreur lors du rechargement des gammes:", error);
+    }
+  };
+
   function exportToMidi() {
     function noteNameToMidi(note) {
       const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1205,6 +1221,20 @@ export default function MelodySequencer() {
           </button>
 
           <button
+            className="btn"
+            id="scalesBtn"
+            onClick={() => setScalesManagerOpen(true)}
+            title="Gérer les gammes musicales"
+            style={{
+              backgroundColor: '#9C27B0',
+              color: '#fff',
+              fontWeight: 'bold'
+            }}
+          >
+            🎵 Gammes
+          </button>
+
+          <button
             className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
             id="midiBtn"
             onClick={handleToggleMidi}
@@ -1541,6 +1571,11 @@ export default function MelodySequencer() {
         currentPattern={pattern}
         currentGenerationParams={getCurrentGenerationParams()}
         sequencerSettings={getCurrentSequencerSettings()}
+      />
+      <ScalesManagerPopup
+        visible={scalesManagerOpen}
+        onCancel={() => setScalesManagerOpen(false)}
+        onScalesUpdated={handleScalesUpdated}
       />
     </div>
   );

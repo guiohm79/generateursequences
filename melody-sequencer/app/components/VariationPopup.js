@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import { Midi } from '@tonejs/midi';
-import { SCALES } from '../lib/randomEngine';
+import { getAvailableScales } from '../lib/randomEngine';
 
 const VariationPopup = ({ 
   visible, 
@@ -135,7 +135,7 @@ const VariationPopup = ({
   };
 
   // Liste des gammes disponibles à partir de randomEngine.js
-  const scaleOptions = Object.keys(SCALES);
+  const scaleOptions = Object.keys(getAvailableScales());
   
   // Liste des notes pour la tonique
   const noteOptions = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];

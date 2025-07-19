@@ -1,12 +1,13 @@
 // inspirationEngine.js  (2025-07-05)
 // Besoin : npm i @tonejs/midi
 import { Midi } from '@tonejs/midi';
-import { mulberry32, SCALES, NOTE_ORDER } from './randomEngine.js';
+import { mulberry32, getAvailableScales, NOTE_ORDER } from './randomEngine.js';
 
 /* -------- helpers gamme -------- */
 function quantizeToScale(midi, root='C', scale='minor'){
   const rootIdx  = NOTE_ORDER.indexOf(root);
-  const formula  = SCALES[scale] ?? SCALES.minor;
+  const scales = getAvailableScales();
+  const formula  = scales[scale] ?? scales.minor ?? [0,2,3,5,7,8,10];
   const rel      = ((midi-rootIdx)%12+12)%12;
   let best=formula[0], dist=12;
   for(const s of formula){

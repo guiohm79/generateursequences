@@ -8,40 +8,74 @@
 // * Aucune signature publique changée => ré‑intégration plug‑and‑play.
 // ---------------------------------------------------------------
 
+import { ScalesStorage } from './scalesStorage';
+
 /////////////////////////
 // NOTES & SCALES
 /////////////////////////
 export const NOTE_ORDER = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-export const SCALES = {
+// Fonction pour récupérer toutes les gammes disponibles (par défaut + personnalisées)
+export function getAvailableScales() {
+  try {
+    const allScales = ScalesStorage.getAllScales();
+    // Convertir vers l'ancien format pour compatibilité
+    const compatibleScales = {};
+    Object.entries(allScales).forEach(([key, scale]) => {
+      compatibleScales[key] = scale.intervals;
+    });
+    return compatibleScales;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des gammes:', error);
+    // Fallback vers les gammes par défaut
+    return FALLBACK_SCALES;
+  }
+}
+
+// Gammes de fallback si le système de storage échoue
+const FALLBACK_SCALES = {
   major:            [0,2,4,5,7,9,11],
   minor:            [0,2,3,5,7,8,10],
-  harmonicMinor:    [0,2,3,5,7,8,11],    // Le classique qui tue
-  phrygian:         [0,1,3,5,7,8,10],    // Ton phrygien de base
-  phrygianDominant: [0,1,4,5,7,8,10],    // Plus oriental
-  dorian:           [0,2,3,5,7,9,10],    // Cool pour la prog
-  
-  // Nouvelles gammes trance qui claquent :
-  hungarianMinor:   [0,2,3,6,7,8,11],    // Super sombre, parfait pour dark psy
-  doubleHarmonic:   [0,1,4,5,7,8,11],    // Exotique de ouf
-  neapolitanMinor:  [0,1,3,5,7,8,11],    // Tension de malade
-  enigmatic:        [0,1,4,6,8,10,11],   // Vraiment bizarre mais hypnotique
-  wholetone:        [0,2,4,6,8,10],      // Complètement barré mais ça peut le faire
-  
-  perso:            [0,3,10,12],         // Ta gamme corrigée avec le 8ème ?
+  harmonicMinor:    [0,2,3,5,7,8,11],
+  phrygian:         [0,1,3,5,7,8,10],
+  phrygianDominant: [0,1,4,5,7,8,10],
+  dorian:           [0,2,3,5,7,9,10],
+  hungarianMinor:   [0,2,3,6,7,8,11],
+  doubleHarmonic:   [0,1,4,5,7,8,11],
+  neapolitanMinor:  [0,1,3,5,7,8,11],
+  enigmatic:        [0,1,4,6,8,10,11],
+  wholetone:        [0,2,4,6,8,10],
+  perso:            [0,3,10,12],
   perso2:           [0,3,7,8,10],
-  perso3:           [0,4,7,11,12],         // Autres variantes perso
-  minimalDark:      [0,1,7],             // Ultra minimal pour dark techno
-  acidTriad:        [0,3,7],             // Basique mais efficace pour acid
-  bluesScale:       [0,3,5,6,7,10],      // Pour du groove
-  japanese:         [0,1,5,7,8],         // Pentatonique japonaise
-  arabicMaqam:      [0,1,4,5,7,8,10],    // Couleur orientale
+  perso3:           [0,4,7,11,12],
+  minimalDark:      [0,1,7],
+  acidTriad:        [0,3,7],
+  bluesScale:       [0,3,5,6,7,10],
+  japanese:         [0,1,5,7,8],
+  arabicMaqam:      [0,1,4,5,7,8,10],
 };
+
+// Variable cachée pour les gammes actuelles
+let currentScales = null;
+
+// Fonction pour forcer le rechargement des gammes
+export function refreshScales() {
+  currentScales = null;
+}
+
+// Fonction pour récupérer les gammes avec cache
+function getScales() {
+  if (!currentScales) {
+    currentScales = getAvailableScales();
+  }
+  return currentScales;
+}
 
 // Renvoie toutes les notes de la gamme sur une plage d’octaves
 function buildScale(root, scaleType, {min, max}) {
   const rootIdx = NOTE_ORDER.indexOf(root);
-  const formula = SCALES[scaleType] ?? SCALES.minor;
+  const scales = getScales();
+  const formula = scales[scaleType] ?? scales.minor ?? FALLBACK_SCALES.minor;
   const out = [];
   for (let oct=min; oct<=max; oct++){
     for (const step of formula){

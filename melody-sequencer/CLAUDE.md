@@ -89,6 +89,15 @@ The `randomEngine.js` supports:
 - Import MIDI files for pattern variation/inspiration
 - Pattern history with undo/redo functionality
 
+### Custom Scales System
+- **Dynamic scale management** via ScalesManagerPopup component
+- **Default scales** preserved in ScalesStorage (major, minor, modes, exotic scales)
+- **Custom scales creation** with interval validation (0-11 semitones)
+- **Import/Export** of custom scales in JSON format
+- **Real-time integration** with randomEngine via refreshScales()
+- **Categories and search** for organizing scales
+- **Visual preview** of scale intervals as note names
+
 ## Development Notes
 
 ### State Management

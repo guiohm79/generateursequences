@@ -2,14 +2,15 @@
 // Dépendances : @tonejs/midi  &  randomEngine.js (pour mulberry32, SCALES, NOTE_ORDER)
 
 import { Midi } from '@tonejs/midi';
-import { mulberry32, SCALES, NOTE_ORDER } from './randomEngine.js';
+import { mulberry32, getAvailableScales, NOTE_ORDER } from './randomEngine.js';
 
 /* ------------------------------------------------------------------ *
  *  Outils gamme : quantisation au degré le + proche
  * ------------------------------------------------------------------ */
 function quantizeToScale(midi, root = 'C', scale = 'minor') {
   const rootIdx  = NOTE_ORDER.indexOf(root);
-  const formula  = SCALES[scale] ?? SCALES.minor;
+  const scales = getAvailableScales();
+  const formula  = scales[scale] ?? scales.minor ?? [0,2,3,5,7,8,10]; // fallback to minor scale
   const pitchRel = ((midi - rootIdx) % 12 + 12) % 12;           // 0-11
 
   let best = formula[0], dist = 12;
@@ -140,13 +141,24 @@ export function generateVariations(midiData, opts = {}) {
     const out = new Midi();
     const trk = out.addTrack();
 
-    // Créer une copie profonde des notes avec métadonnées
-    const transformedNotes = baseTrack.notes.map((note, idx) => ({
-      ...note,
-      originalIndex: idx,
-      originalTicks: note.ticks,
-      originalMidi: note.midi
-    }));
+    // Créer une copie profonde des notes avec métadonnées et validation
+    const transformedNotes = baseTrack.notes.map((note, idx) => {
+      // Validation et normalisation des propriétés de note
+      const normalizedNote = {
+        ...note,
+        originalIndex: idx,
+        originalTicks: note.ticks || 0,
+        originalMidi: note.midi || 60,
+        // S'assurer que les propriétés critiques existent
+        ticks: typeof note.ticks === 'number' && !isNaN(note.ticks) ? note.ticks : idx * 120,
+        time: typeof note.time === 'number' && !isNaN(note.time) ? note.time : (note.ticks || idx * 120) / (baseMidi.header.ppq || 480),
+        duration: typeof note.duration === 'number' && !isNaN(note.duration) && note.duration > 0 ? note.duration : 0.25,
+        midi: typeof note.midi === 'number' && !isNaN(note.midi) ? note.midi : 60,
+        velocity: typeof note.velocity === 'number' && !isNaN(note.velocity) ? Math.min(1, Math.max(0, note.velocity)) : 0.8
+      };
+      
+      return normalizedNote;
+    });
 
     // 1. Transposition (avant inversion pour des résultats plus musicaux)
     transformedNotes.forEach(n => {
@@ -206,14 +218,64 @@ export function generateVariations(midiData, opts = {}) {
     // 6. Rétrogradation (en dernier pour préserver le timing)
     if (retrograde) {
       if (transformedNotes.length > 0) {
-        const lastNote = transformedNotes[transformedNotes.length - 1];
-        const totalDuration = lastNote.ticks + lastNote.duration;
-        
-        transformedNotes.forEach(n => {
-          n.ticks = totalDuration - n.ticks - n.duration;
-        });
-        
-        transformedNotes.reverse();
+        try {
+          // S'assurer que toutes les notes ont des propriétés valides
+          transformedNotes.forEach(note => {
+            if (typeof note.ticks !== 'number' || isNaN(note.ticks)) {
+              note.ticks = 0;
+            }
+            if (typeof note.time !== 'number' || isNaN(note.time)) {
+              note.time = note.ticks / (baseMidi.header.ppq || 480);
+            }
+            if (typeof note.duration !== 'number' || isNaN(note.duration)) {
+              note.duration = 0.25; // Durée par défaut d'une double-croche
+            }
+          });
+
+          // Trier les notes par temps pour être sûr de l'ordre
+          transformedNotes.sort((a, b) => a.time - b.time);
+          
+          // Trouver la fin de la séquence (dernière note + sa durée)
+          const lastNote = transformedNotes[transformedNotes.length - 1];
+          const sequenceEnd = lastNote.time + lastNote.duration;
+          
+          // Validation de sequenceEnd
+          if (!isFinite(sequenceEnd) || sequenceEnd <= 0) {
+            console.warn('Séquence invalide pour rétrograde, utilisation de durée par défaut');
+            throw new Error('Durée de séquence invalide');
+          }
+
+          // Inverser temporellement chaque note
+          transformedNotes.forEach((note, index) => {
+            const originalTime = note.time;
+            const newTime = sequenceEnd - note.time - note.duration;
+            
+            // Log de débogage pour identifier les problèmes
+            if (newTime < 0) {
+              console.warn(`Note ${index}: temps négatif calculé (${newTime}), ajusté à 0. Original: ${originalTime}, SeqEnd: ${sequenceEnd}, Duration: ${note.duration}`);
+            }
+            
+            // Validation et correction des valeurs négatives
+            note.time = Math.max(0, newTime);
+            
+            // Recalculer ticks à partir du nouveau temps
+            const newTicks = Math.round(note.time * (baseMidi.header.ppq || 480));
+            note.ticks = Math.max(0, newTicks);
+            
+            // Log de débogage pour le débogage
+            if (index < 3) { // Afficher seulement les 3 premières notes pour éviter le spam
+              console.log(`Rétrograde note ${index}: ${originalTime}s -> ${note.time}s (ticks: ${note.ticks})`);
+            }
+          });
+          
+          // Trier à nouveau par le nouveau temps
+          transformedNotes.sort((a, b) => a.time - b.time);
+          
+        } catch (error) {
+          console.error('Erreur lors du rétrograde:', error);
+          // En cas d'erreur, on annule le rétrograde plutôt que de planter
+          console.warn('Rétrograde annulé à cause d\'une erreur, séquence conservée telle quelle');
+        }
       }
     }
 
