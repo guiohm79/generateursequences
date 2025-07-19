@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run lint)",
       "Bash(timeout 15 npm run dev)",
-      "Bash(timeout 10 npm run dev)"
+      "Bash(timeout 10 npm run dev)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }

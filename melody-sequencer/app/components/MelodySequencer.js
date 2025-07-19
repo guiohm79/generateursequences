@@ -1156,355 +1156,432 @@ export default function MelodySequencer() {
           MELODY SEQUENCER PRO
         </div>
 
-      {/* ... HEADER, CONTROLS, etc ... */}
+      {/* Interface organisée par groupes fonctionnels */}
       <div className="controls-section">
-        <div className="transport-controls">
-          <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}>Play</button>
-          <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}>Stop</button>
-          <button className="btn" id="clearBtn" onClick={handleClear}>Clear</button>
-          <button 
-            className="btn" 
-            id="undoBtn" 
-            onClick={handleUndo} 
-            disabled={historyIndex <= 0}
-            title="Annuler la dernière action"
-            style={{ 
-              backgroundColor: historyIndex > 0 ? '#4CAF50' : '', 
-              color: historyIndex > 0 ? '#000' : '' 
-            }}
-          >
-            ↶ Retour
-          </button>
-          <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}>Random</button>
-          <button 
-            className="btn" 
-            id="randomAgainBtn" 
-            onClick={regenerateRandomPattern} 
-            disabled={!randomParams}
-            title="Régénérer un pattern aléatoire avec les mêmes paramètres"
-            style={{ 
-              backgroundColor: randomParams ? '#ff9500' : '', 
-              color: randomParams ? '#000' : '' 
-            }}
-          >
-            Random Again
-          </button>
-          <button
-            className="btn"
-            id="exportMidiBtn"
-            onClick={exportToMidi}
-            disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
-            title="Exporter la séquence en fichier MIDI"
-          >Export MIDI</button>
-
-          <button
-            className="btn"
-            id="variationBtn"
-            onClick={() => setVariationPopupOpen(true)}
-            //disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
-            style={{
-              backgroundColor: '#ff00ea',
-              color: '#000'
-            }}
-          >
-            Modification séquence
-          </button>
-
-          <button
-            className="btn"
-            id="favoritesBtn"
-            onClick={() => setFavoritesPopupOpen(true)}
-            title="Gérer les patterns favoris"
-            style={{
-              backgroundColor: '#FFD700',
-              color: '#000',
-              fontWeight: 'bold'
-            }}
-          >
-            ⭐ Favoris
-          </button>
-
-          <button
-            className="btn"
-            id="scalesBtn"
-            onClick={() => setScalesManagerOpen(true)}
-            title="Gérer les gammes musicales"
-            style={{
-              backgroundColor: '#9C27B0',
-              color: '#fff',
-              fontWeight: 'bold'
-            }}
-          >
-            🎵 Gammes
-          </button>
-
-          <button
-            className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
-            id="midiBtn"
-            onClick={handleToggleMidi}
-            title="Activer/désactiver la sortie MIDI vers un VSTi externe"
-            style={{ 
-              backgroundColor: midiOutputEnabled ? '#0c9' : '', 
-              color: midiOutputEnabled ? '#000' : ''
-            }}
-          >
-            {midiOutputEnabled ? 'MIDI ON' : 'MIDI OFF'}
-          </button>
-
-          {/* Sélecteur de longueur de note */}
-          <div style={{ display: "inline-block", marginLeft: "10px" }}>
-            <label style={{
-              color: "#ccc",
-              fontSize: "12px",
-              marginRight: "5px",
-              display: "block",
-              textAlign: "center"
-            }}>Vitesse</label>
-            <select 
-              value={noteLength}
-              onChange={(e) => {
-                setNoteLength(e.target.value);
-              }}
-              className="note-length-selector"
-              style={{
-                padding: "5px",
-                backgroundColor: "#222",
-                color: "#fff",
-                border: "1px solid #444",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontWeight: "bold"
-              }}
-              title="Sélectionner la vitesse de lecture des pas"
-            >
-              <option value="4n">1/4 (Lent)</option>
-              <option value="8n">1/8 (Modéré)</option>
-              <option value="16n">1/16 (Normal)</option>
-              <option value="32n">1/32 (Rapide)</option>
-              <option value="64n">1/64 (Très rapide)</option>
-            </select>
+        
+        {/* 🎮 GROUPE CONTRÔLES DE LECTURE */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#00eaff', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            🎮 CONTRÔLES DE LECTURE
           </div>
-          
-          {/* Boutons pour décaler les octaves */}
-          <div style={{ display: "flex", gap: "5px", marginLeft: "10px" }}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}
+              style={{ backgroundColor: isPlaying ? '#4CAF50' : '', color: isPlaying ? '#000' : '' }}>
+              ▶️ Play
+            </button>
+            <button className="btn" id="stopBtn" onClick={handleStop} disabled={!isPlaying}
+              style={{ backgroundColor: '#ff4444', color: '#fff' }}>
+              ⏹️ Stop
+            </button>
+            <button className="btn" id="clearBtn" onClick={handleClear}
+              style={{ backgroundColor: '#ff6b35', color: '#fff' }}>
+              🗑️ Clear
+            </button>
+            <button 
+              className="btn" 
+              id="undoBtn" 
+              onClick={handleUndo} 
+              disabled={historyIndex <= 0}
+              title="Annuler la dernière action"
+              style={{ 
+                backgroundColor: historyIndex > 0 ? '#4CAF50' : '#666', 
+                color: historyIndex > 0 ? '#000' : '#999' 
+              }}
+            >
+              ↶ Retour
+            </button>
+            
+            {/* Sélecteur de vitesse intégré */}
+            <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+              <span style={{ color: "#ccc", fontSize: "12px" }}>Vitesse:</span>
+              <select 
+                value={noteLength}
+                onChange={(e) => setNoteLength(e.target.value)}
+                style={{
+                  padding: "4px 8px",
+                  backgroundColor: "#333",
+                  color: "#fff",
+                  border: "1px solid #555",
+                  borderRadius: "4px",
+                  fontSize: "12px"
+                }}
+                title="Vitesse de lecture"
+              >
+                <option value="4n">1/4</option>
+                <option value="8n">1/8</option>
+                <option value="16n">1/16</option>
+                <option value="32n">1/32</option>
+                <option value="64n">1/64</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 🎲 GROUPE GÉNÉRATION CRÉATIVE */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#ff9500', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            🎲 GÉNÉRATION CRÉATIVE
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}
+              style={{ backgroundColor: '#2196F3', color: '#fff', fontWeight: 'bold' }}>
+              🎲 Random
+            </button>
+            <button 
+              className="btn" 
+              id="randomAgainBtn" 
+              onClick={regenerateRandomPattern} 
+              disabled={!randomParams}
+              title="Régénérer avec les mêmes paramètres"
+              style={{ 
+                backgroundColor: randomParams ? '#ff9500' : '#666', 
+                color: randomParams ? '#000' : '#999',
+                fontWeight: 'bold'
+              }}
+            >
+              🔄 Again
+            </button>
+            <button
+              className="btn"
+              id="variationBtn"
+              onClick={() => setVariationPopupOpen(true)}
+              style={{
+                backgroundColor: '#ff00ea',
+                color: '#000',
+                fontWeight: 'bold'
+              }}
+              title="Modifier la séquence existante"
+            >
+              🎨 Variations
+            </button>
+          </div>
+        </div>
+
+        {/* ⭐ GROUPE GESTION & STOCKAGE */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#FFD700', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            ⭐ GESTION & STOCKAGE
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              id="favoritesBtn"
+              onClick={() => setFavoritesPopupOpen(true)}
+              title="Gérer les patterns favoris"
+              style={{
+                backgroundColor: '#FFD700',
+                color: '#000',
+                fontWeight: 'bold'
+              }}
+            >
+              ⭐ Favoris
+            </button>
+            <button
+              className="btn"
+              id="scalesBtn"
+              onClick={() => setScalesManagerOpen(true)}
+              title="Gérer les gammes musicales"
+              style={{
+                backgroundColor: '#9C27B0',
+                color: '#fff',
+                fontWeight: 'bold'
+              }}
+            >
+              🎵 Gammes
+            </button>
+            <button
+              className="btn"
+              id="exportMidiBtn"
+              onClick={exportToMidi}
+              disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+              title="Exporter en fichier MIDI"
+              style={{
+                backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#4CAF50' : '#666',
+                color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#000' : '#999',
+                fontWeight: 'bold'
+              }}
+            >
+              📤 Export MIDI
+            </button>
+          </div>
+        </div>
+
+        {/* 🔧 GROUPE AUDIO & MIDI */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#00ff88', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            🔧 AUDIO & MIDI
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn"
+              onClick={() => setSynthPopupOpen(true)}
+              disabled={isPlaying}
+              title="Paramètres du synthétiseur"
+              style={{ 
+                backgroundColor: '#8e24aa', 
+                color: '#fff',
+                fontWeight: 'bold'
+              }}
+            >
+              🎛️ Son
+            </button>
+            <button
+              className={`btn ${midiOutputEnabled ? 'btn-active' : ''}`}
+              id="midiBtn"
+              onClick={handleToggleMidi}
+              title="Activer/désactiver la sortie MIDI"
+              style={{ 
+                backgroundColor: midiOutputEnabled ? '#00ff88' : '#666', 
+                color: midiOutputEnabled ? '#000' : '#999',
+                fontWeight: 'bold'
+              }}
+            >
+              {midiOutputEnabled ? '🔗 MIDI ON' : '🔌 MIDI OFF'}
+            </button>
+            <button
+              className="btn"
+              onClick={() => setMidiSettingsOpen(true)}
+              disabled={!midiOutputEnabled}
+              title="Configuration MIDI"
+              style={{ 
+                backgroundColor: midiOutputEnabled ? '#00bcd4' : '#666', 
+                color: midiOutputEnabled ? '#000' : '#999'
+              }}
+            >
+              ⚙️ Config
+            </button>
+          </div>
+        </div>
+
+        {/* 🎵 GROUPE MANIPULATION */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#ff5722', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            🎵 MANIPULATION
+          </div>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button 
               className="btn" 
               onClick={shiftOctaveDown}
-              title="Décaler toutes les notes actives d'une octave vers le bas"
+              title="Décaler toutes les notes d'une octave vers le bas"
               disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
-              style={{ minWidth: "40px", padding: "0 8px" }}
+              style={{ 
+                backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#f44336' : '#666',
+                color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#fff' : '#999',
+                fontWeight: 'bold',
+                minWidth: "60px"
+              }}
             >
-              <span style={{ fontSize: "16px" }}>↓ Oct</span>
+              ⬇️ Oct
             </button>
             <button 
               className="btn" 
               onClick={shiftOctaveUp}
-              title="Décaler toutes les notes actives d'une octave vers le haut"
+              title="Décaler toutes les notes d'une octave vers le haut"
               disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
-              style={{ minWidth: "40px", padding: "0 8px" }}
+              style={{ 
+                backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#f44336' : '#666',
+                color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#fff' : '#999',
+                fontWeight: 'bold',
+                minWidth: "60px"
+              }}
             >
-              <span style={{ fontSize: "16px" }}>↑ Oct</span>
+              ⬆️ Oct
             </button>
           </div>
-          <div className="steps-control">
-
-</div>
-
         </div>
-        
-        {/* Contrôles principaux */}
-        <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", margin: "10px 0" }}>
-          {/* Contrôle du tempo */}
-          <div className="control-group">
-            <span className="control-label">Tempo</span>
-            <input 
-              type="number" 
-              className="input-field"
-              style={{ width: "60px", textAlign: "center" }}
-              min="60"
-              max="240"
-              value={tempo}
-              onChange={(e) => {
-                const value = parseInt(e.target.value);
-                if (value >= 60 && value <= 240) {
-                  setTempo(value);
-                  if (isPlaying) {
-                    // Mise à jour du tempo en temps réel
-                    Tone.Transport.bpm.value = value;
-                  }
-                }
-              }}
-            />
-            <span style={{ marginLeft: "5px", fontSize: "0.9rem", color: "#8af" }}>BPM</span>
-            <div style={{ display: "flex", marginTop: "5px" }}>
-              <input
-                type="range"
+
+        {/* ⚙️ GROUPE PARAMÈTRES */}
+        <div className="control-group-container" style={{
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: '8px',
+          padding: '15px',
+          marginBottom: '15px'
+        }}>
+          <div style={{ 
+            color: '#00D4FF', 
+            fontSize: '14px', 
+            fontWeight: 'bold', 
+            marginBottom: '10px',
+            textAlign: 'center'
+          }}>
+            ⚙️ PARAMÈTRES
+          </div>
+          <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Contrôle du tempo */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+              <span style={{ color: '#ccc', fontSize: '12px', fontWeight: 'bold' }}>TEMPO</span>
+              <input 
+                type="number" 
+                className="input-field"
+                style={{ width: "60px", textAlign: "center", backgroundColor: '#333', color: '#fff', border: '1px solid #555' }}
                 min="60"
                 max="240"
-                step="1"
                 value={tempo}
                 onChange={(e) => {
                   const value = parseInt(e.target.value);
-                  setTempo(value);
-                  if (isPlaying) {
-                    // Mise à jour du tempo en temps réel
-                    Tone.Transport.bpm.value = value;
+                  if (value >= 60 && value <= 240) {
+                    setTempo(value);
+                    if (isPlaying) {
+                      Tone.Transport.bpm.value = value;
+                    }
                   }
                 }}
-                style={{ width: "120px" }}
               />
+              <span style={{ fontSize: "0.8rem", color: "#8af" }}>BPM</span>
             </div>
-          </div>
-          
-          {/* Contrôle du son */}
-          <div className="control-group">
-            <span className="control-label">Son</span>
-            <button
-              className="btn"
-              style={{ minWidth: 80 }}
-              onClick={() => setSynthPopupOpen(true)}
-              disabled={isPlaying}
-            >
-              Éditer son
-            </button>
-            <button
-              className="btn"
-              style={{ marginLeft: 10, minWidth: 80, backgroundColor: midiOutputEnabled ? '#0c9' : '#999', color: '#000' }}
-              onClick={() => {
-                setMidiSettingsOpen(true);
-              }}
-              disabled={!midiOutputEnabled}
-            >
-              Config MIDI
-            </button>
-          </div>
-          
-          {/* Contrôle des octaves */}
-          <div className="control-group">
-            <span className="control-label">PLAGE D'OCTAVES</span>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (minOctave > 0) {
-                      setMinOctave(minOctave - 1);
-                    }
-                  }}
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "16px",
-                    marginRight: "5px"
-                  }}
-                  disabled={minOctave <= 0}
-                >
-                  -
-                </button>
-                <div 
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    backgroundColor: "#00D4FF", 
-                    color: "#000000", 
-                    borderRadius: "8px", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "20px",
-                    fontWeight: "bold"
-                  }}
-                >
-                  {minOctave}
+            
+            {/* Contrôle des octaves */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+              <span style={{ color: '#ccc', fontSize: '12px', fontWeight: 'bold' }}>OCTAVES</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                  <button 
+                    className="btn" 
+                    onClick={() => {
+                      if (minOctave > 0) {
+                        setMinOctave(minOctave - 1);
+                      }
+                    }}
+                    style={{ 
+                      width: "25px", height: "25px", padding: "0", 
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "14px", backgroundColor: '#555'
+                    }}
+                    disabled={minOctave <= 0}
+                  >
+                    -
+                  </button>
+                  <div style={{ 
+                    width: "25px", height: "25px", backgroundColor: "#00D4FF", 
+                    color: "#000", borderRadius: "4px", display: "flex", 
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: "14px", fontWeight: "bold"
+                  }}>
+                    {minOctave}
+                  </div>
+                  <button 
+                    className="btn" 
+                    onClick={() => {
+                      if (minOctave < maxOctave - 1) {
+                        setMinOctave(minOctave + 1);
+                      }
+                    }}
+                    style={{ 
+                      width: "25px", height: "25px", padding: "0", 
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "14px", backgroundColor: '#555'
+                    }}
+                    disabled={minOctave >= maxOctave - 1}
+                  >
+                    +
+                  </button>
                 </div>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (minOctave < maxOctave - 1) {
-                      setMinOctave(minOctave + 1);
-                    }
-                  }}
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "16px",
-                    marginLeft: "5px"
-                  }}
-                  disabled={minOctave >= maxOctave - 1}
-                >
-                  +
-                </button>
-              </div>
-              
-              <span style={{ margin: "0 5px" }}>à</span>
-              
-              <div style={{ display: "flex", alignItems: "center" }}>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (maxOctave > minOctave + 1) {
-                      setMaxOctave(maxOctave - 1);
-                    }
-                  }}
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "16px",
-                    marginRight: "5px"
-                  }}
-                  disabled={maxOctave <= minOctave + 1}
-                >
-                  -
-                </button>
-                <div 
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    backgroundColor: "#00D4FF", 
-                    color: "#000000", 
-                    borderRadius: "8px", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "20px",
-                    fontWeight: "bold"
-                  }}
-                >
-                  {maxOctave}
+                
+                <span style={{ color: '#ccc', fontSize: '12px' }}>→</span>
+                
+                <div style={{ display: "flex", alignItems: "center", gap: "3px" }}>
+                  <button 
+                    className="btn" 
+                    onClick={() => {
+                      if (maxOctave > minOctave + 1) {
+                        setMaxOctave(maxOctave - 1);
+                      }
+                    }}
+                    style={{ 
+                      width: "25px", height: "25px", padding: "0", 
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "14px", backgroundColor: '#555'
+                    }}
+                    disabled={maxOctave <= minOctave + 1}
+                  >
+                    -
+                  </button>
+                  <div style={{ 
+                    width: "25px", height: "25px", backgroundColor: "#00D4FF", 
+                    color: "#000", borderRadius: "4px", display: "flex", 
+                    alignItems: "center", justifyContent: "center",
+                    fontSize: "14px", fontWeight: "bold"
+                  }}>
+                    {maxOctave}
+                  </div>
+                  <button 
+                    className="btn" 
+                    onClick={() => {
+                      if (maxOctave < 8) {
+                        setMaxOctave(maxOctave + 1);
+                      }
+                    }}
+                    style={{ 
+                      width: "25px", height: "25px", padding: "0", 
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "14px", backgroundColor: '#555'
+                    }}
+                    disabled={maxOctave >= 8}
+                  >
+                    +
+                  </button>
                 </div>
-                <button 
-                  className="btn" 
-                  onClick={() => {
-                    if (maxOctave < 8) {
-                      setMaxOctave(maxOctave + 1);
-                    }
-                  }}
-                  style={{ 
-                    width: "30px", 
-                    height: "30px", 
-                    padding: "0", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "center",
-                    fontSize: "16px",
-                    marginLeft: "5px"
-                  }}
-                  disabled={maxOctave >= 8}
-                >
-                  +
-                </button>
               </div>
             </div>
           </div>
