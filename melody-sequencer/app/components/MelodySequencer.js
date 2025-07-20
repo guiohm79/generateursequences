@@ -11,7 +11,7 @@ import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
@@ -59,6 +59,12 @@ export default function MelodySequencer() {
   const [favoritesPopupOpen, setFavoritesPopupOpen] = useState(false);
   const [scalesManagerOpen, setScalesManagerOpen] = useState(false);
   const [scalesUpdateTrigger, setScalesUpdateTrigger] = useState(0);
+
+  // États pour le morphing temps réel
+  const [morphingEnabled, setMorphingEnabled] = useState(false);
+  const [targetPattern, setTargetPattern] = useState(null);
+  const [morphAmount, setMorphAmount] = useState(0); // 0 = pattern original, 1 = pattern cible
+  const [morphedPattern, setMorphedPattern] = useState(null);
 
   // Historique des patterns pour le bouton retour arrière
   const [patternHistory, setPatternHistory] = useState([]);
@@ -230,6 +236,9 @@ export default function MelodySequencer() {
     });
   };
 
+  // Récupérer le pattern à jouer (morphé ou original)
+  const currentPlayingPattern = morphedPattern || pattern;
+
  // Fonction playStep définie avec useCallback
   const playStep = useCallback((stepIndex, time) => {
     // Mapping pour les durées de notes en fonction du noteLength
@@ -261,7 +270,7 @@ export default function MelodySequencer() {
       let velocity = 100;
       let stepVal = null;
       
-      Object.entries(pattern).forEach(([note, steps]) => {
+      Object.entries(currentPlayingPattern).forEach(([note, steps]) => {
         const val = steps[stepIndex];
         if (val && val.on) {
           const noteParts = note.match(/([A-G]#?)([0-9])/);
@@ -343,7 +352,7 @@ export default function MelodySequencer() {
       // Mode Poly
       const activeNotes = [];
       
-      Object.entries(pattern).forEach(([note, steps]) => {
+      Object.entries(currentPlayingPattern).forEach(([note, steps]) => {
         const val = steps[stepIndex];
         if (val && val.on) {
           activeNotes.push({
@@ -400,7 +409,7 @@ export default function MelodySequencer() {
         });
       }
     }
-  }, [pattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
+  }, [currentPlayingPattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
 
   // useEffect pour gérer le transport
   useEffect(() => {
@@ -449,7 +458,7 @@ export default function MelodySequencer() {
       }
       Tone.Transport.stop();
     };
-  }, [isPlaying, steps, tempo, noteLength, playStep]);
+  }, [isPlaying, steps, tempo, noteLength, playStep, currentPlayingPattern]);
 
 
   const handlePlay = async () => {
@@ -1064,6 +1073,99 @@ export default function MelodySequencer() {
     }
   }
 
+  // Fonctions pour le morphing temps réel
+  function generateMorphTarget() {
+    if (!randomParams) {
+      // Si pas de paramètres précédents, générer un pattern aléatoire simple
+      const newTarget = buildPattern(generateMusicalPattern({
+        root: "C",
+        scale: "minor", 
+        style: "psy",
+        part: "lead",
+        steps,
+        octaves: { min: minOctave, max: maxOctave }
+      }), steps, minOctave, maxOctave);
+      
+      setTargetPattern(newTarget);
+      setMorphingEnabled(true);
+      setMorphAmount(0);
+      console.log('Cible de morphing générée (mode simple)');
+    } else {
+      // Utiliser les derniers paramètres mais avec un nouveau seed
+      const morphSeed = Date.now();
+      let newTarget;
+      
+      if (randomParams.ambianceMode && randomParams.ambiance) {
+        const result = generateAmbiancePattern(randomParams.ambiance, {
+          steps,
+          seed: morphSeed,
+          minOct: minOctave,
+          maxOct: maxOctave
+        });
+        newTarget = buildPattern(result.pattern, steps, minOctave, maxOctave);
+      } else {
+        newTarget = buildPattern(generateMusicalPattern({
+          ...randomParams,
+          steps,
+          octaves: { min: minOctave, max: maxOctave },
+          seed: morphSeed
+        }), steps, minOctave, maxOctave);
+      }
+      
+      // Appliquer les accidents heureux si activés
+      if (randomParams.happyAccidents) {
+        newTarget = applyHappyAccidents(newTarget, {
+          intensity: randomParams.accidentIntensity || 0.5,
+          seed: morphSeed
+        });
+      }
+      
+      setTargetPattern(newTarget);
+      setMorphingEnabled(true);
+      setMorphAmount(0);
+      console.log('Cible de morphing générée avec les derniers paramètres');
+    }
+  }
+
+  function updateMorphing(amount) {
+    if (!morphingEnabled || !targetPattern) return;
+    
+    setMorphAmount(amount);
+    
+    if (amount === 0) {
+      setMorphedPattern(null);
+    } else if (amount === 1) {
+      setMorphedPattern(targetPattern);
+    } else {
+      const morphed = morphPatterns(pattern, targetPattern, amount);
+      setMorphedPattern(morphed);
+    }
+  }
+
+  function applyMorphTarget() {
+    if (!targetPattern) return;
+    
+    // Remplacer le pattern actuel par la cible
+    saveToHistory(targetPattern);
+    setPattern(targetPattern);
+    
+    // Réinitialiser le morphing
+    setMorphingEnabled(false);
+    setTargetPattern(null);
+    setMorphAmount(0);
+    setMorphedPattern(null);
+    
+    console.log('Pattern cible appliqué définitivement');
+  }
+
+  function cancelMorphing() {
+    setMorphingEnabled(false);
+    setTargetPattern(null);
+    setMorphAmount(0);
+    setMorphedPattern(null);
+    console.log('Morphing annulé');
+  }
+
   const handleClear = () => {
     const newPattern = buildPattern(null, steps, minOctave, maxOctave);
     // Sauvegarder dans l'historique avant de vider
@@ -1258,7 +1360,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            🎮 CONTRÔLES DE LECTURE
+            CONTRÔLES DE LECTURE
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn" id="playBtn" onClick={handlePlay} disabled={isPlaying}
@@ -1328,7 +1430,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            🎲 GÉNÉRATION CRÉATIVE
+            GÉNÉRATION CRÉATIVE
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn" id="randomBtn" onClick={() => setRandomVisible(true)}
@@ -1347,7 +1449,7 @@ export default function MelodySequencer() {
                 fontWeight: 'bold'
               }}
             >
-              🔄 Again
+              Again
             </button>
             <button
               className="btn"
@@ -1380,7 +1482,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            ⭐ GESTION & STOCKAGE
+            GESTION & STOCKAGE
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
@@ -1394,7 +1496,7 @@ export default function MelodySequencer() {
                 fontWeight: 'bold'
               }}
             >
-              ⭐ Favoris
+             Favoris
             </button>
             <button
               className="btn"
@@ -1407,7 +1509,7 @@ export default function MelodySequencer() {
                 fontWeight: 'bold'
               }}
             >
-              🎵 Gammes
+              Gammes
             </button>
             <button
               className="btn"
@@ -1441,7 +1543,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            🔧 AUDIO & MIDI
+            AUDIO & MIDI
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
@@ -1480,7 +1582,7 @@ export default function MelodySequencer() {
                 color: midiOutputEnabled ? '#000' : '#999'
               }}
             >
-              ⚙️ Config
+             Config
             </button>
           </div>
         </div>
@@ -1500,7 +1602,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            🎵 MANIPULATION
+            MANIPULATION
           </div>
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button 
@@ -1531,7 +1633,103 @@ export default function MelodySequencer() {
             >
               ⬆️ Oct
             </button>
+            
+            {/* Contrôles de Morphing */}
+            {!morphingEnabled ? (
+              <button 
+                className="btn" 
+                onClick={generateMorphTarget}
+                title="Générer une cible de morphing"
+                disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+                style={{ 
+                  backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#9C27B0' : '#666',
+                  color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#fff' : '#999',
+                  fontWeight: 'bold',
+                  minWidth: "70px"
+                }}
+              >
+                🌊 Morph
+              </button>
+            ) : (
+              <>
+                <button 
+                  className="btn" 
+                  onClick={applyMorphTarget}
+                  title="Appliquer définitivement le pattern cible"
+                  style={{ 
+                    backgroundColor: '#4CAF50', 
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    minWidth: "60px"
+                  }}
+                >
+                  ✓ Apply
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={cancelMorphing}
+                  title="Annuler le morphing"
+                  style={{ 
+                    backgroundColor: '#f44336', 
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    minWidth: "60px"
+                  }}
+                >
+                  ✗ Cancel
+                </button>
+              </>
+            )}
           </div>
+          
+          {/* Contrôle du morphing en temps réel */}
+          {morphingEnabled && (
+            <div style={{ 
+              marginTop: '15px', 
+              padding: '12px', 
+              background: 'rgba(156, 39, 176, 0.1)', 
+              borderRadius: '6px',
+              border: '1px solid rgba(156, 39, 176, 0.3)'
+            }}>
+              <div style={{ 
+                fontSize: '12px', 
+                color: '#9C27B0', 
+                marginBottom: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                🌊 MORPHING TEMPS RÉEL
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '11px', color: '#A0A0A8', minWidth: '20px' }}>0%</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={morphAmount}
+                  onChange={e => updateMorphing(parseFloat(e.target.value))}
+                  style={{ 
+                    flex: 1,
+                    height: '6px',
+                    background: 'linear-gradient(to right, #9C27B0, #E91E63)',
+                    borderRadius: '3px',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                />
+                <span style={{ fontSize: '11px', color: '#A0A0A8', minWidth: '30px' }}>100%</span>
+              </div>
+              <div style={{ 
+                fontSize: '10px', 
+                color: '#A0A0A8', 
+                textAlign: 'center', 
+                marginTop: '4px' 
+              }}>
+                {Math.round(morphAmount * 100)}% vers la cible
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ⚙️ GROUPE PARAMÈTRES */}
@@ -1549,7 +1747,7 @@ export default function MelodySequencer() {
             marginBottom: '10px',
             textAlign: 'center'
           }}>
-            ⚙️ PARAMÈTRES
+            PARAMÈTRES
           </div>
           <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
             {/* Contrôle du tempo */}
@@ -1676,7 +1874,7 @@ export default function MelodySequencer() {
         minOctave={minOctave}
         maxOctave={maxOctave}
         steps={steps}
-        pattern={pattern}
+        pattern={morphedPattern || pattern}
         currentStep={isPlaying ? currentStep : null}
         onToggleStep={handleToggleStep}
         onChangeVelocity={handleChangeVelocity}
@@ -1684,6 +1882,7 @@ export default function MelodySequencer() {
         onToggleAccent={handleToggleAccent}
         onToggleSlide={handleToggleSlide}
         showVelocityValues={false} /* Désactiver l'affichage des valeurs numériques (00) */
+        isMorphed={!!morphedPattern}
       />
       <RandomPopup
         visible={randomVisible}

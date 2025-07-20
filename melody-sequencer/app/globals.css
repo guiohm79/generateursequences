@@ -183,6 +183,24 @@ body {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
+/* Styles pour les notes morphées */
+.step.morphed {
+    box-shadow: 0 0 10px rgba(156, 39, 176, 0.6);
+    border: 2px solid rgba(156, 39, 176, 0.8);
+    animation: morphPulse 2s ease-in-out infinite;
+}
+
+@keyframes morphPulse {
+    0%, 100% { 
+        box-shadow: 0 0 10px rgba(156, 39, 176, 0.6);
+        border-color: rgba(156, 39, 176, 0.8);
+    }
+    50% { 
+        box-shadow: 0 0 20px rgba(156, 39, 176, 0.9);
+        border-color: rgba(156, 39, 176, 1);
+    }
+}
+
 .header {
     margin-bottom: 40px;
     display: flex;

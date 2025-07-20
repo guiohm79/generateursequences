@@ -323,6 +323,89 @@ export function applyHappyAccidents(pattern, options = {}) {
   return modifiedPattern;
 }
 
+/**
+ * Morphe entre deux patterns avec interpolation intelligente
+ * @param {Object} patternA - Pattern source (0%)
+ * @param {Object} patternB - Pattern cible (100%)
+ * @param {number} amount - Facteur de morphing (0-1)
+ * @returns {Object} Pattern morphé
+ */
+export function morphPatterns(patternA, patternB, amount) {
+  if (!patternA || !patternB || amount < 0 || amount > 1) {
+    return patternA;
+  }
+
+  const morphedPattern = {};
+  const allNotes = new Set([...Object.keys(patternA), ...Object.keys(patternB)]);
+
+  allNotes.forEach(noteName => {
+    const arrayA = patternA[noteName] || [];
+    const arrayB = patternB[noteName] || [];
+    const maxSteps = Math.max(arrayA.length, arrayB.length);
+    
+    morphedPattern[noteName] = [];
+
+    for (let step = 0; step < maxSteps; step++) {
+      const stepA = arrayA[step] || 0;
+      const stepB = arrayB[step] || 0;
+
+      // Si les deux steps sont vides
+      if ((!stepA || stepA === 0) && (!stepB || stepB === 0)) {
+        morphedPattern[noteName][step] = 0;
+        continue;
+      }
+
+      // Si un seul des deux steps est actif
+      if (!stepA || stepA === 0) {
+        // Seul B est actif - apparition progressive
+        if (Math.random() < amount) {
+          morphedPattern[noteName][step] = {
+            on: true,
+            velocity: Math.floor(stepB.velocity * amount),
+            accent: stepB.accent || false,
+            slide: stepB.slide || false,
+            morphed: true
+          };
+        } else {
+          morphedPattern[noteName][step] = 0;
+        }
+        continue;
+      }
+
+      if (!stepB || stepB === 0) {
+        // Seul A est actif - disparition progressive
+        if (Math.random() < (1 - amount)) {
+          morphedPattern[noteName][step] = {
+            on: true,
+            velocity: Math.floor(stepA.velocity * (1 - amount)),
+            accent: stepA.accent || false,
+            slide: stepA.slide || false,
+            morphed: true
+          };
+        } else {
+          morphedPattern[noteName][step] = 0;
+        }
+        continue;
+      }
+
+      // Les deux steps sont actifs - interpolation
+      const velocityA = stepA.velocity || 80;
+      const velocityB = stepB.velocity || 80;
+      const morphedVelocity = Math.floor(velocityA * (1 - amount) + velocityB * amount);
+
+      morphedPattern[noteName][step] = {
+        on: true,
+        velocity: Math.max(20, Math.min(127, morphedVelocity)),
+        accent: amount > 0.5 ? (stepB.accent || false) : (stepA.accent || false),
+        slide: amount > 0.5 ? (stepB.slide || false) : (stepA.slide || false),
+        morphed: true
+      };
+    }
+  });
+
+  return morphedPattern;
+}
+
 // Fonction pour récupérer les gammes avec cache
 function getScales() {
   if (!currentScales) {
