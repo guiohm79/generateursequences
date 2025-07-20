@@ -177,6 +177,43 @@ When making changes, always test both internal audio and MIDI output modes, and 
 
 ## Recent Updates & Bug Fixes
 
+### Version 2025-01 Major Creative Updates
+- **🎨 Ambiance Generator**: Added 6 creative ambiance presets (Nostalgique, Énergique, Mystérieux, Tribal, Cosmique, Hypnotique) with automatic tempo and synth suggestions
+- **🎲 Happy Accidents**: Intelligent "creative errors" system with 5 mutation types (off-scale notes, rhythm shifts, unexpected accents, ghost notes, surprise silences)
+- **🌊 Real-time Morphing**: Seamless transition between patterns with live interpolation slider and Apply/Cancel controls
+- **🧬 Genetic Evolution**: Advanced pattern evolution with two modes:
+  - **Evolve**: Subtle progressive mutations (8% rate, 40% intensity)
+  - **Boost**: Aggressive 5-generation evolution (18% rate, 80% intensity, population selection)
+- **📊 Fitness System**: Automatic pattern scoring based on density, creativity, and musical interest
+- **🎯 Enhanced Random Popup**: New tabbed interface with Ambiance/Manual modes and Happy Accidents controls
+
+### Creative Features Deep Dive
+
+#### Ambiance System (`randomEngine.js`)
+- **6 Predefined Ambiances**: Each with curated scales, styles, moods, tempo ranges, and synth recommendations
+- **Intelligent Selection**: Randomized parameter selection within ambiance constraints
+- **Auto-Application**: Suggested tempo and synthesizer settings applied automatically
+- **Compatibility**: Works with existing seed system and Happy Accidents
+
+#### Happy Accidents Engine
+- **5 Accident Types**: Off-scale notes (30%), rhythm shifts (20%), unexpected accents (25%), ghost notes (15%), surprise silences (10%)
+- **Intensity Control**: 10-100% slider for accident frequency and impact
+- **Seeded Randomness**: Reproducible "accidents" using same seed system
+- **Visual Feedback**: Special styling for accident-modified notes
+
+#### Morphing System (`morphPatterns()`)
+- **Intelligent Interpolation**: Smart blending of velocities, note appearances/disappearances
+- **Real-time Audio**: Morphed pattern plays live during slider adjustment
+- **Visual Integration**: Piano roll displays morphed state with special styling
+- **Seamless Workflow**: Generate target, morph, apply or cancel
+
+#### Genetic Evolution Engine
+- **5 Mutation Types**: Note changes, velocity shifts, rhythm mutations, accent mutations, genetic duplications
+- **Fitness Calculation**: Based on pattern density, velocity diversity, accent usage, and evolutionary markers
+- **Generation Tracking**: Complete history with fitness scores and mutation counts
+- **Population Selection**: Multi-candidate evolution with best-fitness selection
+- **Reversion System**: Navigate back to any previous generation or original pattern
+
 ### Version 2024-07 Updates
 - **Fixed retrograde crash bug**: Added robust validation and error handling in variationEngine.js to prevent application crashes from malformed MIDI data
 - **Added Favorites System**: Complete pattern storage with hybrid approach (seeds + full patterns), metadata, search/filtering
@@ -191,3 +228,5 @@ When making changes, always test both internal audio and MIDI output modes, and 
 - ✅ Custom scales not showing in Random popup (dynamic loading implemented) 
 - ✅ Interface organization unclear (6-group structure implemented)
 - ✅ Import errors with getAvailableScales() (proper module imports fixed)
+- ✅ Morphing audio/visual sync (currentPlayingPattern integration in useCallback dependencies)
+- ✅ Variable initialization order (currentPlayingPattern moved before function definitions)
