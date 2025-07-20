@@ -11,7 +11,7 @@ import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern, refreshScales } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales, generateAmbiancePattern } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
@@ -934,14 +934,49 @@ export default function MelodySequencer() {
     // Utiliser le nombre de pas sélectionné dans le popup ou le nombre de pas actuel
     const stepsToUse = params.steps || steps;
     
-    // Générer le pattern avec les paramètres sélectionnés
-    // Inclut maintenant le seed si présent dans params
-    const newPattern = buildPattern(generateMusicalPattern({
-      ...params,
-      steps: stepsToUse,
-      octaves: { min: minOctave, max: maxOctave }
-      // Le seed est passé automatiquement via ...params s'il est présent
-    }), stepsToUse, minOctave, maxOctave);
+    let newPattern;
+    let ambianceInfo = null;
+    
+    // Vérifier si c'est le mode ambiance
+    if (params.ambianceMode && params.ambiance) {
+      try {
+        const result = generateAmbiancePattern(params.ambiance, {
+          steps: stepsToUse,
+          seed: params.seed,
+          minOct: minOctave,
+          maxOct: maxOctave
+        });
+        
+        newPattern = buildPattern(result.pattern, stepsToUse, minOctave, maxOctave);
+        ambianceInfo = result.ambiance;
+        
+        // Appliquer automatiquement le tempo suggéré
+        if (result.ambiance.suggestedTempo) {
+          setTempo(result.ambiance.suggestedTempo);
+        }
+        
+        console.log(`Ambiance "${ambianceInfo.name}" générée:`, ambianceInfo.description);
+        if (ambianceInfo.suggestedTempo) {
+          console.log(`Tempo suggéré: ${ambianceInfo.suggestedTempo} BPM`);
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors de la génération d\'ambiance:', error);
+        // Fallback vers la génération normale
+        newPattern = buildPattern(generateMusicalPattern({
+          ...params,
+          steps: stepsToUse,
+          octaves: { min: minOctave, max: maxOctave }
+        }), stepsToUse, minOctave, maxOctave);
+      }
+    } else {
+      // Mode manuel traditionnel
+      newPattern = buildPattern(generateMusicalPattern({
+        ...params,
+        steps: stepsToUse,
+        octaves: { min: minOctave, max: maxOctave }
+      }), stepsToUse, minOctave, maxOctave);
+    }
     
     // Sauvegarder dans l'historique avant de définir le nouveau pattern
     saveToHistory(newPattern);
@@ -962,13 +997,44 @@ export default function MelodySequencer() {
     // Générer un nouveau seed aléatoire si on avait un seed, sinon on garde undefined
     const newSeed = randomParams.seed !== undefined ? Math.floor(Math.random() * 100000) : undefined;
     
-    // Générer un nouveau pattern avec les mêmes paramètres que précédemment
-    const newPattern = buildPattern(generateMusicalPattern({
-      ...randomParams,
-      steps: stepsToUse,
-      octaves: { min: minOctave, max: maxOctave },
-      seed: newSeed
-    }), stepsToUse, minOctave, maxOctave);
+    let newPattern;
+    
+    // Vérifier si c'est le mode ambiance
+    if (randomParams.ambianceMode && randomParams.ambiance) {
+      try {
+        const result = generateAmbiancePattern(randomParams.ambiance, {
+          steps: stepsToUse,
+          seed: newSeed,
+          minOct: minOctave,
+          maxOct: maxOctave
+        });
+        
+        newPattern = buildPattern(result.pattern, stepsToUse, minOctave, maxOctave);
+        
+        // Appliquer automatiquement le tempo suggéré
+        if (result.ambiance.suggestedTempo) {
+          setTempo(result.ambiance.suggestedTempo);
+        }
+        
+      } catch (error) {
+        console.error('Erreur lors de la régénération d\'ambiance:', error);
+        // Fallback vers la génération normale
+        newPattern = buildPattern(generateMusicalPattern({
+          ...randomParams,
+          steps: stepsToUse,
+          octaves: { min: minOctave, max: maxOctave },
+          seed: newSeed
+        }), stepsToUse, minOctave, maxOctave);
+      }
+    } else {
+      // Mode manuel traditionnel
+      newPattern = buildPattern(generateMusicalPattern({
+        ...randomParams,
+        steps: stepsToUse,
+        octaves: { min: minOctave, max: maxOctave },
+        seed: newSeed
+      }), stepsToUse, minOctave, maxOctave);
+    }
     
     // Sauvegarder dans l'historique avant de définir le nouveau pattern
     saveToHistory(newPattern);

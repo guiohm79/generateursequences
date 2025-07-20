@@ -33,6 +33,8 @@ const STEPS_OPTIONS = [
 ];
 
 export default function RandomPopup({ visible, onValidate, onCancel, defaultParams, scalesUpdateTrigger }) {
+  const [generationMode, setGenerationMode] = useState('manual'); // 'manual' ou 'ambiance'
+  const [selectedAmbiance, setSelectedAmbiance] = useState('nostalgique');
   const [root, setRoot] = useState(defaultParams?.rootNote || "C");
   const [scale, setScale] = useState(defaultParams?.scale || "phrygian");
   const [style, setStyle] = useState(defaultParams?.style || "psy");
@@ -42,6 +44,16 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
   const [useSeed, setUseSeed] = useState(defaultParams?.seed !== undefined);
   const [seed, setSeed] = useState(defaultParams?.seed || Math.floor(Math.random() * 100000));
   const [availableScales, setAvailableScales] = useState([]);
+
+  // Liste des ambiances disponibles
+  const AMBIANCES = [
+    { key: 'nostalgique', name: 'Nostalgique', emoji: '🌙', description: 'Mélodies douces et mélancoliques' },
+    { key: 'energique', name: 'Énergique', emoji: '⚡', description: 'Patterns dynamiques et percutants' },
+    { key: 'mysterieux', name: 'Mystérieux', emoji: '🔮', description: 'Ambiances sombres et énigmatiques' },
+    { key: 'tribal', name: 'Tribal', emoji: '🥁', description: 'Rythmes primitifs et envoûtants' },
+    { key: 'cosmique', name: 'Cosmique', emoji: '🌌', description: 'Sonorités spatiales et éthérées' },
+    { key: 'hypnotique', name: 'Hypnotique', emoji: '🌀', description: 'Patterns répétitifs et envoûtants' }
+  ];
 
   // Fonction pour charger les gammes disponibles
   const loadAvailableScales = () => {
@@ -78,12 +90,51 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
     <div className="random-popup-overlay">
       <div className="random-popup-modal">
         <h3>Générer un pattern aléatoire</h3>
-        <label>
-          Fondamentale :
-          <select value={root} onChange={e => setRoot(e.target.value)}>
-            {ROOT_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </label>
+        
+        {/* Sélecteur de mode de génération */}
+        <div className="generation-mode-tabs">
+          <button 
+            className={`mode-tab ${generationMode === 'ambiance' ? 'active' : ''}`}
+            onClick={() => setGenerationMode('ambiance')}
+          >
+            🎨 Ambiances
+          </button>
+          <button 
+            className={`mode-tab ${generationMode === 'manual' ? 'active' : ''}`}
+            onClick={() => setGenerationMode('manual')}
+          >
+            ⚙️ Manuel
+          </button>
+        </div>
+
+        {/* Mode Ambiance */}
+        {generationMode === 'ambiance' && (
+          <div className="ambiance-section">
+            <div className="ambiance-grid">
+              {AMBIANCES.map(ambiance => (
+                <div 
+                  key={ambiance.key}
+                  className={`ambiance-card ${selectedAmbiance === ambiance.key ? 'selected' : ''}`}
+                  onClick={() => setSelectedAmbiance(ambiance.key)}
+                >
+                  <div className="ambiance-emoji">{ambiance.emoji}</div>
+                  <div className="ambiance-name">{ambiance.name}</div>
+                  <div className="ambiance-description">{ambiance.description}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mode Manuel (existant) */}
+        {generationMode === 'manual' && (
+          <div className="manual-section">
+            <label>
+              Fondamentale :
+              <select value={root} onChange={e => setRoot(e.target.value)}>
+                {ROOT_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </label>
         <label>
           Gamme&nbsp;:
           <select value={scale} onChange={e => setScale(e.target.value)}>
@@ -125,58 +176,115 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
             {PARTS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
           </select>
         </label>
-        <label>
-          Nombre de pas&nbsp;:
-          <select value={steps} onChange={e => setSteps(parseInt(e.target.value))}>
-            <option value="16">16 pas</option>
-            <option value="32">32 pas</option>
-            <option value="64">64 pas</option>
-          </select>
-        </label>
-        <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>
-          <label style={{ display: 'flex', alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={useSeed}
-              onChange={e => setUseSeed(e.target.checked)}
-              style={{ marginRight: '5px' }}
-            />
-            Utiliser une graine (seed)
-          </label>
-          {useSeed && (
-            <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
-              <input
-                type="number"
-                value={seed}
-                onChange={e => setSeed(parseInt(e.target.value) || 0)}
-                style={{ width: '100px', marginRight: '5px' }}
-                min="0"
-                max="999999"
-              />
-              <button 
-                className="btn"
-                onClick={() => setSeed(Math.floor(Math.random() * 100000))}
-                style={{ padding: '3px 8px' }}
-                title="Générer une nouvelle graine aléatoire"
-              >
-                🎲
-              </button>
+            <label>
+              Nombre de pas&nbsp;:
+              <select value={steps} onChange={e => setSteps(parseInt(e.target.value))}>
+                <option value="16">16 pas</option>
+                <option value="32">32 pas</option>
+                <option value="64">64 pas</option>
+              </select>
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={useSeed}
+                  onChange={e => setUseSeed(e.target.checked)}
+                  style={{ marginRight: '5px' }}
+                />
+                Utiliser une graine (seed)
+              </label>
+              {useSeed && (
+                <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    value={seed}
+                    onChange={e => setSeed(parseInt(e.target.value) || 0)}
+                    style={{ width: '100px', marginRight: '5px' }}
+                    min="0"
+                    max="999999"
+                  />
+                  <button 
+                    className="btn"
+                    onClick={() => setSeed(Math.floor(Math.random() * 100000))}
+                    style={{ padding: '3px 8px' }}
+                    title="Générer une nouvelle graine aléatoire"
+                  >
+                    🎲
+                  </button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+        )}
+
+        {/* Paramètres communs */}
+        <div className="common-params">
+          <label>
+            Nombre de pas&nbsp;:
+            <select value={steps} onChange={e => setSteps(parseInt(e.target.value))}>
+              <option value="16">16 pas</option>
+              <option value="32">32 pas</option>
+              <option value="64">64 pas</option>
+            </select>
+          </label>
+          
+          <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0' }}>
+            <label style={{ display: 'flex', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={useSeed}
+                onChange={e => setUseSeed(e.target.checked)}
+                style={{ marginRight: '5px' }}
+              />
+              Utiliser une graine (seed)
+            </label>
+            {useSeed && (
+              <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="number"
+                  value={seed}
+                  onChange={e => setSeed(parseInt(e.target.value) || 0)}
+                  style={{ width: '100px', marginRight: '5px' }}
+                  min="0"
+                  max="999999"
+                />
+                <button 
+                  className="btn"
+                  onClick={() => setSeed(Math.floor(Math.random() * 100000))}
+                  style={{ padding: '3px 8px' }}
+                  title="Générer une nouvelle graine aléatoire"
+                >
+                  🎲
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="random-popup-actions">
           <button className="btn" onClick={onCancel}>Annuler</button>
           <button
             className="btn primary"
-            onClick={() => onValidate({ 
-              rootNote: root, 
-              scale, 
-              style, 
-              mood, 
-              part, 
-              steps,
-              seed: useSeed ? seed : undefined
-            })}
+            onClick={() => {
+              if (generationMode === 'ambiance') {
+                onValidate({ 
+                  ambianceMode: true,
+                  ambiance: selectedAmbiance,
+                  steps,
+                  seed: useSeed ? seed : undefined
+                });
+              } else {
+                onValidate({ 
+                  rootNote: root, 
+                  scale, 
+                  style, 
+                  mood, 
+                  part, 
+                  steps,
+                  seed: useSeed ? seed : undefined
+                });
+              }
+            }}
           >Générer</button>
         </div>
       </div>

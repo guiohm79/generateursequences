@@ -63,6 +63,129 @@ export function refreshScales() {
   currentScales = null;
 }
 
+/////////////////////////
+// AMBIANCES CRÉATIVES
+/////////////////////////
+
+// Presets d'ambiance qui combinent gammes, styles, moods et paramètres
+export const AMBIANCE_PRESETS = {
+  nostalgique: {
+    name: "Nostalgique",
+    description: "Mélodies douces et mélancoliques",
+    scales: ["minor", "dorian", "harmonicMinor"],
+    styles: ["deep", "prog"],
+    moods: ["dark"],
+    tempoRange: [80, 110],
+    parts: ["pad", "lead"],
+    density: 0.4,
+    synthPresets: ["pad", "bell"]
+  },
+  energique: {
+    name: "Énergique", 
+    description: "Patterns dynamiques et percutants",
+    scales: ["phrygian", "phrygianDominant", "minor"],
+    styles: ["goa", "psy"],
+    moods: ["uplifting"],
+    tempoRange: [130, 160],
+    parts: ["bassline", "lead", "arpeggio"],
+    density: 0.7,
+    synthPresets: ["acid", "pluck"]
+  },
+  mysterieux: {
+    name: "Mystérieux",
+    description: "Ambiances sombres et énigmatiques", 
+    scales: ["phrygian", "hungarianMinor", "enigmatic"],
+    styles: ["deep", "prog"],
+    moods: ["dark"],
+    tempoRange: [90, 120],
+    parts: ["pad", "hypnoticLead"],
+    density: 0.3,
+    synthPresets: ["pad", "bell", "mono"]
+  },
+  tribal: {
+    name: "Tribal",
+    description: "Rythmes primitifs et envoûtants",
+    scales: ["minor", "phrygian", "japanese"],
+    styles: ["goa", "psy"], 
+    moods: ["dense"],
+    tempoRange: [120, 140],
+    parts: ["bassline", "arpeggio"],
+    density: 0.6,
+    synthPresets: ["acid", "pluck"]
+  },
+  cosmique: {
+    name: "Cosmique",
+    description: "Sonorités spatiales et éthérées",
+    scales: ["major", "wholetone", "enigmatic"],
+    styles: ["deep", "prog"],
+    moods: ["uplifting"],
+    tempoRange: [100, 130],
+    parts: ["pad", "lead"],
+    density: 0.5,
+    synthPresets: ["pad", "bell"]
+  },
+  hypnotique: {
+    name: "Hypnotique",
+    description: "Patterns répétitifs et envoûtants",
+    scales: ["minor", "phrygian", "arabicMaqam"],
+    styles: ["goa", "psy"],
+    moods: ["dense"],
+    tempoRange: [125, 145],
+    parts: ["hypnoticLead", "arpeggio"],
+    density: 0.8,
+    synthPresets: ["acid", "mono"]
+  }
+};
+
+/**
+ * Génère un pattern basé sur une ambiance prédéfinie
+ * @param {string} ambianceName - Nom de l'ambiance à utiliser
+ * @param {Object} overrides - Paramètres optionnels pour surcharger l'ambiance
+ * @returns {Object} Pattern généré avec métadonnées d'ambiance
+ */
+export function generateAmbiancePattern(ambianceName, overrides = {}) {
+  const ambiance = AMBIANCE_PRESETS[ambianceName];
+  if (!ambiance) {
+    throw new Error(`Ambiance "${ambianceName}" non trouvée`);
+  }
+
+  // Génération aléatoire basée sur les contraintes de l'ambiance
+  const rng = mulberry32(overrides.seed || Date.now());
+  
+  const selectedScale = ambiance.scales[Math.floor(rng() * ambiance.scales.length)];
+  const selectedStyle = ambiance.styles[Math.floor(rng() * ambiance.styles.length)];
+  const selectedMood = ambiance.moods[Math.floor(rng() * ambiance.moods.length)];
+  const selectedPart = ambiance.parts[Math.floor(rng() * ambiance.parts.length)];
+  
+  // Paramètres finaux avec possibilité de surcharge
+  const params = {
+    root: overrides.root || NOTE_ORDER[Math.floor(rng() * NOTE_ORDER.length)],
+    scale: selectedScale,
+    style: selectedStyle,
+    part: selectedPart,
+    mood: selectedMood,
+    density: overrides.density || ambiance.density,
+    steps: overrides.steps || 16,
+    minOct: overrides.minOct || 2,
+    maxOct: overrides.maxOct || 4,
+    seed: overrides.seed || Date.now()
+  };
+
+  // Génération du pattern
+  const pattern = generateMusicalPattern(params);
+
+  return {
+    pattern,
+    ambiance: {
+      name: ambiance.name,
+      description: ambiance.description,
+      suggestedTempo: Math.floor(ambiance.tempoRange[0] + rng() * (ambiance.tempoRange[1] - ambiance.tempoRange[0])),
+      suggestedSynth: ambiance.synthPresets[Math.floor(rng() * ambiance.synthPresets.length)]
+    },
+    params
+  };
+}
+
 // Fonction pour récupérer les gammes avec cache
 function getScales() {
   if (!currentScales) {
