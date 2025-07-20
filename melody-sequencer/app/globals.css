@@ -137,6 +137,52 @@ body {
     margin-bottom: 16px;
 }
 
+/* Styles pour les accidents heureux */
+.happy-accidents-section {
+    background: rgba(255, 107, 107, 0.05);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.accident-controls {
+    background: rgba(255, 107, 107, 0.03);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 8px;
+}
+
+.accident-controls input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(255, 107, 107, 0.3);
+    border-radius: 2px;
+    outline: none;
+}
+
+.accident-controls input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--accent-secondary);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.accident-controls input[type="range"]::-moz-range-thumb {
+    height: 16px;
+    width: 16px;
+    border-radius: 50%;
+    background: var(--accent-secondary);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .header {
     margin-bottom: 40px;
     display: flex;

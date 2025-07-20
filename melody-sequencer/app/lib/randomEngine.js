@@ -186,6 +186,143 @@ export function generateAmbiancePattern(ambianceName, overrides = {}) {
   };
 }
 
+/**
+ * Applique des "accidents heureux" à un pattern existant
+ * @param {Object} pattern - Pattern à modifier
+ * @param {Object} options - Options pour les accidents
+ * @returns {Object} Pattern modifié avec des accidents créatifs
+ */
+export function applyHappyAccidents(pattern, options = {}) {
+  const {
+    probability = 0.15, // Probabilité d'accident par note (15% par défaut)
+    seed = Date.now(),
+    intensity = 0.5 // Intensité des accidents (0-1)
+  } = options;
+
+  const rng = mulberry32(seed);
+  const modifiedPattern = JSON.parse(JSON.stringify(pattern)); // Deep clone
+  
+  // Types d'accidents avec leurs probabilités relatives
+  const accidentTypes = [
+    { type: 'offScale', weight: 0.3, name: 'Note hors gamme' },
+    { type: 'rhythmShift', weight: 0.2, name: 'Décalage rythmique' },
+    { type: 'unexpected', weight: 0.25, name: 'Accent inattendu' },
+    { type: 'ghost', weight: 0.15, name: 'Note fantôme' },
+    { type: 'silence', weight: 0.1, name: 'Silence surprenant' }
+  ];
+
+  // Fonction pour choisir un type d'accident
+  function chooseAccidentType() {
+    const totalWeight = accidentTypes.reduce((sum, acc) => sum + acc.weight, 0);
+    let random = rng() * totalWeight;
+    
+    for (const accident of accidentTypes) {
+      random -= accident.weight;
+      if (random <= 0) return accident.type;
+    }
+    return accidentTypes[0].type;
+  }
+
+  // Parcourir toutes les notes du pattern
+  Object.keys(modifiedPattern).forEach(noteName => {
+    const noteArray = modifiedPattern[noteName];
+    
+    noteArray.forEach((step, stepIndex) => {
+      // Ignorer les steps vides
+      if (!step || step === 0) return;
+      
+      // Vérifier si on applique un accident
+      if (rng() < probability * intensity) {
+        const accidentType = chooseAccidentType();
+        
+        switch (accidentType) {
+          case 'offScale':
+            // Note hors gamme : transposer de ±1 ou ±2 demi-tons
+            const offsets = [-2, -1, 1, 2];
+            const offset = offsets[Math.floor(rng() * offsets.length)];
+            const noteNum = parseInt(noteName.slice(-1));
+            const noteBase = noteName.slice(0, -1);
+            const noteIndex = NOTE_ORDER.indexOf(noteBase);
+            
+            if (noteIndex !== -1) {
+              let newNoteIndex = (noteIndex + offset + NOTE_ORDER.length) % NOTE_ORDER.length;
+              let newOctave = noteNum;
+              
+              // Ajuster l'octave si nécessaire
+              if (noteIndex + offset < 0) newOctave--;
+              if (noteIndex + offset >= NOTE_ORDER.length) newOctave++;
+              
+              const newNoteName = NOTE_ORDER[newNoteIndex] + newOctave;
+              
+              // Déplacer la note vers la nouvelle note
+              if (modifiedPattern[newNoteName]) {
+                modifiedPattern[newNoteName][stepIndex] = {
+                  ...step,
+                  velocity: Math.max(40, step.velocity - 20), // Réduire la vélocité
+                  accident: 'offScale'
+                };
+                modifiedPattern[noteName][stepIndex] = 0; // Supprimer l'ancienne note
+              }
+            }
+            break;
+            
+          case 'rhythmShift':
+            // Décalage rythmique : déplacer la note de ±1 step
+            const shiftDirection = rng() < 0.5 ? -1 : 1;
+            const targetStep = stepIndex + shiftDirection;
+            
+            if (targetStep >= 0 && targetStep < noteArray.length && !noteArray[targetStep]) {
+              noteArray[targetStep] = {
+                ...step,
+                velocity: Math.min(127, step.velocity + 10),
+                accident: 'rhythmShift'
+              };
+              noteArray[stepIndex] = 0;
+            }
+            break;
+            
+          case 'unexpected':
+            // Accent inattendu : modifier drastiquement la vélocité
+            if (typeof step === 'object') {
+              step.velocity = rng() < 0.5 ? 
+                Math.max(100, step.velocity + 27) : // Très fort
+                Math.max(30, step.velocity - 30);   // Très doux
+              step.accent = true;
+              step.accident = 'unexpected';
+            }
+            break;
+            
+          case 'ghost':
+            // Note fantôme : ajouter une note très douce à côté
+            const ghostSteps = [-1, 1];
+            const ghostOffset = ghostSteps[Math.floor(rng() * ghostSteps.length)];
+            const ghostStep = stepIndex + ghostOffset;
+            
+            if (ghostStep >= 0 && ghostStep < noteArray.length && !noteArray[ghostStep]) {
+              noteArray[ghostStep] = {
+                on: true,
+                velocity: Math.max(20, 40 + Math.floor(rng() * 20)),
+                accent: false,
+                slide: false,
+                accident: 'ghost'
+              };
+            }
+            break;
+            
+          case 'silence':
+            // Silence surprenant : supprimer une note active
+            if (typeof step === 'object' && step.on) {
+              noteArray[stepIndex] = 0;
+            }
+            break;
+        }
+      }
+    });
+  });
+
+  return modifiedPattern;
+}
+
 // Fonction pour récupérer les gammes avec cache
 function getScales() {
   if (!currentScales) {

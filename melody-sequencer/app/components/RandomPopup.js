@@ -44,6 +44,8 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
   const [useSeed, setUseSeed] = useState(defaultParams?.seed !== undefined);
   const [seed, setSeed] = useState(defaultParams?.seed || Math.floor(Math.random() * 100000));
   const [availableScales, setAvailableScales] = useState([]);
+  const [happyAccidents, setHappyAccidents] = useState(false);
+  const [accidentIntensity, setAccidentIntensity] = useState(0.5);
 
   // Liste des ambiances disponibles
   const AMBIANCES = [
@@ -260,6 +262,46 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
               </div>
             )}
           </div>
+          
+          {/* Section Accidents Heureux */}
+          <div className="happy-accidents-section">
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={happyAccidents}
+                  onChange={e => setHappyAccidents(e.target.checked)}
+                  style={{ marginRight: '8px' }}
+                />
+                <span style={{ fontWeight: '600', color: '#FF6B6B' }}>
+                  🎲 Accidents Heureux
+                </span>
+              </label>
+            </div>
+            
+            {happyAccidents && (
+              <div className="accident-controls">
+                <div style={{ fontSize: '11px', color: '#A0A0A8', marginBottom: '8px' }}>
+                  Ajoute des "erreurs" créatives : notes hors gamme, rythmes décalés, accents inattendus...
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <label style={{ fontSize: '12px', color: '#A0A0A8' }}>Intensité:</label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1"
+                    step="0.1"
+                    value={accidentIntensity}
+                    onChange={e => setAccidentIntensity(parseFloat(e.target.value))}
+                    style={{ flex: 1, maxWidth: '100px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: '#A0A0A8', minWidth: '30px' }}>
+                    {Math.round(accidentIntensity * 100)}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="random-popup-actions">
           <button className="btn" onClick={onCancel}>Annuler</button>
@@ -271,7 +313,9 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
                   ambianceMode: true,
                   ambiance: selectedAmbiance,
                   steps,
-                  seed: useSeed ? seed : undefined
+                  seed: useSeed ? seed : undefined,
+                  happyAccidents,
+                  accidentIntensity
                 });
               } else {
                 onValidate({ 
@@ -281,7 +325,9 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
                   mood, 
                   part, 
                   steps,
-                  seed: useSeed ? seed : undefined
+                  seed: useSeed ? seed : undefined,
+                  happyAccidents,
+                  accidentIntensity
                 });
               }
             }}

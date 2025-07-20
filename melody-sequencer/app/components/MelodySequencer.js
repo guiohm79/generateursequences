@@ -11,7 +11,7 @@ import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern, refreshScales, generateAmbiancePattern } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
@@ -978,6 +978,15 @@ export default function MelodySequencer() {
       }), stepsToUse, minOctave, maxOctave);
     }
     
+    // Appliquer les accidents heureux si activés
+    if (params.happyAccidents) {
+      console.log('Application des accidents heureux avec intensité:', params.accidentIntensity);
+      newPattern = applyHappyAccidents(newPattern, {
+        intensity: params.accidentIntensity || 0.5,
+        seed: params.seed || Date.now()
+      });
+    }
+    
     // Sauvegarder dans l'historique avant de définir le nouveau pattern
     saveToHistory(newPattern);
     setPattern(newPattern);
@@ -1034,6 +1043,15 @@ export default function MelodySequencer() {
         octaves: { min: minOctave, max: maxOctave },
         seed: newSeed
       }), stepsToUse, minOctave, maxOctave);
+    }
+    
+    // Appliquer les accidents heureux si activés
+    if (randomParams.happyAccidents) {
+      console.log('Régénération avec accidents heureux, intensité:', randomParams.accidentIntensity);
+      newPattern = applyHappyAccidents(newPattern, {
+        intensity: randomParams.accidentIntensity || 0.5,
+        seed: newSeed || Date.now()
+      });
     }
     
     // Sauvegarder dans l'historique avant de définir le nouveau pattern
