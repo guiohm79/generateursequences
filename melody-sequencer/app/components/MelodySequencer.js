@@ -11,7 +11,7 @@ import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns, evolvePattern, evolveGenerations } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
 import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
@@ -65,6 +65,10 @@ export default function MelodySequencer() {
   const [targetPattern, setTargetPattern] = useState(null);
   const [morphAmount, setMorphAmount] = useState(0); // 0 = pattern original, 1 = pattern cible
   const [morphedPattern, setMorphedPattern] = useState(null);
+
+  // États pour l'évolution génétique
+  const [evolutionHistory, setEvolutionHistory] = useState([]);
+  const [currentGeneration, setCurrentGeneration] = useState(0);
 
   // Historique des patterns pour le bouton retour arrière
   const [patternHistory, setPatternHistory] = useState([]);
@@ -1166,6 +1170,150 @@ export default function MelodySequencer() {
     console.log('Morphing annulé');
   }
 
+  // Fonctions pour l'évolution génétique
+  function evolveCurrentPattern() {
+    const hasActiveNotes = Object.values(pattern).some(row => 
+      row.some(cell => cell && cell.on)
+    );
+    
+    if (!hasActiveNotes) {
+      console.log('Pas de pattern à faire évoluer');
+      return;
+    }
+
+    // Si c'est la première évolution, initialiser l'historique
+    if (evolutionHistory.length === 0) {
+      setEvolutionHistory([{
+        pattern: pattern,
+        generation: 0,
+        fitness: 0,
+        mutations: []
+      }]);
+      setCurrentGeneration(0);
+    }
+
+    const evolutionSeed = Date.now();
+    const evolved = evolvePattern(pattern, {
+      mutationRate: 0.08, // Évolution douce et progressive
+      intensity: 0.4, // Changements subtils
+      seed: evolutionSeed,
+      preserveStructure: true
+    });
+
+    const newGeneration = currentGeneration + 1;
+    
+    // Sauvegarder dans l'historique avant d'appliquer
+    saveToHistory(evolved);
+    setPattern(evolved);
+    
+    // Mettre à jour l'historique d'évolution
+    const newEvolutionEntry = {
+      pattern: evolved,
+      generation: newGeneration,
+      fitness: calculateSimpleFitness(evolved),
+      mutations: extractMutations(evolved),
+      seed: evolutionSeed
+    };
+    
+    setEvolutionHistory(prev => [...prev, newEvolutionEntry]);
+    setCurrentGeneration(newGeneration);
+    
+    console.log(`🧬 EVOLVE: Génération ${newGeneration} - Évolution douce appliquée`);
+    console.log(`Mutations subtiles:`, newEvolutionEntry.mutations.length);
+  }
+
+  function evolveMultipleGenerations() {
+    const hasActiveNotes = Object.values(pattern).some(row => 
+      row.some(cell => cell && cell.on)
+    );
+    
+    if (!hasActiveNotes) {
+      console.log('Pas de pattern à faire évoluer');
+      return;
+    }
+
+    const result = evolveGenerations(pattern, {
+      generations: 5, // Plus de générations pour plus de changements
+      populationSize: 8, // Population plus large pour plus de diversité
+      mutationRate: 0.18, // Mutations plus fréquentes
+      intensity: 0.8, // Changements plus drastiques
+      seed: Date.now()
+    });
+
+    // Sauvegarder dans l'historique avant d'appliquer
+    saveToHistory(result.pattern);
+    setPattern(result.pattern);
+    
+    // Mettre à jour l'historique d'évolution
+    setEvolutionHistory(result.history.map(entry => ({
+      ...entry,
+      mutations: extractMutations(entry.pattern)
+    })));
+    setCurrentGeneration(result.finalGeneration);
+    
+    console.log(`🚀 BOOST: Évolution rapide sur ${result.finalGeneration} générations - Changements majeurs!`);
+    console.log('Fitness evolution:', result.history.map(h => h.fitness));
+    console.log(`Mutations totales: ${result.history[result.history.length - 1]?.mutations?.length || 0}`);
+  }
+
+  function revertToGeneration(generation) {
+    const targetEntry = evolutionHistory.find(entry => entry.generation === generation);
+    if (targetEntry) {
+      saveToHistory(targetEntry.pattern);
+      setPattern(targetEntry.pattern);
+      setCurrentGeneration(generation);
+      
+      // Nettoyer l'historique des générations futures
+      setEvolutionHistory(prev => prev.filter(entry => entry.generation <= generation));
+      
+      console.log(`Retour à la génération ${generation}`);
+    }
+  }
+
+  function resetEvolution() {
+    setEvolutionHistory([]);
+    setCurrentGeneration(0);
+    console.log('Historique d\'évolution réinitialisé');
+  }
+
+  // Fonctions utilitaires pour l'évolution
+  function calculateSimpleFitness(pattern) {
+    let fitness = 0;
+    let totalSteps = 0;
+    let activeSteps = 0;
+    
+    Object.values(pattern).forEach(noteArray => {
+      noteArray.forEach(step => {
+        totalSteps++;
+        if (step && step.on) {
+          activeSteps++;
+          if (step.evolved) fitness += 2;
+          if (step.accent) fitness += 1;
+          if (step.slide) fitness += 0.5;
+        }
+      });
+    });
+    
+    const density = activeSteps / totalSteps;
+    return Math.round((density * 100) + fitness);
+  }
+
+  function extractMutations(pattern) {
+    const mutations = [];
+    Object.entries(pattern).forEach(([noteName, noteArray]) => {
+      noteArray.forEach((step, stepIndex) => {
+        if (step && step.evolved && step.mutationType) {
+          mutations.push({
+            note: noteName,
+            step: stepIndex,
+            type: step.mutationType
+          });
+        }
+      });
+    });
+    return mutations;
+  }
+
   const handleClear = () => {
     const newPattern = buildPattern(null, steps, minOctave, maxOctave);
     // Sauvegarder dans l'historique avant de vider
@@ -1464,7 +1612,140 @@ export default function MelodySequencer() {
             >
               🎨 Variations
             </button>
+            
+            {/* Boutons d'évolution génétique */}
+            <button
+              className="btn"
+              onClick={evolveCurrentPattern}
+              disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+              title="Évolution douce - Changements subtils et progressifs"
+              style={{
+                backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#4CAF50' : '#666',
+                color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#fff' : '#999',
+                fontWeight: 'bold'
+              }}
+            >
+              🧬 Evolve
+            </button>
+            
+            <button
+              className="btn"
+              onClick={evolveMultipleGenerations}
+              disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
+              title="Évolution agressive - 5 générations avec mutations drastiques"
+              style={{
+                backgroundColor: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#8BC34A' : '#666',
+                color: Object.values(pattern).some(row => row.some(cell => cell && cell.on)) ? '#000' : '#999',
+                fontWeight: 'bold'
+              }}
+            >
+              🚀 Boost
+            </button>
           </div>
+          
+          {/* Affichage de l'évolution si historique disponible */}
+          {evolutionHistory.length > 0 && (
+            <div style={{ 
+              marginTop: '15px', 
+              padding: '12px', 
+              background: 'rgba(76, 175, 80, 0.1)', 
+              borderRadius: '6px',
+              border: '1px solid rgba(76, 175, 80, 0.3)'
+            }}>
+              <div style={{ 
+                fontSize: '12px', 
+                color: '#4CAF50', 
+                marginBottom: '8px',
+                textAlign: 'center',
+                fontWeight: 'bold'
+              }}>
+                🧬 ÉVOLUTION - Génération {currentGeneration}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#A0A0A8' }}>Fitness:</span>
+                <div style={{ 
+                  flex: 1, 
+                  height: '4px', 
+                  background: 'rgba(76, 175, 80, 0.3)', 
+                  borderRadius: '2px',
+                  position: 'relative'
+                }}>
+                  <div style={{ 
+                    height: '100%', 
+                    width: `${Math.min(100, (evolutionHistory[evolutionHistory.length - 1]?.fitness || 0))}%`,
+                    background: '#4CAF50',
+                    borderRadius: '2px'
+                  }} />
+                </div>
+                <span style={{ fontSize: '11px', color: '#4CAF50', minWidth: '30px' }}>
+                  {evolutionHistory[evolutionHistory.length - 1]?.fitness || 0}
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                {evolutionHistory.length > 1 && (
+                  <button
+                    className="btn"
+                    onClick={() => revertToGeneration(currentGeneration - 1)}
+                    title="Revenir à la génération précédente"
+                    style={{
+                      backgroundColor: '#FF9800',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    ← Gen
+                  </button>
+                )}
+                
+                {currentGeneration > 0 && (
+                  <button
+                    className="btn"
+                    onClick={() => revertToGeneration(0)}
+                    title="Revenir au pattern original"
+                    style={{
+                      backgroundColor: '#9E9E9E',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      fontSize: '11px',
+                      padding: '4px 8px'
+                    }}
+                  >
+                    Origin
+                  </button>
+                )}
+                
+                <button
+                  className="btn"
+                  onClick={resetEvolution}
+                  title="Réinitialiser l'historique d'évolution"
+                  style={{
+                    backgroundColor: '#f44336',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    padding: '4px 8px'
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+              
+              {evolutionHistory[evolutionHistory.length - 1]?.mutations?.length > 0 && (
+                <div style={{ 
+                  fontSize: '10px', 
+                  color: '#A0A0A8', 
+                  textAlign: 'center', 
+                  marginTop: '6px' 
+                }}>
+                  Mutations: {evolutionHistory[evolutionHistory.length - 1].mutations.length}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ⭐ GROUPE GESTION & STOCKAGE */}

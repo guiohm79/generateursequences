@@ -406,6 +406,243 @@ export function morphPatterns(patternA, patternB, amount) {
   return morphedPattern;
 }
 
+/**
+ * Applique des mutations génétiques à un pattern pour le faire évoluer
+ * @param {Object} pattern - Pattern à faire muter
+ * @param {Object} options - Options de mutation
+ * @returns {Object} Pattern muté
+ */
+export function evolvePattern(pattern, options = {}) {
+  const {
+    mutationRate = 0.1, // Probabilité de mutation par step (10% par défaut)
+    intensity = 0.5, // Intensité des mutations (0-1)
+    seed = Date.now(),
+    preserveStructure = true // Garder la structure rythmique de base
+  } = options;
+
+  const rng = mulberry32(seed);
+  const evolvedPattern = JSON.parse(JSON.stringify(pattern)); // Deep clone
+  
+  // Types de mutations génétiques
+  const mutationTypes = [
+    { type: 'noteChange', weight: 0.3, name: 'Changement de note' },
+    { type: 'velocityShift', weight: 0.25, name: 'Variation de vélocité' },
+    { type: 'rhythmMutation', weight: 0.2, name: 'Mutation rythmique' },
+    { type: 'accentMutation', weight: 0.15, name: 'Mutation d\'accent' },
+    { type: 'duplication', weight: 0.1, name: 'Duplication génétique' }
+  ];
+
+  // Fonction pour choisir un type de mutation
+  function chooseMutationType() {
+    const totalWeight = mutationTypes.reduce((sum, mut) => sum + mut.weight, 0);
+    let random = rng() * totalWeight;
+    
+    for (const mutation of mutationTypes) {
+      random -= mutation.weight;
+      if (random <= 0) return mutation.type;
+    }
+    return mutationTypes[0].type;
+  }
+
+  // Obtenir les notes actives pour les mutations
+  const activeNotes = Object.keys(evolvedPattern).filter(noteName => 
+    evolvedPattern[noteName].some(step => step && step.on)
+  );
+
+  if (activeNotes.length === 0) return pattern; // Pas de mutation sur pattern vide
+
+  // Appliquer les mutations
+  Object.keys(evolvedPattern).forEach(noteName => {
+    const noteArray = evolvedPattern[noteName];
+    
+    noteArray.forEach((step, stepIndex) => {
+      // Vérifier si on applique une mutation à ce step
+      if (rng() < mutationRate * intensity) {
+        const mutationType = chooseMutationType();
+        
+        switch (mutationType) {
+          case 'noteChange':
+            // Changer une note active vers une autre note
+            if (step && step.on) {
+              const targetNotes = activeNotes.filter(n => n !== noteName);
+              if (targetNotes.length > 0) {
+                const targetNote = targetNotes[Math.floor(rng() * targetNotes.length)];
+                
+                // Déplacer la note
+                if (evolvedPattern[targetNote] && !evolvedPattern[targetNote][stepIndex]) {
+                  evolvedPattern[targetNote][stepIndex] = {
+                    ...step,
+                    evolved: true,
+                    mutationType: 'noteChange'
+                  };
+                  evolvedPattern[noteName][stepIndex] = 0;
+                }
+              }
+            }
+            break;
+            
+          case 'velocityShift':
+            // Variation de vélocité progressive
+            if (step && step.on) {
+              const variation = (rng() - 0.5) * 40 * intensity; // ±20 * intensity
+              const newVelocity = Math.max(20, Math.min(127, step.velocity + variation));
+              step.velocity = Math.round(newVelocity);
+              step.evolved = true;
+              step.mutationType = 'velocityShift';
+            }
+            break;
+            
+          case 'rhythmMutation':
+            if (!preserveStructure) {
+              // Mutation rythmique : créer ou supprimer des notes
+              if (!step || step === 0) {
+                // Créer une nouvelle note
+                if (rng() < 0.3) {
+                  noteArray[stepIndex] = {
+                    on: true,
+                    velocity: Math.floor(60 + rng() * 40),
+                    accent: false,
+                    slide: false,
+                    evolved: true,
+                    mutationType: 'rhythmMutation'
+                  };
+                }
+              } else if (step.on) {
+                // Supprimer une note existante
+                if (rng() < 0.2) {
+                  noteArray[stepIndex] = 0;
+                }
+              }
+            }
+            break;
+            
+          case 'accentMutation':
+            // Mutation des accents et slides
+            if (step && step.on) {
+              if (rng() < 0.5) {
+                step.accent = !step.accent;
+                step.evolved = true;
+                step.mutationType = 'accentMutation';
+              }
+              if (rng() < 0.3) {
+                step.slide = !step.slide;
+                step.evolved = true;
+                step.mutationType = 'accentMutation';
+              }
+            }
+            break;
+            
+          case 'duplication':
+            // Duplication génétique : répéter un pattern sur les steps voisins
+            if (step && step.on) {
+              const directions = [-1, 1];
+              const direction = directions[Math.floor(rng() * directions.length)];
+              const targetStep = stepIndex + direction;
+              
+              if (targetStep >= 0 && targetStep < noteArray.length && !noteArray[targetStep]) {
+                noteArray[targetStep] = {
+                  ...step,
+                  velocity: Math.max(20, step.velocity - 10), // Légèrement plus faible
+                  evolved: true,
+                  mutationType: 'duplication'
+                };
+              }
+            }
+            break;
+        }
+      }
+    });
+  });
+
+  return evolvedPattern;
+}
+
+/**
+ * Génère plusieurs générations d'évolution et retourne la meilleure
+ * @param {Object} pattern - Pattern de départ
+ * @param {Object} options - Options d'évolution
+ * @returns {Object} Meilleur pattern évolué avec métadonnées
+ */
+export function evolveGenerations(pattern, options = {}) {
+  const {
+    generations = 5,
+    populationSize = 3,
+    mutationRate = 0.1,
+    intensity = 0.5,
+    seed = Date.now()
+  } = options;
+
+  const rng = mulberry32(seed);
+  let currentPattern = pattern;
+  const evolutionHistory = [{ pattern: currentPattern, generation: 0, fitness: 0 }];
+  
+  for (let gen = 1; gen <= generations; gen++) {
+    const population = [];
+    
+    // Générer une population de variants
+    for (let i = 0; i < populationSize; i++) {
+      const mutationSeed = Math.floor(rng() * 1000000);
+      const evolved = evolvePattern(currentPattern, {
+        mutationRate,
+        intensity,
+        seed: mutationSeed
+      });
+      
+      // Calculer un score de fitness basique (diversité vs structure)
+      const fitness = calculatePatternFitness(evolved, pattern);
+      population.push({ pattern: evolved, fitness, mutationSeed });
+    }
+    
+    // Sélectionner le meilleur
+    population.sort((a, b) => b.fitness - a.fitness);
+    currentPattern = population[0].pattern;
+    
+    evolutionHistory.push({
+      pattern: currentPattern,
+      generation: gen,
+      fitness: population[0].fitness,
+      populationFitness: population.map(p => p.fitness)
+    });
+  }
+  
+  return {
+    pattern: currentPattern,
+    history: evolutionHistory,
+    finalGeneration: generations
+  };
+}
+
+/**
+ * Calcule un score de fitness pour un pattern (simplicité de l'implémentation)
+ */
+function calculatePatternFitness(pattern, originalPattern) {
+  let fitness = 0;
+  let totalNotes = 0;
+  let activeSteps = 0;
+  
+  Object.values(pattern).forEach(noteArray => {
+    noteArray.forEach(step => {
+      totalNotes++;
+      if (step && step.on) {
+        activeSteps++;
+        // Bonus pour la diversité de vélocité
+        if (step.velocity && step.velocity !== 100) fitness += 0.1;
+        // Bonus pour les accents et slides
+        if (step.accent) fitness += 0.2;
+        if (step.slide) fitness += 0.15;
+        // Bonus pour les mutations créatives
+        if (step.evolved) fitness += 0.3;
+      }
+    });
+  });
+  
+  // Score basé sur la densité et la créativité
+  const density = activeSteps / totalNotes;
+  const creativityBonus = fitness;
+  
+  return density * 50 + creativityBonus;
+}
+
 // Fonction pour récupérer les gammes avec cache
 function getScales() {
   if (!currentScales) {
