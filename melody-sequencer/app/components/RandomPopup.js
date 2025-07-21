@@ -282,7 +282,7 @@ export default function RandomPopup({ visible, onValidate, onCancel, defaultPara
             {happyAccidents && (
               <div className="accident-controls">
                 <div style={{ fontSize: '11px', color: '#A0A0A8', marginBottom: '8px' }}>
-                  Ajoute des "erreurs" créatives : notes hors gamme, rythmes décalés, accents inattendus...
+                  Ajoute des &quot;erreurs&quot; créatives : notes hors gamme, rythmes décalés, accents inattendus...
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <label style={{ fontSize: '12px', color: '#A0A0A8' }}>Intensité:</label>

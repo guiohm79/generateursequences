@@ -14,6 +14,9 @@ export class FavoritesStorage {
    */
   static getAllFavorites() {
     try {
+      // Vérifier qu'on est côté client
+      if (typeof window === 'undefined') return [];
+      
       const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
@@ -60,7 +63,10 @@ export class FavoritesStorage {
     favorites.push(newFavorite);
     
     try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      }
       console.log(`Favori sauvegardé: ${newFavorite.name} (${newFavorite.id})`);
       return newFavorite.id;
     } catch (error) {
@@ -104,7 +110,10 @@ export class FavoritesStorage {
     };
     
     try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      }
       console.log(`Favori mis à jour: ${id}`);
       return true;
     } catch (error) {
@@ -128,7 +137,10 @@ export class FavoritesStorage {
     }
     
     try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(filteredFavorites));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(filteredFavorites));
+      }
       console.log(`Favori supprimé: ${id}`);
       return true;
     } catch (error) {
@@ -162,7 +174,10 @@ export class FavoritesStorage {
     });
     
     try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(reorderedFavorites));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(reorderedFavorites));
+      }
       console.log('Favoris réorganisés');
       return true;
     } catch (error) {
@@ -248,7 +263,10 @@ export class FavoritesStorage {
         favorites.push(newFavorite);
       });
       
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      }
       console.log(`${importData.favorites.length} favoris importés`);
       return true;
       
@@ -272,7 +290,10 @@ export class FavoritesStorage {
     
     if (removedCount > 0) {
       try {
-        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(validFavorites));
+        // Vérifier qu'on est côté client
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(validFavorites));
+        }
         console.log(`${removedCount} favoris corrompus supprimés`);
       } catch (error) {
         console.error('Erreur lors du nettoyage:', error);

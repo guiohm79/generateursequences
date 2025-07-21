@@ -17,27 +17,12 @@ import { generateVariations } from "../lib/variationEngine";
 import { generateInspiration } from "../lib/inspirationEngine";
 import { FavoritesStorage } from "../lib/favoritesStorage";
 import { ScalesStorage } from "../lib/scalesStorage";
+import { getAllNotes, buildPattern } from "../lib/patternUtils";
+import { convertPatternToMidiData, exportToMidi } from "../lib/midiUtils";
+import { usePatternHistory } from "../hooks/usePatternHistory";
+import { useTransport } from "../hooks/useTransport";
 
-// Helpers pattern robustes
-function getAllNotes(minOct, maxOct) {
-  const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const all = [];
-  for (let octave = minOct; octave <= maxOct; octave++) {
-    notes.forEach(note => all.push(note + octave));
-  }
-  return all;
-}
-
-function buildPattern(pattern, steps, minOct, maxOct) {
-  const allNotes = getAllNotes(minOct, maxOct);
-  const next = {};
-  allNotes.forEach(note => {
-    let arr = Array.isArray(pattern?.[note]) ? pattern[note].slice(0, steps) : [];
-    if (arr.length < steps) arr = arr.concat(Array(steps - arr.length).fill(0));
-    next[note] = arr;
-  });
-  return next;
-}
+// Les fonctions utilitaires getAllNotes et buildPattern sont maintenant dans lib/patternUtils.js
 
 export default function MelodySequencer() {
   // États principaux
@@ -70,12 +55,32 @@ export default function MelodySequencer() {
   const [evolutionHistory, setEvolutionHistory] = useState([]);
   const [currentGeneration, setCurrentGeneration] = useState(0);
 
-  // Historique des patterns pour le bouton retour arrière
-  const [patternHistory, setPatternHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // Hook pour la gestion de l'historique des patterns
+  const {
+    patternHistory,
+    historyIndex,
+    saveToHistory,
+    handleUndo: undoPattern,
+    handleRedo: redoPattern,
+    canUndo,
+    canRedo
+  } = usePatternHistory();
 
   // Référence pour le débogage de la popup MIDI
   const midiDebugRef = useRef(null);
+  
+  // Hook pour la gestion du transport audio/MIDI
+  const {
+    synthRef,
+    previousMonoNote,
+    transportId,
+    playStep,
+    startTransport,
+    stopTransport,
+    createSynth,
+    disposeSynth,
+    updatePlayingPattern
+  } = useTransport({ currentPreset, midiOutputEnabled, noteLength, tempo });
   
   // Gestion de l'activation/désactivation MIDI
   const handleToggleMIDI = async () => {
@@ -115,78 +120,27 @@ export default function MelodySequencer() {
     setCurrentStep(0);
   }, [steps, minOctave, maxOctave]);
 
-  // Fonction pour sauvegarder le pattern actuel dans l'historique
-  const saveToHistory = (newPattern) => {
-    setPatternHistory(prev => {
-      const newHistory = [...prev];
-      // Supprimer les éléments après l'index actuel si on n'est pas à la fin
-      if (historyIndex >= 0 && historyIndex < newHistory.length - 1) {
-        newHistory.splice(historyIndex + 1);
-      }
-      // Ajouter le nouveau pattern
-      newHistory.push(JSON.parse(JSON.stringify(newPattern)));
-      // Limiter l'historique à 50 éléments
-      if (newHistory.length > 50) {
-        newHistory.shift();
-      }
-      return newHistory;
-    });
-    setHistoryIndex(prev => Math.min(prev + 1, 49));
-  };
-
-  // Fonction pour revenir en arrière dans l'historique
+  // Fonctions undo/redo avec le hook
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setPattern(JSON.parse(JSON.stringify(patternHistory[newIndex])));
+    const previousPattern = undoPattern();
+    if (previousPattern) {
+      setPattern(previousPattern);
     }
   };
 
-  // Fonction pour aller vers l'avant dans l'historique
   const handleRedo = () => {
-    if (historyIndex < patternHistory.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setPattern(JSON.parse(JSON.stringify(patternHistory[newIndex])));
+    const nextPattern = redoPattern();
+    if (nextPattern) {
+      setPattern(nextPattern);
     }
   };
 
-  // Synthé et playback
-  const synthRef = useRef(null);
-  const previousMonoNote = useRef(null);
-  const transportId = useRef(null);
-
+  // Utilisation du hook pour créer le synthé
   useEffect(() => {
-    if (synthRef.current) {
-      synthRef.current.releaseAll && synthRef.current.releaseAll();
-      synthRef.current.disconnect();
-      synthRef.current = null;
-    }
-    const preset = currentPreset || SYNTH_PRESETS[0];
-    let options = preset.options || {};
-    switch (preset.synthType) {
-      case "MonoSynth":
-        synthRef.current = new Tone.MonoSynth(options).toDestination();
-        break;
-      case "FMSynth":
-        synthRef.current = new Tone.PolySynth(Tone.FMSynth, options).toDestination();
-        break;
-      case "PolySynth":
-      default:
-        synthRef.current = new Tone.PolySynth(Tone.Synth, options).toDestination();
-        break;
-    }
-    return () => {
-      if (synthRef.current) {
-        synthRef.current.releaseAll && synthRef.current.releaseAll();
-        synthRef.current.disconnect();
-        synthRef.current = null;
-      }
-      previousMonoNote.current = null;
-    };
+    createSynth(currentPreset || SYNTH_PRESETS[0]);
+    return disposeSynth;
     // eslint-disable-next-line
-  }, [presetKey]);
+  }, [presetKey, createSynth, disposeSynth]);
 
   // Mutations blindées
   const handleToggleStep = (note, idx) => {
@@ -243,226 +197,23 @@ export default function MelodySequencer() {
   // Récupérer le pattern à jouer (morphé ou original)
   const currentPlayingPattern = morphedPattern || pattern;
 
- // Fonction playStep définie avec useCallback
-  const playStep = useCallback((stepIndex, time) => {
-    // Mapping pour les durées de notes en fonction du noteLength
-    const noteDurationMap = {
-      "4n": "4n",     // Noire
-      "8n": "8n",     // Croche  
-      "16n": "16n",   // Double-croche (standard)
-      "32n": "32n",   // Triple-croche
-      "64n": "64n"    // Quadruple-croche
-    };
-    const noteDuration = noteDurationMap[noteLength] || "16n";
-    
-    // Calcul de la durée en millisecondes pour MIDI
-    const durationMs = {
-      "4n": (60000 / tempo),       // Durée d'une noire
-      "8n": (60000 / tempo) / 2,   // Durée d'une croche
-      "16n": (60000 / tempo) / 4,  // Durée standard d'une double-croche
-      "32n": (60000 / tempo) / 8,  // Durée d'une triple-croche
-      "64n": (60000 / tempo) / 16  // Durée d'une quadruple-croche
-    }[noteLength] || (60000 / tempo) / 4;
-        
-    const synth = synthRef.current;
-    const midiOutput = getMIDIOutput();
-    
-    // Mode Mono (une seule note à la fois)
-    if (currentPreset.voiceMode === "mono") {
-      let highestNote = null;
-      let highestMidiNote = -1;
-      let velocity = 100;
-      let stepVal = null;
-      
-      Object.entries(currentPlayingPattern).forEach(([note, steps]) => {
-        const val = steps[stepIndex];
-        if (val && val.on) {
-          const noteParts = note.match(/([A-G]#?)([0-9])/);
-          if (noteParts) {
-            const noteName = noteParts[1];
-            const octave = parseInt(noteParts[2]);
-            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-            const midiNote = (octave + 1) * 12 + noteNames.indexOf(noteName);
-            
-            if (midiNote > highestMidiNote) {
-              highestMidiNote = midiNote;
-              highestNote = note;
-              velocity = val.velocity || 100;
-              stepVal = val;
-            }
-          }
-        }
-      });
-      
-      if (highestNote) {
-        if (synth && !midiOutputEnabled) {
-          const hasAccent = stepVal.accent || false;
-          const hasSlide = stepVal.slide || false;
-          
-          let adjustedVelocity = velocity;
-          if (hasAccent) {
-            adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
-          }
-          
-          if (hasSlide && previousMonoNote.current) {
-            synth.portamento = 0.15;
-          } else {
-            synth.portamento = 0.01;
-          }
-          
-          synth.triggerAttackRelease(highestNote, noteDuration, time, adjustedVelocity / 127);
-        }
-        
-        if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-                  const hasAccent = stepVal.accent || false;
-                  const hasSlide = stepVal.slide || false;
-                  
-                  let adjustedVelocity = velocity;
-                  if (hasAccent) {
-                    adjustedVelocity = Math.min(127, Math.round(velocity * 1.2));
-                  }
-                  
-                  // Envoyer les Control Changes avant la note (sans délai)
-                  if (hasAccent) {
-                    midiOutput.sendControlChange(16, 127);
-                  }
-                  if (hasSlide) {
-                    midiOutput.sendControlChange(17, 127);
-                  }
-                  
-                  // Envoyer la note immédiatement
-                  midiOutput.sendNoteOn(highestNote, adjustedVelocity);
-                  
-                  // Programmer le Note Off avec une durée plus courte et optimisée
-                  const optimizedDuration = Math.max(50, Math.min(durationMs * 0.8, 200)); // Entre 50ms et 200ms max
-                  
-                  setTimeout(() => {
-                    midiOutput.sendNoteOff(highestNote);
-                    // Reset des contrôleurs après la note off
-                    if (hasAccent) {
-                      midiOutput.sendControlChange(16, 0);
-                    }
-                    if (hasSlide) {
-                      midiOutput.sendControlChange(17, 0);
-                    }
-                  }, optimizedDuration);
-                }
+ // Les fonctions playStep et transport sont maintenant gérées par le hook useTransport
 
-        previousMonoNote.current = highestNote;
-      } else {
-        previousMonoNote.current = null;
-      }
-    } else {
-      // Mode Poly
-      const activeNotes = [];
-      
-      Object.entries(currentPlayingPattern).forEach(([note, steps]) => {
-        const val = steps[stepIndex];
-        if (val && val.on) {
-          activeNotes.push({
-            note,
-            velocity: val.velocity || 100,
-            accent: val.accent || false,
-            slide: val.slide || false
-          });
-        }
-      });
-      
-      if (activeNotes.length > 0) {
-        activeNotes.forEach(noteData => {
-          if (synth && !midiOutputEnabled) {
-            let velocity = noteData.velocity / 127;
-            if (noteData.accent) {
-              velocity = Math.min(1, velocity * 1.2);
-            }
-            synth.triggerAttackRelease(noteData.note, noteDuration, time, velocity);
-          }
-          
-
-      else if (midiOutputEnabled && midiOutput && midiOutput.isConnected) {
-                  let adjustedVelocity = noteData.velocity;
-                  if (noteData.accent) {
-                    adjustedVelocity = Math.min(127, Math.round(adjustedVelocity * 1.2));
-                  }
-                  
-                  // Envoyer les Control Changes et la note immédiatement
-                  if (noteData.accent) {
-                    midiOutput.sendControlChange(16, 127);
-                  }
-                  if (noteData.slide) {
-                    midiOutput.sendControlChange(17, 127);
-                  }
-                  
-                  midiOutput.sendNoteOn(noteData.note, adjustedVelocity);
-                  
-                  // Durée optimisée pour réduire la latence
-                  const optimizedDuration = Math.max(50, Math.min(durationMs * 0.8, 200));
-                  
-                  setTimeout(() => {
-                    midiOutput.sendNoteOff(noteData.note);
-                    if (noteData.accent) {
-                      midiOutput.sendControlChange(16, 0);
-                    }
-                    if (noteData.slide) {
-                      midiOutput.sendControlChange(17, 0);
-                    }
-                  }, optimizedDuration);
-                }
-
-
-        });
-      }
-    }
-  }, [currentPlayingPattern, currentPreset, steps, tempo, midiOutputEnabled, noteLength]);
-
-  // useEffect pour gérer le transport
+  // Effet pour gérer le transport avec le hook
   useEffect(() => {
-    if (transportId.current) {
-      Tone.Transport.clear(transportId.current);
-      transportId.current = null;
+    if (isPlaying) {
+      startTransport(steps, currentPlayingPattern, setCurrentStep, setIsPlaying);
+    } else {
+      stopTransport(setIsPlaying, setCurrentStep);
     }
-    
-    if (!isPlaying) {
-      Tone.Transport.stop();
-      previousMonoNote.current = null;
-      return;
-    }
-    
-    // Configuration précise du transport
-    Tone.Transport.bpm.value = tempo;
-    Tone.Transport.cancel();
-    
-    setCurrentStep(0);
-    let step = 0;
-    
-    // Calculer l'intervalle de répétition selon noteLength
-    const intervalMap = {
-      "4n": "4n",
-      "8n": "8n",
-      "16n": "16n", 
-      "32n": "32n",
-      "64n": "64n"
-    };
-    const interval = intervalMap[noteLength] || "16n";
+  }, [isPlaying, startTransport, stopTransport, steps]);
 
-    transportId.current = Tone.Transport.scheduleRepeat((time) => {
-      step = (step + 1) % steps;
-      setCurrentStep(step);
-      playStep(step, time);
-    }, interval);
-    
-    Tone.context.resume().then(() => {
-      Tone.Transport.start();
-    });
-    
-    return () => {
-      if (transportId.current) {
-        Tone.Transport.clear(transportId.current);
-        transportId.current = null;
-      }
-      Tone.Transport.stop();
-    };
-  }, [isPlaying, steps, tempo, noteLength, playStep, currentPlayingPattern]);
+  // Effet pour mettre à jour le pattern pendant la lecture
+  useEffect(() => {
+    if (isPlaying) {
+      updatePlayingPattern(currentPlayingPattern);
+    }
+  }, [currentPlayingPattern, isPlaying, updatePlayingPattern]);
 
 
   const handlePlay = async () => {
@@ -507,48 +258,13 @@ export default function MelodySequencer() {
     }
   };
 
-  // Convertir le pattern actuel en données MIDI
-  const convertPatternToMidiData = () => {
-    // Créer un nouvel objet MIDI - avec le PPQ par défaut (480)
-    const midi = new Midi();
-    const track = midi.addTrack();
-    
-    // Note: PPQ is read-only in @tonejs/midi, it's already set to 480 by default
-    // We'll use the default PPQ value for timing calculations
-    const ppq = 480;
-    
-    // Parcourir le pattern pour ajouter les notes
-    Object.entries(pattern).forEach(([note, steps]) => {
-      if (Array.isArray(steps)) {
-        steps.forEach((cell, stepIndex) => {
-          if (cell && cell.on) {
-            // Calcul de la durée et du timing en ticks
-            const startTicks = stepIndex * (ppq / (steps.length / 4)); // 4 noires par mesure
-            const durationTicks = ppq / (steps.length / 4); // Durée en ticks (une double-croche par défaut)
-            
-            // Convertir la note en numéro MIDI
-            const midiNote = Tone.Frequency(note).toMidi();
-            
-            // Ajouter la note au track avec ticks au lieu de time
-            track.addNote({
-              midi: midiNote,
-              ticks: startTicks,
-              durationTicks: durationTicks,
-              velocity: (cell.velocity || 100) / 127
-            });
-          }
-        });
-      }
-    });
-    
-    return midi.toArray();
-  };
+  // La fonction convertPatternToMidiData est maintenant dans lib/midiUtils.js
   
   // Fonction pour gérer la validation du popup de variation
   const handleVariationValidate = async (midiData, options) => {
     try {
       // Si on utilise le pattern actuel, le convertir en MIDI
-      const sourceData = midiData === "current" ? convertPatternToMidiData() : midiData;
+      const sourceData = midiData === "current" ? convertPatternToMidiData(pattern) : midiData;
       
       // Générer les variations
       const variations = options.useInspiration
@@ -762,181 +478,10 @@ export default function MelodySequencer() {
     }
   };
 
-  function exportToMidi() {
-    function noteNameToMidi(note) {
-      const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      let noteName = note.slice(0, -1);
-      let octave = parseInt(note.slice(-1));
-      let n = notes.indexOf(noteName);
-      return (octave + 1) * 12 + n;
-    }
-    
-    function writeVarLen(value) {
-      let buffer = [];
-      let bufferVal = value & 0x7F;
-      while ((value >>= 7)) {
-        bufferVal <<= 8;
-        bufferVal |= ((value & 0x7F) | 0x80);
-      }
-      while (true) {
-        buffer.push(bufferVal & 0xFF);
-        if (bufferVal & 0x80) bufferVal >>= 8;
-        else break;
-      }
-      return buffer;
-    }
-    
-    // Résolution MIDI standard
-    const ppq = 480;
-    
-    // Header MIDI
-    let header = [
-      0x4d, 0x54, 0x68, 0x64,
-      0x00, 0x00, 0x00, 0x06,
-      0x00, 0x00,
-      0x00, 0x01,
-      (ppq >> 8) & 0xFF, ppq & 0xFF
-    ];
-    
-    let track = [];
-    
-    // Tempo
-    let microsecPerBeat = Math.round(60000000 / tempo);
-    track.push(0x00, 0xFF, 0x51, 0x03, 
-      (microsecPerBeat >> 16) & 0xFF, 
-      (microsecPerBeat >> 8) & 0xFF, 
-      microsecPerBeat & 0xFF
-    );
-    
-    // Définition des contrôleurs MIDI
-    const CC_ACCENT = 16;
-    const CC_SLIDE = 17;
-    
-    // NOUVELLE LOGIQUE : Calculer l'espacement temporel basé sur noteLength
-    // noteLength détermine l'intervalle entre chaque step dans le séquenceur
-    const stepIntervalMap = {
-      "4n": ppq,        // 1 noire = 480 ticks (très lent)
-      "8n": ppq / 2,    // 1 croche = 240 ticks (lent) 
-      "16n": ppq / 4,   // 1 double-croche = 120 ticks (normal)
-      "32n": ppq / 8,   // 1 triple-croche = 60 ticks (rapide)
-      "64n": ppq / 16   // 1 quadruple-croche = 30 ticks (très rapide)
-    };
-    
-    const ticksPerStep = stepIntervalMap[noteLength] || ppq / 4;
-    
-    // La durée de chaque note : légèrement plus courte que l'intervalle pour éviter les chevauchements
-    const noteDurationTicks = Math.round(ticksPerStep * 0.8);
-    
-    console.log(`Export MIDI: noteLength=${noteLength}, ticksPerStep=${ticksPerStep}, noteDuration=${noteDurationTicks}, steps=${steps}`);
-    
-    // Collecter toutes les notes avec leur timing
-    const midiEvents = [];
-    
-    // Parcourir chaque step
-    for (let stepIndex = 0; stepIndex < steps; stepIndex++) {
-      const stepStartTime = stepIndex * ticksPerStep;
-      const noteEndTime = stepStartTime + noteDurationTicks;
-      
-      // Collecter toutes les notes actives à ce step
-      const activeNotes = [];
-      Object.entries(pattern).forEach(([note, stepArray]) => {
-        const cell = stepArray[stepIndex];
-        if (cell && cell.on) {
-          activeNotes.push({
-            note,
-            midiNote: noteNameToMidi(note),
-            velocity: Math.round(cell.velocity || 100),
-            accent: cell.accent || false,
-            slide: cell.slide || false
-          });
-        }
-      });
-      
-      // Ajouter les événements MIDI pour toutes les notes de ce step
-      activeNotes.forEach((noteData) => {
-        // Note On
-        midiEvents.push({
-          time: stepStartTime,
-          type: 'noteOn',
-          note: noteData.midiNote,
-          velocity: noteData.accent ? Math.min(127, Math.round(noteData.velocity * 1.2)) : noteData.velocity,
-          accent: noteData.accent,
-          slide: noteData.slide
-        });
-        
-        // Note Off
-        midiEvents.push({
-          time: noteEndTime,
-          type: 'noteOff',
-          note: noteData.midiNote,
-          accent: noteData.accent,
-          slide: noteData.slide
-        });
-      });
-    }
-    
-    // Trier tous les événements par temps
-    midiEvents.sort((a, b) => a.time - b.time);
-    
-    // Convertir les événements en données MIDI
-    let currentTime = 0;
-    
-    midiEvents.forEach(event => {
-      const deltaTime = event.time - currentTime;
-      currentTime = event.time;
-      
-      if (event.type === 'noteOn') {
-        // Control Changes pour accent et slide
-        if (event.accent) {
-          track.push(...writeVarLen(deltaTime), 0xB0, CC_ACCENT, 127);
-          track.push(...writeVarLen(0), 0x90, event.note, event.velocity);
-        } else if (event.slide) {
-          track.push(...writeVarLen(deltaTime), 0xB0, CC_SLIDE, 127);
-          track.push(...writeVarLen(0), 0x90, event.note, event.velocity);
-        } else {
-          track.push(...writeVarLen(deltaTime), 0x90, event.note, event.velocity);
-        }
-      } else if (event.type === 'noteOff') {
-        track.push(...writeVarLen(deltaTime), 0x80, event.note, 0);
-        
-        // Reset des contrôleurs
-        if (event.accent) {
-          track.push(...writeVarLen(0), 0xB0, CC_ACCENT, 0);
-        }
-        if (event.slide) {
-          track.push(...writeVarLen(0), 0xB0, CC_SLIDE, 0);
-        }
-      }
-    });
-    
-    // End of track
-    track.push(0x00, 0xFF, 0x2F, 0x00);
-    
-    // Calcul de la longueur du track
-    let trackLen = track.length;
-    let trackHeader = [
-      0x4d, 0x54, 0x72, 0x6b,
-      (trackLen >> 24) & 0xFF, 
-      (trackLen >> 16) & 0xFF, 
-      (trackLen >> 8) & 0xFF, 
-      trackLen & 0xFF
-    ];
-    
-    // Assemblage final
-    let midi = new Uint8Array([...header, ...trackHeader, ...track]);
-    let blob = new Blob([midi], { type: 'audio/midi' });
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.href = url;
-    a.download = `melody_${tempo}bpm_${noteLength.replace('/', '')}_${steps}steps.mid`;
-    document.body.appendChild(a);
-    a.click();
-    
-    setTimeout(() => {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 100);
-  }
+  // Fonction d'export MIDI maintenant dans lib/midiUtils.js
+  const handleExportMidi = () => {
+    exportToMidi(pattern, tempo, noteLength, steps);
+  };
 
   function handleRandomValidate(params) {
     // Si le nombre de pas a changé, mettre à jour le nombre de pas du séquenceur
@@ -1795,7 +1340,7 @@ export default function MelodySequencer() {
             <button
               className="btn"
               id="exportMidiBtn"
-              onClick={exportToMidi}
+              onClick={handleExportMidi}
               disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
               title="Exporter en fichier MIDI"
               style={{

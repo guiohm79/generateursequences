@@ -10,9 +10,6 @@ const VariationPopup = ({
   currentPattern = null,
   octaves = { min: 3, max: 5 },
 }) => {
-  // Si le popup n'est pas visible, ne pas le rendre
-  if (!visible) return null;
-
   // État pour suivre si on est en train de faire un drag
   const [isDragging, setIsDragging] = useState(false);
 
@@ -139,6 +136,9 @@ const VariationPopup = ({
   
   // Liste des notes pour la tonique
   const noteOptions = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+  // Si le popup n'est pas visible, ne pas le rendre
+  if (!visible) return null;
 
   return (
     <div className="popup-overlay" style={{

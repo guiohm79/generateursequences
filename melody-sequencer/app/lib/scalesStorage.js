@@ -166,6 +166,9 @@ export class ScalesStorage {
    */
   static getCustomScales() {
     try {
+      // Vérifier qu'on est côté client
+      if (typeof window === 'undefined') return {};
+      
       const stored = localStorage.getItem(SCALES_STORAGE_KEY);
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
@@ -218,7 +221,13 @@ export class ScalesStorage {
 
       customScales[key] = newScale;
       
-      localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      }
+      }
       console.log(`Gamme sauvegardée: ${key} (${newScale.name})`);
       return true;
       
@@ -272,7 +281,10 @@ export class ScalesStorage {
         lastModified: new Date().toISOString()
       };
       
-      localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      }
       console.log(`Gamme mise à jour: ${key}`);
       return true;
       
@@ -303,7 +315,10 @@ export class ScalesStorage {
 
       delete customScales[key];
       
-      localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      }
       console.log(`Gamme supprimée: ${key}`);
       return true;
       
@@ -518,7 +533,10 @@ export class ScalesStorage {
         }
       });
       
-      localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      // Vérifier qu'on est côté client
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SCALES_STORAGE_KEY, JSON.stringify(customScales));
+      }
       console.log(`${importedCount} gammes importées`);
       return true;
       

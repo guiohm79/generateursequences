@@ -246,7 +246,7 @@ export default function PianoRoll({
       }}>
         <strong>Instructions:</strong> Survolez ou sélectionnez une note puis utilisez:
         <ul style={{ margin: "5px 0 0 0", padding: "0 0 0 20px" }}>
-          <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>A</kbd> pour activer/désactiver l'accent sur la note survolée</li>
+          <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>A</kbd> pour activer/désactiver l&apos;accent sur la note survolée</li>
           <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>S</kbd> pour activer/désactiver le slide sur la note survolée</li>
         </ul>
       </div>
