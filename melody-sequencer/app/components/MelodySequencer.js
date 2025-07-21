@@ -11,16 +11,20 @@ import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
-import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns, evolvePattern, evolveGenerations } from "../lib/randomEngine";
+import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
-import { generateVariations } from "../lib/variationEngine";
-import { generateInspiration } from "../lib/inspirationEngine";
-import { FavoritesStorage } from "../lib/favoritesStorage";
+// Les fonctions generateVariations et generateInspiration sont maintenant gérées par le hook usePatternVariations
+// FavoritesStorage est maintenant géré par le hook useFavorites
 import { ScalesStorage } from "../lib/scalesStorage";
 import { getAllNotes, buildPattern } from "../lib/patternUtils";
 import { convertPatternToMidiData, exportToMidi } from "../lib/midiUtils";
 import { usePatternHistory } from "../hooks/usePatternHistory";
-import { useTransport } from "../hooks/useTransport";
+import { useAudioEngine } from "../hooks/useAudioEngine";
+import { useMorphing } from "../hooks/useMorphing";
+import { useEvolution } from "../hooks/useEvolution";
+import { usePatternVariations } from "../hooks/usePatternVariations";
+import { useFavorites } from "../hooks/useFavorites";
+import { usePatternManipulation } from "../hooks/usePatternManipulation";
 
 // Les fonctions utilitaires getAllNotes et buildPattern sont maintenant dans lib/patternUtils.js
 
@@ -32,9 +36,7 @@ export default function MelodySequencer() {
   const [maxOctave, setMaxOctave] = useState(4);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
-  const [presetKey, setPresetKey] = useState(SYNTH_PRESETS[0].key);
-  const [currentPreset, setCurrentPreset] = useState(SYNTH_PRESETS[0]); // Stocker l'objet preset complet
-  const [synthPopupOpen, setSynthPopupOpen] = useState(false);
+  // Les états des synthétiseurs sont maintenant gérés par useAudioEngine
   const [randomVisible, setRandomVisible] = useState(false);
   const [randomParams, setRandomParams] = useState(null);
   const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
@@ -45,15 +47,8 @@ export default function MelodySequencer() {
   const [scalesManagerOpen, setScalesManagerOpen] = useState(false);
   const [scalesUpdateTrigger, setScalesUpdateTrigger] = useState(0);
 
-  // États pour le morphing temps réel
-  const [morphingEnabled, setMorphingEnabled] = useState(false);
-  const [targetPattern, setTargetPattern] = useState(null);
-  const [morphAmount, setMorphAmount] = useState(0); // 0 = pattern original, 1 = pattern cible
-  const [morphedPattern, setMorphedPattern] = useState(null);
-
-  // États pour l'évolution génétique
-  const [evolutionHistory, setEvolutionHistory] = useState([]);
-  const [currentGeneration, setCurrentGeneration] = useState(0);
+  // Les états de morphing sont maintenant gérés par useMorphing
+  // Les états d'évolution génétique sont maintenant gérés par useEvolution
 
   // Hook pour la gestion de l'historique des patterns
   const {
@@ -69,8 +64,19 @@ export default function MelodySequencer() {
   // Référence pour le débogage de la popup MIDI
   const midiDebugRef = useRef(null);
   
-  // Hook pour la gestion du transport audio/MIDI
+  // Hook pour la gestion complète du moteur audio
   const {
+    presetKey,
+    currentPreset, 
+    synthPopupOpen,
+    handlePresetSelect,
+    handleSynthPopupOpen,
+    handleSynthPopupClose,
+    initializeAudioContext,
+    stopAllSounds,
+    setTempoBPM,
+    midiToNoteName,
+    getCurrentSynthInfo,
     synthRef,
     previousMonoNote,
     transportId,
@@ -80,7 +86,9 @@ export default function MelodySequencer() {
     createSynth,
     disposeSynth,
     updatePlayingPattern
-  } = useTransport({ currentPreset, midiOutputEnabled, noteLength, tempo });
+  } = useAudioEngine({ tempo, midiOutputEnabled, noteLength });
+
+  // Les hooks dépendant du pattern sont déclarés après la déclaration du pattern
   
   // Gestion de l'activation/désactivation MIDI
   const handleToggleMIDI = async () => {
@@ -120,6 +128,126 @@ export default function MelodySequencer() {
     setCurrentStep(0);
   }, [steps, minOctave, maxOctave]);
 
+  // Hook pour le morphing temps réel
+  const {
+    morphingEnabled,
+    targetPattern,
+    morphAmount,
+    morphedPattern,
+    currentPlayingPattern,
+    isMorphingActive,
+    isMorphed,
+    generateMorphTarget,
+    updateMorphing,
+    applyMorphTarget,
+    cancelMorphing,
+    getMorphPercentage
+  } = useMorphing({
+    pattern,
+    randomParams,
+    steps,
+    minOctave,
+    maxOctave,
+    saveToHistory
+  });
+
+  // Hook pour l'évolution génétique
+  const {
+    evolutionHistory,
+    currentGeneration,
+    canEvolve,
+    canRevert,
+    currentGenerationInfo,
+    evolveOnce,
+    evolveGenerationsBoost,
+    revertToGeneration,
+    resetEvolution,
+    getCurrentGenerationParams,
+    getEvolutionStats
+  } = useEvolution({
+    pattern,
+    setPattern,
+    saveToHistory
+  });
+
+  // Hook pour les variations et inspirations
+  const {
+    variationsInProgress,
+    variationResults,
+    lastVariationOptions,
+    canGenerateVariations,
+    handleVariations,
+    applyVariation,
+    generateQuickVariations,
+    generateQuickInspiration,
+    clearVariations,
+    getVariationStats
+  } = usePatternVariations({
+    pattern,
+    setPattern,
+    saveToHistory,
+    steps,
+    minOctave,
+    maxOctave
+  });
+
+  // Hook pour la gestion des favoris
+  const {
+    favoritesLoading,
+    favoritesList,
+    lastLoadedFavorite,
+    canSaveFavorite,
+    handleLoadFavorite,
+    saveFavorite,
+    deleteFavorite,
+    updateFavorite,
+    searchFavorites,
+    getFavoritesByTag,
+    getAllTags,
+    loadAllFavorites,
+    exportFavorites,
+    importFavorites,
+    cleanupFavorites,
+    reorderFavorites,
+    getFavoritesStats,
+    quickSaveFavorite
+  } = useFavorites({
+    pattern,
+    setPattern,
+    saveToHistory,
+    setTempo,
+    setSteps,
+    setNoteLength,
+    setMinOctave,
+    setMaxOctave,
+    setRandomParams,
+    currentSequencerSettings: {
+      tempo,
+      steps,
+      noteLength
+    },
+    currentPreset,
+    steps,
+    minOctave,
+    maxOctave
+  });
+
+  // Hook pour les manipulations de patterns
+  const {
+    shiftOctaveUp,
+    shiftOctaveDown,
+    transposePattern,
+    reversePattern,
+    shiftPatternHorizontally,
+    duplicateAndCompress,
+    getActiveNotesCount,
+    canManipulate
+  } = usePatternManipulation({
+    pattern,
+    setPattern,
+    saveToHistory
+  });
+
   // Fonctions undo/redo avec le hook
   const handleUndo = () => {
     const previousPattern = undoPattern();
@@ -135,12 +263,7 @@ export default function MelodySequencer() {
     }
   };
 
-  // Utilisation du hook pour créer le synthé
-  useEffect(() => {
-    createSynth(currentPreset || SYNTH_PRESETS[0]);
-    return disposeSynth;
-    // eslint-disable-next-line
-  }, [presetKey, createSynth, disposeSynth]);
+  // La création/destruction du synthé est maintenant gérée par useAudioEngine
 
   // Mutations blindées
   const handleToggleStep = (note, idx) => {
@@ -194,8 +317,7 @@ export default function MelodySequencer() {
     });
   };
 
-  // Récupérer le pattern à jouer (morphé ou original)
-  const currentPlayingPattern = morphedPattern || pattern;
+  // Le pattern à jouer est maintenant géré par le hook useMorphing
 
  // Les fonctions playStep et transport sont maintenant gérées par le hook useTransport
 
@@ -206,7 +328,7 @@ export default function MelodySequencer() {
     } else {
       stopTransport(setIsPlaying, setCurrentStep);
     }
-  }, [isPlaying, startTransport, stopTransport, steps]);
+  }, [isPlaying, startTransport, stopTransport, steps, currentPlayingPattern]);
 
   // Effet pour mettre à jour le pattern pendant la lecture
   useEffect(() => {
@@ -218,9 +340,12 @@ export default function MelodySequencer() {
 
   const handlePlay = async () => {
     try {
-      // S'assurer que le contexte audio est démarré correctement
-      await Tone.context.resume();
-      await Tone.start();
+      // Initialiser le contexte audio via le hook
+      const success = await initializeAudioContext();
+      if (!success) {
+        console.error("Impossible d'initialiser le contexte audio");
+        return;
+      }
       
       // Réinitialiser l'état
       setCurrentStep(0);
@@ -239,15 +364,9 @@ export default function MelodySequencer() {
   const handleStop = () => {
     setIsPlaying(false);
     setCurrentStep(0);
-    if (synthRef.current && synthRef.current.releaseAll) {
-      synthRef.current.releaseAll();
-    }
-    previousMonoNote.current = null;
-    Tone.Transport.stop();
-    if (transportId.current) {
-      Tone.Transport.clear(transportId.current);
-      transportId.current = null;
-    }
+    
+    // Utiliser la fonction du hook pour arrêter tous les sons
+    stopAllSounds();
     
     // Arrêter toutes les notes MIDI en cours
     if (midiOutputEnabled) {
@@ -262,205 +381,34 @@ export default function MelodySequencer() {
   
   // Fonction pour gérer la validation du popup de variation
   const handleVariationValidate = async (midiData, options) => {
-    try {
-      // Si on utilise le pattern actuel, le convertir en MIDI
-      const sourceData = midiData === "current" ? convertPatternToMidiData(pattern) : midiData;
-      
-      // Générer les variations
-      const variations = options.useInspiration
-      ? [ generateInspiration(sourceData, options) ]   // mode « Inspiration »
-      : generateVariations(sourceData, options);       // mode « Variations »
-      
-      // Si aucune variation n'a été générée
-      if (!variations || variations.length === 0) {
-        alert("Aucune variation n'a été générée. Veuillez vérifier vos paramètres.");
-        return;
-      }
-      
-      // Utiliser la première variation (pour l'instant)
-      const variationData = variations[0];
-      
-      // Convertir les données MIDI en pattern pour le séquenceur
-      const newMidi = new Midi(variationData);
-      const newTrack = newMidi.tracks[0];
-      
-
-      // Créer un nouveau pattern vide
-      const newPattern = buildPattern(null, steps, minOctave, maxOctave);
-      
-      // Analyser le MIDI pour détecter la résolution et la longueur
-      if (newTrack && newTrack.notes && newTrack.notes.length > 0) {
-        // Analyser le fichier MIDI pour déterminer la résolution réelle et la longueur
-        let midiDuration = 0;
-        
-        // Trier les notes par temps
-        const sortedNotes = [...newTrack.notes].sort((a, b) => a.time - b.time);
-        
-        // 1. Trouver la durée totale du MIDI et la note la plus tardive
-        sortedNotes.forEach(note => {
-          midiDuration = Math.max(midiDuration, note.time + note.duration);
-        });
-        
-        // 2. Analyser la structure temporelle du MIDI pour une meilleure détection de résolution
-        let timePoints = [];
-        sortedNotes.forEach(note => timePoints.push(note.time));
-        
-        // Trier et dédupliquer les points temporels
-        timePoints = [...new Set(timePoints)].sort((a, b) => a - b);
-        
-        // Calculer les écarts temporels entre tous les points
-        const timeDiffs = [];
-        for (let i = 1; i < timePoints.length; i++) {
-          const diff = timePoints[i] - timePoints[i - 1];
-          if (diff > 0.001) timeDiffs.push(diff); // Éviter les écarts nuls ou très petits
-        }
-        
-
-        
-        // 3. Trouver le plus petit commun diviseur approximatif des écarts temporels
-        // pour déduire la "granularité" du MIDI
-        let smallestGap = Math.min(...timeDiffs, 0.25); // Valeur par défaut si pas d'écarts détectés
-        
-        
-        // 4. Déterminer la résolution effective pour le mapping
-        // Si smallestGap est très petit, nous avons probablement un MIDI à haute résolution
-        const isVeryHighResolution = smallestGap < 0.05; // ~1/64 et plus fin
-        const isHighResolution = smallestGap < 0.2 && !isVeryHighResolution; // ~1/32
-        
-        // 5. Estimer le nombre total de pas nécessaires
-        const stepsPerBeat = isVeryHighResolution ? 16 : (isHighResolution ? 8 : 4); // 16=1/64, 8=1/32, 4=1/16
-        const totalBeats = midiDuration * 4; // 4 temps par mesure
-        const estimatedSteps = Math.ceil(totalBeats * stepsPerBeat / 4); // Convertir en nombre de pas
-        
-        // Afficher un avertissement si le MIDI pourrait être tronqué
-        let truncationWarning = false;
-        if (estimatedSteps > steps) {
-
-          truncationWarning = true;
-        }
-
-        // 6. Calculer le facteur de scaling pour préserver l'espacement relatif des notes
-        // tout en rentrant dans le nombre de pas disponibles
-        const scalingFactor = Math.min(steps / estimatedSteps, 1);
-        
-        // 7. Ajouter les notes du MIDI au pattern avec le bon espacement
-        sortedNotes.forEach((note, i) => {
-          
-          // Convertir le numéro MIDI en note + octave
-          const noteName = Tone.Frequency(note.midi, "midi").toNote();
-          
-          // Vérifier si la note est dans notre range d'octaves
-          if (newPattern[noteName]) {
-            // Calculer l'index du step en se basant sur le temps
-            // Diviser par la durée d'un step (midiDuration / steps)
-            const stepDuration = midiDuration / steps;
-            let stepIndex = Math.round(note.time / stepDuration);
-            
-            // Alternative : utiliser la grille des 16èmes
-            // let stepIndex = Math.round(note.time * 16); // 16 sixteenths per 4 beats
-            
-            // Si le step est dans notre range
-            if (stepIndex >= 0 && stepIndex < steps) {
-              // Ajouter la note au pattern
-              newPattern[noteName][stepIndex] = { 
-                on: true, 
-                velocity: Math.round(note.velocity * 127),
-                accent: false,
-                slide: false
-              };
-            }
-          }
-        });
-                
-        // Afficher un message d'information adapté
-        if (truncationWarning) {
-          setTimeout(() => {
-            alert(`Le fichier MIDI importé a été adapté pour tenir dans les ${steps} pas du séquenceur. La structure rythmique a été préservée mais comprimée.`);
-          }, 100);
-        }
-      }
-      
-      // Sauvegarder dans l'historique avant de mettre à jour le pattern
-      saveToHistory(newPattern);
-      setPattern(newPattern);
-      setVariationPopupOpen(false);
-      
-    } catch (error) {
-      console.error("Erreur lors de la génération des variations:", error);
-      alert("Une erreur s'est produite lors de la génération des variations.");
+    // Fermer le popup d'abord
+    setVariationPopupOpen(false);
+    
+    // Préparer les options pour le hook
+    const hookOptions = {
+      ...options,
+      source: midiData === "current" ? "current" : "midi",
+      midiFile: midiData !== "current" ? midiData : null,
+      autoApply: true
+    };
+    
+    // Appeler le hook pour gérer les variations
+    const success = await handleVariations(hookOptions);
+    
+    if (!success) {
+      alert("Aucune variation n'a été générée. Veuillez vérifier vos paramètres.");
     }
   };
+
+  // La gestion des variations est maintenant entièrement gérée par le hook usePatternVariations
 
   // ========== GESTION DES FAVORIS ==========
 
-  // Fonction pour charger un favori
-  const handleLoadFavorite = (favorite) => {
-    try {
-      console.log("Chargement du favori:", favorite.name);
-      
-      // Charger le pattern
-      if (favorite.pattern) {
-        // Adapter le pattern aux octaves actuelles si nécessaire
-        const adaptedPattern = buildPattern(favorite.pattern, steps, minOctave, maxOctave);
-        
-        // Sauvegarder dans l'historique avant de changer
-        saveToHistory(adaptedPattern);
-        setPattern(adaptedPattern);
-      }
-      
-      // Charger les paramètres du séquenceur si disponibles
-      if (favorite.sequencerSettings) {
-        const settings = favorite.sequencerSettings;
-        
-        // Appliquer les réglages si ils diffèrent des actuels
-        if (settings.tempo && settings.tempo !== tempo) {
-          setTempo(settings.tempo);
-        }
-        if (settings.steps && settings.steps !== steps) {
-          setSteps(settings.steps);
-        }
-        if (settings.noteLength && settings.noteLength !== noteLength) {
-          setNoteLength(settings.noteLength);
-        }
-        if (settings.octaves) {
-          if (settings.octaves.min !== minOctave) {
-            setMinOctave(settings.octaves.min);
-          }
-          if (settings.octaves.max !== maxOctave) {
-            setMaxOctave(settings.octaves.max);
-          }
-        }
-      }
-      
-      // Si le favori a des paramètres de génération, les sauvegarder pour "Random Again"
-      if (favorite.generationParams) {
-        setRandomParams(favorite.generationParams);
-      }
-      
-      console.log(`Favori "${favorite.name}" chargé avec succès`);
-      
-    } catch (error) {
-      console.error("Erreur lors du chargement du favori:", error);
-      alert("Erreur lors du chargement du favori");
-    }
-  };
+  // La gestion du chargement des favoris est maintenant gérée par le hook useFavorites
 
-  // Fonction pour récupérer les paramètres actuels du séquenceur pour la sauvegarde
-  const getCurrentSequencerSettings = () => {
-    return {
-      tempo,
-      steps,
-      voiceMode: currentPreset?.voiceMode || 'poly',
-      noteLength,
-      octaves: { min: minOctave, max: maxOctave }
-    };
-  };
+  // Les paramètres actuels du séquenceur sont maintenant gérés par le hook useFavorites
 
-  // Fonction pour récupérer les paramètres de génération actuels
-  const getCurrentGenerationParams = () => {
-    // Retourner les derniers paramètres utilisés pour la génération aléatoire
-    return randomParams || null;
-  };
+  // Les paramètres de génération actuels sont maintenant gérés par le hook useEvolution
 
   // ========== GESTION DES GAMMES ==========
 
@@ -623,241 +571,11 @@ export default function MelodySequencer() {
   }
 
   // Fonctions pour le morphing temps réel
-  function generateMorphTarget() {
-    if (!randomParams) {
-      // Si pas de paramètres précédents, générer un pattern aléatoire simple
-      const newTarget = buildPattern(generateMusicalPattern({
-        root: "C",
-        scale: "minor", 
-        style: "psy",
-        part: "lead",
-        steps,
-        octaves: { min: minOctave, max: maxOctave }
-      }), steps, minOctave, maxOctave);
-      
-      setTargetPattern(newTarget);
-      setMorphingEnabled(true);
-      setMorphAmount(0);
-      console.log('Cible de morphing générée (mode simple)');
-    } else {
-      // Utiliser les derniers paramètres mais avec un nouveau seed
-      const morphSeed = Date.now();
-      let newTarget;
-      
-      if (randomParams.ambianceMode && randomParams.ambiance) {
-        const result = generateAmbiancePattern(randomParams.ambiance, {
-          steps,
-          seed: morphSeed,
-          minOct: minOctave,
-          maxOct: maxOctave
-        });
-        newTarget = buildPattern(result.pattern, steps, minOctave, maxOctave);
-      } else {
-        newTarget = buildPattern(generateMusicalPattern({
-          ...randomParams,
-          steps,
-          octaves: { min: minOctave, max: maxOctave },
-          seed: morphSeed
-        }), steps, minOctave, maxOctave);
-      }
-      
-      // Appliquer les accidents heureux si activés
-      if (randomParams.happyAccidents) {
-        newTarget = applyHappyAccidents(newTarget, {
-          intensity: randomParams.accidentIntensity || 0.5,
-          seed: morphSeed
-        });
-      }
-      
-      setTargetPattern(newTarget);
-      setMorphingEnabled(true);
-      setMorphAmount(0);
-      console.log('Cible de morphing générée avec les derniers paramètres');
-    }
-  }
+  // Les fonctions de morphing sont maintenant gérées par le hook useMorphing
 
-  function updateMorphing(amount) {
-    if (!morphingEnabled || !targetPattern) return;
-    
-    setMorphAmount(amount);
-    
-    if (amount === 0) {
-      setMorphedPattern(null);
-    } else if (amount === 1) {
-      setMorphedPattern(targetPattern);
-    } else {
-      const morphed = morphPatterns(pattern, targetPattern, amount);
-      setMorphedPattern(morphed);
-    }
-  }
+  // Les fonctions d'évolution sont maintenant gérées directement par le hook useEvolution
 
-  function applyMorphTarget() {
-    if (!targetPattern) return;
-    
-    // Remplacer le pattern actuel par la cible
-    saveToHistory(targetPattern);
-    setPattern(targetPattern);
-    
-    // Réinitialiser le morphing
-    setMorphingEnabled(false);
-    setTargetPattern(null);
-    setMorphAmount(0);
-    setMorphedPattern(null);
-    
-    console.log('Pattern cible appliqué définitivement');
-  }
-
-  function cancelMorphing() {
-    setMorphingEnabled(false);
-    setTargetPattern(null);
-    setMorphAmount(0);
-    setMorphedPattern(null);
-    console.log('Morphing annulé');
-  }
-
-  // Fonctions pour l'évolution génétique
-  function evolveCurrentPattern() {
-    const hasActiveNotes = Object.values(pattern).some(row => 
-      row.some(cell => cell && cell.on)
-    );
-    
-    if (!hasActiveNotes) {
-      console.log('Pas de pattern à faire évoluer');
-      return;
-    }
-
-    // Si c'est la première évolution, initialiser l'historique
-    if (evolutionHistory.length === 0) {
-      setEvolutionHistory([{
-        pattern: pattern,
-        generation: 0,
-        fitness: 0,
-        mutations: []
-      }]);
-      setCurrentGeneration(0);
-    }
-
-    const evolutionSeed = Date.now();
-    const evolved = evolvePattern(pattern, {
-      mutationRate: 0.08, // Évolution douce et progressive
-      intensity: 0.4, // Changements subtils
-      seed: evolutionSeed,
-      preserveStructure: true
-    });
-
-    const newGeneration = currentGeneration + 1;
-    
-    // Sauvegarder dans l'historique avant d'appliquer
-    saveToHistory(evolved);
-    setPattern(evolved);
-    
-    // Mettre à jour l'historique d'évolution
-    const newEvolutionEntry = {
-      pattern: evolved,
-      generation: newGeneration,
-      fitness: calculateSimpleFitness(evolved),
-      mutations: extractMutations(evolved),
-      seed: evolutionSeed
-    };
-    
-    setEvolutionHistory(prev => [...prev, newEvolutionEntry]);
-    setCurrentGeneration(newGeneration);
-    
-    console.log(`🧬 EVOLVE: Génération ${newGeneration} - Évolution douce appliquée`);
-    console.log(`Mutations subtiles:`, newEvolutionEntry.mutations.length);
-  }
-
-  function evolveMultipleGenerations() {
-    const hasActiveNotes = Object.values(pattern).some(row => 
-      row.some(cell => cell && cell.on)
-    );
-    
-    if (!hasActiveNotes) {
-      console.log('Pas de pattern à faire évoluer');
-      return;
-    }
-
-    const result = evolveGenerations(pattern, {
-      generations: 5, // Plus de générations pour plus de changements
-      populationSize: 8, // Population plus large pour plus de diversité
-      mutationRate: 0.18, // Mutations plus fréquentes
-      intensity: 0.8, // Changements plus drastiques
-      seed: Date.now()
-    });
-
-    // Sauvegarder dans l'historique avant d'appliquer
-    saveToHistory(result.pattern);
-    setPattern(result.pattern);
-    
-    // Mettre à jour l'historique d'évolution
-    setEvolutionHistory(result.history.map(entry => ({
-      ...entry,
-      mutations: extractMutations(entry.pattern)
-    })));
-    setCurrentGeneration(result.finalGeneration);
-    
-    console.log(`🚀 BOOST: Évolution rapide sur ${result.finalGeneration} générations - Changements majeurs!`);
-    console.log('Fitness evolution:', result.history.map(h => h.fitness));
-    console.log(`Mutations totales: ${result.history[result.history.length - 1]?.mutations?.length || 0}`);
-  }
-
-  function revertToGeneration(generation) {
-    const targetEntry = evolutionHistory.find(entry => entry.generation === generation);
-    if (targetEntry) {
-      saveToHistory(targetEntry.pattern);
-      setPattern(targetEntry.pattern);
-      setCurrentGeneration(generation);
-      
-      // Nettoyer l'historique des générations futures
-      setEvolutionHistory(prev => prev.filter(entry => entry.generation <= generation));
-      
-      console.log(`Retour à la génération ${generation}`);
-    }
-  }
-
-  function resetEvolution() {
-    setEvolutionHistory([]);
-    setCurrentGeneration(0);
-    console.log('Historique d\'évolution réinitialisé');
-  }
-
-  // Fonctions utilitaires pour l'évolution
-  function calculateSimpleFitness(pattern) {
-    let fitness = 0;
-    let totalSteps = 0;
-    let activeSteps = 0;
-    
-    Object.values(pattern).forEach(noteArray => {
-      noteArray.forEach(step => {
-        totalSteps++;
-        if (step && step.on) {
-          activeSteps++;
-          if (step.evolved) fitness += 2;
-          if (step.accent) fitness += 1;
-          if (step.slide) fitness += 0.5;
-        }
-      });
-    });
-    
-    const density = activeSteps / totalSteps;
-    return Math.round((density * 100) + fitness);
-  }
-
-  function extractMutations(pattern) {
-    const mutations = [];
-    Object.entries(pattern).forEach(([noteName, noteArray]) => {
-      noteArray.forEach((step, stepIndex) => {
-        if (step && step.evolved && step.mutationType) {
-          mutations.push({
-            note: noteName,
-            step: stepIndex,
-            type: step.mutationType
-          });
-        }
-      });
-    });
-    return mutations;
-  }
+  // Les fonctions d'évolution génétique sont maintenant gérées par le hook useEvolution
 
   const handleClear = () => {
     const newPattern = buildPattern(null, steps, minOctave, maxOctave);
@@ -911,113 +629,7 @@ export default function MelodySequencer() {
     }
   };
 
-  // Fonction pour monter toutes les notes actives d'une octave
-  const shiftOctaveUp = () => {
-    // Récupérer toutes les notes actives avec leur position et vélocité
-    const activeNotes = [];
-    Object.keys(pattern).forEach(note => {
-      // Pour chaque note, vérifier les steps actifs
-      if (Array.isArray(pattern[note])) {
-        pattern[note].forEach((cell, stepIndex) => {
-          if (cell && cell.on) {
-            // Décomposer la note en nom et octave (ex: "C4" => "C" et 4)
-            const noteName = note.replace(/[0-9]/g, '');
-            const octave = parseInt(note.replace(/[^0-9]/g, ''));
-            
-            // Ajouter à notre liste de notes actives
-            activeNotes.push({
-              originalNote: note,
-              noteName,
-              octave,
-              stepIndex,
-              velocity: cell.velocity || 100
-            });
-          }
-        });
-      }
-    });
-    
-    // Nettoyer d'abord le pattern actuel (supprimer toutes les notes actives)
-    const newPattern = {};
-    Object.keys(pattern).forEach(note => {
-      if (Array.isArray(pattern[note])) {
-        newPattern[note] = pattern[note].map(cell => 
-          cell && cell.on ? 0 : cell
-        );
-      } else {
-        newPattern[note] = pattern[note];
-      }
-    });
-    
-    // Placer les notes à leur nouvelle position (octave supérieure)
-    activeNotes.forEach(({ noteName, octave, stepIndex, velocity }) => {
-      const newOctave = Math.min(9, octave + 1); // Limite supérieure à l'octave 9
-      const newNote = `${noteName}${newOctave}`;
-      
-      // Vérifier que la nouvelle note existe dans notre pattern
-      if (newPattern[newNote] && Array.isArray(newPattern[newNote])) {
-        newPattern[newNote][stepIndex] = { on: true, velocity };
-      }
-    });
-    
-    // Sauvegarder dans l'historique et mettre à jour le pattern
-    saveToHistory(newPattern);
-    setPattern(newPattern);
-  };
-  
-  // Fonction pour descendre toutes les notes actives d'une octave
-  const shiftOctaveDown = () => {
-    // Récupérer toutes les notes actives avec leur position et vélocité
-    const activeNotes = [];
-    Object.keys(pattern).forEach(note => {
-      // Pour chaque note, vérifier les steps actifs
-      if (Array.isArray(pattern[note])) {
-        pattern[note].forEach((cell, stepIndex) => {
-          if (cell && cell.on) {
-            // Décomposer la note en nom et octave (ex: "C4" => "C" et 4)
-            const noteName = note.replace(/[0-9]/g, '');
-            const octave = parseInt(note.replace(/[^0-9]/g, ''));
-            
-            // Ajouter à notre liste de notes actives
-            activeNotes.push({
-              originalNote: note,
-              noteName,
-              octave,
-              stepIndex,
-              velocity: cell.velocity || 100
-            });
-          }
-        });
-      }
-    });
-    
-    // Nettoyer d'abord le pattern actuel (supprimer toutes les notes actives)
-    const newPattern = {};
-    Object.keys(pattern).forEach(note => {
-      if (Array.isArray(pattern[note])) {
-        newPattern[note] = pattern[note].map(cell => 
-          cell && cell.on ? 0 : cell
-        );
-      } else {
-        newPattern[note] = pattern[note];
-      }
-    });
-    
-    // Placer les notes à leur nouvelle position (octave inférieure)
-    activeNotes.forEach(({ noteName, octave, stepIndex, velocity }) => {
-      const newOctave = Math.max(0, octave - 1); // Limite inférieure à l'octave 0
-      const newNote = `${noteName}${newOctave}`;
-      
-      // Vérifier que la nouvelle note existe dans notre pattern
-      if (newPattern[newNote] && Array.isArray(newPattern[newNote])) {
-        newPattern[newNote][stepIndex] = { on: true, velocity };
-      }
-    });
-    
-    // Sauvegarder dans l'historique et mettre à jour le pattern
-    saveToHistory(newPattern);
-    setPattern(newPattern);
-  };
+  // Les fonctions de manipulation des patterns sont maintenant gérées par le hook usePatternManipulation
 
 
   return (
@@ -1161,7 +773,7 @@ export default function MelodySequencer() {
             {/* Boutons d'évolution génétique */}
             <button
               className="btn"
-              onClick={evolveCurrentPattern}
+              onClick={evolveOnce}
               disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
               title="Évolution douce - Changements subtils et progressifs"
               style={{
@@ -1175,7 +787,7 @@ export default function MelodySequencer() {
             
             <button
               className="btn"
-              onClick={evolveMultipleGenerations}
+              onClick={evolveGenerationsBoost}
               disabled={Object.values(pattern).every(row => row.every(cell => !cell || !cell.on))}
               title="Évolution agressive - 5 générations avec mutations drastiques"
               style={{
@@ -1374,7 +986,7 @@ export default function MelodySequencer() {
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               className="btn"
-              onClick={() => setSynthPopupOpen(true)}
+              onClick={handleSynthPopupOpen}
               disabled={isPlaying}
               title="Paramètres du synthétiseur"
               style={{ 
@@ -1723,23 +1335,8 @@ export default function MelodySequencer() {
       <SynthPopup
         visible={synthPopupOpen}
         current={presetKey}
-        onSelect={preset => {
-          // Si on reçoit un objet preset complet
-          if (typeof preset === 'object' && preset !== null) {
-            setPresetKey(preset.key); // Garder la clé pour compatibilité
-            setCurrentPreset(preset); // Stocker l'objet preset complet
-          } 
-          // Si on reçoit juste une clé (ancien comportement)
-          else if (typeof preset === 'string') {
-            setPresetKey(preset);
-            // Rechercher parmi tous les presets (par défaut + personnalisés)
-            const allPresets = PresetStorage.getAllPresets();
-            const foundPreset = allPresets.find(p => p.key === preset);
-            if (foundPreset) setCurrentPreset(foundPreset);
-          }
-          setSynthPopupOpen(false);
-        }}
-        onCancel={() => setSynthPopupOpen(false)}
+        onSelect={handlePresetSelect}
+        onCancel={handleSynthPopupClose}
       />
       {midiSettingsOpen && (
         <div className="popup-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
@@ -1761,7 +1358,13 @@ export default function MelodySequencer() {
         onCancel={() => setFavoritesPopupOpen(false)}
         currentPattern={pattern}
         currentGenerationParams={getCurrentGenerationParams()}
-        sequencerSettings={getCurrentSequencerSettings()}
+        sequencerSettings={{
+          tempo,
+          steps,
+          voiceMode: currentPreset?.voiceMode || 'poly',
+          noteLength,
+          octaves: { min: minOctave, max: maxOctave }
+        }}
       />
       <ScalesManagerPopup
         visible={scalesManagerOpen}
