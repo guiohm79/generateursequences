@@ -267,41 +267,6 @@ export default function MelodySequencer() {
     saveToHistory
   });
 
-  // Hook pour les raccourcis clavier globaux
-  const { getShortcutsList } = useKeyboardShortcuts({
-    // Actions de transport
-    handlePlay,
-    handleStop,
-    handleClear,
-    isPlaying,
-    
-    // Actions de pattern
-    handleUndo,
-    handleRedo,
-    canUndo,
-    canRedo,
-    regenerateRandomPattern,
-    randomParams,
-    
-    // Actions de manipulation
-    shiftOctaveUp,
-    shiftOctaveDown,
-    generateMorphTarget,
-    morphingEnabled,
-    
-    // Actions d'interface
-    setRandomVisible,
-    setSynthPopupOpen: handleSynthPopupOpen,
-    setVariationPopupOpen,
-    setFavoritesPopupOpen,
-    setScalesManagerOpen,
-    setMidiSettingsOpen,
-    setShortcutsHelpOpen,
-    
-    // Paramètres
-    setTempo,
-    tempo
-  });
 
   // Fonctions undo/redo avec le hook
   const handleUndo = () => {
@@ -638,8 +603,8 @@ export default function MelodySequencer() {
 
   // Les fonctions d'évolution sont maintenant gérées directement par le hook useEvolution
 
-  // Les fonctions d'évolution génétique sont maintenant gérées par le hook useEvolution
-
+  // Hook pour les raccourcis clavier globaux (déplacé après les déclarations de fonctions)
+  
   const handleClear = () => {
     const newPattern = buildPattern(null, steps, minOctave, maxOctave);
     // Sauvegarder dans l'historique avant de vider
@@ -692,8 +657,41 @@ export default function MelodySequencer() {
     }
   };
 
-  // Les fonctions de manipulation des patterns sont maintenant gérées par le hook usePatternManipulation
-
+  // Hook pour les raccourcis clavier globaux (après toutes les déclarations)
+  const { getShortcutsList } = useKeyboardShortcuts({
+    // Actions de transport
+    handlePlay,
+    handleStop,
+    handleClear,
+    isPlaying,
+    
+    // Actions de pattern
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo,
+    regenerateRandomPattern,
+    randomParams,
+    
+    // Actions de manipulation
+    shiftOctaveUp,
+    shiftOctaveDown,
+    generateMorphTarget,
+    morphingEnabled,
+    
+    // Actions d'interface
+    setRandomVisible,
+    setSynthPopupOpen: handleSynthPopupOpen,
+    setVariationPopupOpen,
+    setFavoritesPopupOpen,
+    setScalesManagerOpen,
+    setMidiSettingsOpen,
+    setShortcutsHelpOpen,
+    
+    // Paramètres
+    setTempo,
+    tempo
+  });
 
   return (
     
