@@ -169,11 +169,12 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
   }, [currentPreset, midiOutputEnabled, noteLength, tempo]);
 
   // Fonction pour démarrer le transport
-  const startTransport = useCallback((steps, pattern, onStepChange, setIsPlaying) => {
+  const startTransport = useCallback(async (steps, pattern, onStepChange, setIsPlaying) => {
     // Mettre à jour la référence du pattern actuel
     currentPatternRef.current = pattern;
     
-    if (Tone.Transport.state === "started") return;
+    // Arrêter complètement le transport existant
+    await stopTransportCleanly();
     
     let currentStepIndex = 0;
     
@@ -188,20 +189,62 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
       currentStepIndex = (currentStepIndex + 1) % steps;
     };
     
-    transportId.current = Tone.Transport.scheduleRepeat(sequence, noteLength, 0);
+    // Attendre une petite pause pour s'assurer que tout est nettoyé
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    Tone.Transport.start();
+    // Programmer la séquence avec un timing sûr
+    const startTime = Tone.now() + 0.1; // Délai plus important
+    transportId.current = Tone.Transport.scheduleRepeat(sequence, noteLength, startTime);
+    
+    Tone.Transport.start(startTime);
     setIsPlaying(true);
-  }, [playStep, noteLength]);
+  }, [playStep, noteLength, stopTransportCleanly]);
+  
+  // Fonction auxiliaire pour arrêter complètement le transport
+  const stopTransportCleanly = useCallback(async () => {
+    return new Promise((resolve) => {
+      // Arrêter le transport immédiatement si actif
+      if (Tone.Transport.state === "started") {
+        Tone.Transport.stop();
+      }
+      
+      // Nettoyer la séquence programmée
+      if (transportId.current) {
+        Tone.Transport.clear(transportId.current);
+        transportId.current = null;
+      }
+      
+      // Attendre que le transport soit complètement arrêté
+      const checkStopped = () => {
+        if (Tone.Transport.state === "stopped") {
+          resolve();
+        } else {
+          setTimeout(checkStopped, 10);
+        }
+      };
+      
+      checkStopped();
+    });
+  }, []);
 
   // Fonction pour arrêter le transport
-  const stopTransport = useCallback((setIsPlaying, setCurrentStep) => {
-    if (transportId.current) {
-      Tone.Transport.clear(transportId.current);
-      transportId.current = null;
+  const stopTransport = useCallback(async (setIsPlaying, setCurrentStep) => {
+    // Utiliser la fonction de nettoyage complète
+    await stopTransportCleanly();
+    
+    // Arrêter toutes les notes en cours
+    if (synthRef.current) {
+      if (synthRef.current.releaseAll) {
+        synthRef.current.releaseAll();
+      }
+      if (synthRef.current.triggerRelease) {
+        synthRef.current.triggerRelease();
+      }
     }
     
-    Tone.Transport.stop();
+    // Réinitialiser la note mono précédente
+    previousMonoNote.current = null;
+    
     setIsPlaying(false);
     setCurrentStep(-1);
     
@@ -210,7 +253,7 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
       const midiOutput = getMIDIOutput();
       midiOutput.allNotesOff();
     }
-  }, [midiOutputEnabled]);
+  }, [stopTransportCleanly, midiOutputEnabled]);
 
   // Fonction pour créer le synthé selon le preset
   const createSynth = useCallback((preset) => {
@@ -257,6 +300,7 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
     playStep,
     startTransport,
     stopTransport,
+    stopTransportCleanly,
     createSynth,
     disposeSynth,
     updatePlayingPattern
