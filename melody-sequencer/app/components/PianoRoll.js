@@ -32,6 +32,7 @@ export default function PianoRoll({
   steps = 16 
 }) {
   const [hoveredCell, setHoveredCell] = useState({ note: null, step: null });
+  const [selectedCell, setSelectedCell] = useState({ note: null, step: null });
   const dragRef = useRef({ note: null, step: null, startY: 0, startVelocity: 0 });
   const containerRef = useRef(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -94,6 +95,71 @@ export default function PianoRoll({
     }
   }
   
+  // Fonctions pour déplacer les notes sélectionnées avec les flèches
+  function moveSelectedNoteUp() {
+    const { note, step } = selectedCell;
+    if (note === null || step === null) return;
+    
+    const isActive = getNoteActive(note, step);
+    if (!isActive) return;
+    
+    const currentNoteIndex = pianoNotes.indexOf(note);
+    if (currentNoteIndex <= 0) return; // Déjà en haut
+    
+    const newNote = pianoNotes[currentNoteIndex - 1];
+    const cellData = getCellData(note, step);
+    
+    // Déplacer la note
+    onToggleStep(note, step); // Désactiver l'ancienne position
+    onToggleStep(newNote, step); // Activer la nouvelle position
+    
+    // Transférer les propriétés (vélocité, accent, slide)
+    if (cellData) {
+      onChangeVelocity(newNote, step, cellData.velocity || 100);
+      if (cellData.accent) {
+        onToggleAccent(newNote, step, true);
+      }
+      if (cellData.slide) {
+        onToggleSlide(newNote, step, true);
+      }
+    }
+    
+    // Mettre à jour la sélection
+    setSelectedCell({ note: newNote, step });
+  }
+  
+  function moveSelectedNoteDown() {
+    const { note, step } = selectedCell;
+    if (note === null || step === null) return;
+    
+    const isActive = getNoteActive(note, step);
+    if (!isActive) return;
+    
+    const currentNoteIndex = pianoNotes.indexOf(note);
+    if (currentNoteIndex >= pianoNotes.length - 1) return; // Déjà en bas
+    
+    const newNote = pianoNotes[currentNoteIndex + 1];
+    const cellData = getCellData(note, step);
+    
+    // Déplacer la note
+    onToggleStep(note, step); // Désactiver l'ancienne position
+    onToggleStep(newNote, step); // Activer la nouvelle position
+    
+    // Transférer les propriétés (vélocité, accent, slide)
+    if (cellData) {
+      onChangeVelocity(newNote, step, cellData.velocity || 100);
+      if (cellData.accent) {
+        onToggleAccent(newNote, step, true);
+      }
+      if (cellData.slide) {
+        onToggleSlide(newNote, step, true);
+      }
+    }
+    
+    // Mettre à jour la sélection
+    setSelectedCell({ note: newNote, step });
+  }
+  
   // Listener global pour les raccourcis clavier
   useEffect(() => {
     function handleKeyDown(e) {
@@ -106,6 +172,17 @@ export default function PianoRoll({
       if (e.key === 's' || e.key === 'S') {
         handleSlideKeyForCurrentCell();
       }
+      
+      // Navigation avec les flèches pour les notes sélectionnées
+      if (e.key === 'ArrowUp') {
+        e.preventDefault(); // Empêcher le scroll de la page
+        moveSelectedNoteUp();
+      }
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault(); // Empêcher le scroll de la page
+        moveSelectedNoteDown();
+      }
     }
     
     window.addEventListener('keydown', handleKeyDown);
@@ -113,7 +190,7 @@ export default function PianoRoll({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [hoveredCell]);
+  }, [hoveredCell, selectedCell, pianoNotes]);
   
   // Fonction pour gérer le drag & drop pour la vélocité
   function handleMouseDown(note, idx, e) {
@@ -244,10 +321,11 @@ export default function PianoRoll({
         borderRadius: "4px", 
         boxShadow: "0 2px 6px rgba(0,0,0,0.2)" 
       }}>
-        <strong>Instructions:</strong> Survolez ou sélectionnez une note puis utilisez:
+        <strong>Instructions:</strong> Cliquez pour sélectionner/activer des notes, puis utilisez:
         <ul style={{ margin: "5px 0 0 0", padding: "0 0 0 20px" }}>
           <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>A</kbd> pour activer/désactiver l&apos;accent sur la note survolée</li>
           <li>Touche <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>S</kbd> pour activer/désactiver le slide sur la note survolée</li>
+          <li>Flèches <kbd style={{ background: "#333", padding: "2px 6px", borderRadius: "3px", fontWeight: "bold" }}>↑↓</kbd> pour déplacer la note sélectionnée (bordure orange) vers le haut/bas</li>
         </ul>
       </div>
 
@@ -435,6 +513,7 @@ export default function PianoRoll({
                     const vel = isNoteActive ? (cell.velocity || 100) : null;
                     const hasAccent = isNoteActive && cell.accent;
                     const hasSlide = isNoteActive && cell.slide;
+                    const isSelected = selectedCell.note === note && selectedCell.step === i;
                     
                     return (
                       <div 
@@ -452,9 +531,26 @@ export default function PianoRoll({
                           display: "flex",
                           justifyContent: "center",
                           alignItems: "center",
-                          boxShadow: isCurrentCol ? "inset 0 0 5px rgba(255,204,0,0.7)" : "none"
+                          boxShadow: isCurrentCol ? "inset 0 0 5px rgba(255,204,0,0.7)" : "none",
+                          border: isSelected ? "2px solid #ff6b35" : "none"
                         }}
-                        onClick={() => onToggleStep(note, i)}
+                        onClick={() => {
+                          // Vérifier l'état actuel avant de le changer
+                          const isCurrentlyActive = getNoteActive(note, i);
+                          const willBeActive = !isCurrentlyActive;
+                          
+                          onToggleStep(note, i);
+                          
+                          if (willBeActive) {
+                            // Note va devenir active, la sélectionner
+                            setSelectedCell({ note, step: i });
+                          } else {
+                            // Note va devenir inactive, la désélectionner si elle était sélectionnée
+                            if (selectedCell.note === note && selectedCell.step === i) {
+                              setSelectedCell({ note: null, step: null });
+                            }
+                          }
+                        }}
                         onMouseDown={e => handleMouseDown(note, i, e)}
                         onMouseEnter={() => setHoveredCell({ note, step: i })}
                         onMouseLeave={() => {
