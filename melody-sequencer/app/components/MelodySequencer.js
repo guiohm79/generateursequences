@@ -13,20 +13,27 @@ import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns } from "../lib/randomEngine";
 import { getMIDIOutput } from "../lib/midiOutput";
-// Les fonctions generateVariations et generateInspiration sont maintenant gérées par le hook usePatternVariations
-// FavoritesStorage est maintenant géré par le hook useFavorites
 import { ScalesStorage } from "../lib/scalesStorage";
 import { getAllNotes, buildPattern } from "../lib/patternUtils";
 import { convertPatternToMidiData, exportToMidi } from "../lib/midiUtils";
 import { usePatternHistory } from "../hooks/usePatternHistory";
 import { useAudioEngine } from "../hooks/useAudioEngine";
+import { useTransport } from "../hooks/useTransport";
 import { useMorphing } from "../hooks/useMorphing";
 import { useEvolution } from "../hooks/useEvolution";
 import { usePatternVariations } from "../hooks/usePatternVariations";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePatternManipulation } from "../hooks/usePatternManipulation";
 
-// Les fonctions utilitaires getAllNotes et buildPattern sont maintenant dans lib/patternUtils.js
+// Architecture en hooks modulaires :
+// - usePatternHistory : Historique undo/redo
+// - useAudioEngine : Gestion synthétiseurs et presets
+// - useTransport : Transport audio/MIDI et lecture  
+// - useMorphing : Morphing temps réel
+// - useEvolution : Évolution génétique
+// - usePatternVariations : Variations et inspirations
+// - useFavorites : Système de favoris
+// - usePatternManipulation : Manipulation patterns
 
 export default function MelodySequencer() {
   // États principaux
@@ -36,7 +43,6 @@ export default function MelodySequencer() {
   const [maxOctave, setMaxOctave] = useState(4);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1);
-  // Les états des synthétiseurs sont maintenant gérés par useAudioEngine
   const [randomVisible, setRandomVisible] = useState(false);
   const [randomParams, setRandomParams] = useState(null);
   const [midiSettingsOpen, setMidiSettingsOpen] = useState(false);
@@ -64,7 +70,7 @@ export default function MelodySequencer() {
   // Référence pour le débogage de la popup MIDI
   const midiDebugRef = useRef(null);
   
-  // Hook pour la gestion complète du moteur audio
+  // Hook pour la gestion des synthétiseurs et presets
   const {
     presetKey,
     currentPreset, 
@@ -76,7 +82,11 @@ export default function MelodySequencer() {
     stopAllSounds,
     setTempoBPM,
     midiToNoteName,
-    getCurrentSynthInfo,
+    getCurrentSynthInfo
+  } = useAudioEngine({ tempo, midiOutputEnabled, noteLength });
+
+  // Hook pour la gestion du transport et lecture
+  const {
     synthRef,
     previousMonoNote,
     transportId,
@@ -86,7 +96,13 @@ export default function MelodySequencer() {
     createSynth,
     disposeSynth,
     updatePlayingPattern
-  } = useAudioEngine({ tempo, midiOutputEnabled, noteLength });
+  } = useTransport({ currentPreset, midiOutputEnabled, noteLength, tempo });
+
+  // Effet pour créer le synthé quand le preset change
+  useEffect(() => {
+    createSynth(currentPreset || SYNTH_PRESETS[0]);
+    return disposeSynth;
+  }, [presetKey, createSynth, disposeSynth, currentPreset]);
 
   // Les hooks dépendant du pattern sont déclarés après la déclaration du pattern
   
@@ -367,6 +383,14 @@ export default function MelodySequencer() {
     
     // Utiliser la fonction du hook pour arrêter tous les sons
     stopAllSounds();
+    
+    // Libérer toutes les notes du synthé
+    if (synthRef.current && synthRef.current.releaseAll) {
+      synthRef.current.releaseAll();
+    }
+    
+    // Réinitialiser les références
+    previousMonoNote.current = null;
     
     // Arrêter toutes les notes MIDI en cours
     if (midiOutputEnabled) {

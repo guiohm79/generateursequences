@@ -3,7 +3,6 @@ import { useState, useCallback, useEffect } from 'react';
 import * as Tone from 'tone';
 import { SYNTH_PRESETS } from '../lib/synthPresets';
 import { PresetStorage } from '../lib/presetStorage';
-import { useTransport } from './useTransport';
 
 /**
  * Hook pour gérer tout le système audio : synthétiseurs, presets, transport et effets
@@ -19,14 +18,7 @@ export function useAudioEngine({ tempo, midiOutputEnabled, noteLength }) {
   const [currentPreset, setCurrentPreset] = useState(SYNTH_PRESETS[0]);
   const [synthPopupOpen, setSynthPopupOpen] = useState(false);
 
-  // Intégration du système de transport audio/MIDI
-  const transport = useTransport({ currentPreset, midiOutputEnabled, noteLength, tempo });
 
-  // Effet pour créer le synthé quand le preset change
-  useEffect(() => {
-    transport.createSynth(currentPreset || SYNTH_PRESETS[0]);
-    return transport.disposeSynth;
-  }, [presetKey, transport.createSynth, transport.disposeSynth]);
 
   // Fonction pour initialiser le contexte audio Tone.js
   const initializeAudioContext = useCallback(async () => {
@@ -42,24 +34,9 @@ export function useAudioEngine({ tempo, midiOutputEnabled, noteLength }) {
 
   // Fonction pour arrêter tous les sons et nettoyer
   const stopAllSounds = useCallback(() => {
-    // Arrêter le transport
-    transport.stopTransport(() => {}, () => {});
-    
-    // Libérer toutes les notes du synthé
-    if (transport.synthRef.current && transport.synthRef.current.releaseAll) {
-      transport.synthRef.current.releaseAll();
-    }
-    
-    // Réinitialiser les références
-    transport.previousMonoNote.current = null;
-    
     // Arrêter le transport Tone.js
     Tone.Transport.stop();
-    if (transport.transportId.current) {
-      Tone.Transport.clear(transport.transportId.current);
-      transport.transportId.current = null;
-    }
-  }, [transport]);
+  }, []);
 
   // Fonction pour définir le tempo global
   const setTempoBPM = useCallback((bpm) => {
@@ -106,11 +83,10 @@ export function useAudioEngine({ tempo, midiOutputEnabled, noteLength }) {
     return {
       preset: currentPreset,
       key: presetKey,
-      isReady: transport.synthRef.current !== null,
       synthType: currentPreset?.synthType || 'PolySynth',
       voiceMode: currentPreset?.voiceMode || 'poly'
     };
-  }, [currentPreset, presetKey, transport.synthRef]);
+  }, [currentPreset, presetKey]);
 
   return {
     // États des presets et popup
@@ -130,15 +106,5 @@ export function useAudioEngine({ tempo, midiOutputEnabled, noteLength }) {
     midiToNoteName,
     getCurrentSynthInfo,
     
-    // Réexporter toutes les fonctions du transport
-    synthRef: transport.synthRef,
-    previousMonoNote: transport.previousMonoNote,
-    transportId: transport.transportId,
-    playStep: transport.playStep,
-    startTransport: transport.startTransport,
-    stopTransport: transport.stopTransport,
-    createSynth: transport.createSynth,
-    disposeSynth: transport.disposeSynth,
-    updatePlayingPattern: transport.updatePlayingPattern
   };
 }
