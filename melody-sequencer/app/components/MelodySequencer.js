@@ -9,6 +9,7 @@ import MIDIOutputSettings from "./MIDIOutputSettings";
 import VariationPopup from "./VariationPopup";
 import FavoritesPopup from "./FavoritesPopup";
 import ScalesManagerPopup from "./ScalesManagerPopup";
+import KeyboardShortcutsHelp from "./KeyboardShortcutsHelp";
 import { SYNTH_PRESETS } from "../lib/synthPresets";
 import { PresetStorage } from "../lib/presetStorage";
 import { generateMusicalPattern, refreshScales, generateAmbiancePattern, applyHappyAccidents, morphPatterns } from "../lib/randomEngine";
@@ -24,6 +25,7 @@ import { useEvolution } from "../hooks/useEvolution";
 import { usePatternVariations } from "../hooks/usePatternVariations";
 import { useFavorites } from "../hooks/useFavorites";
 import { usePatternManipulation } from "../hooks/usePatternManipulation";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
 // Architecture en hooks modulaires :
 // - usePatternHistory : Historique undo/redo
@@ -52,6 +54,7 @@ export default function MelodySequencer() {
   const [favoritesPopupOpen, setFavoritesPopupOpen] = useState(false);
   const [scalesManagerOpen, setScalesManagerOpen] = useState(false);
   const [scalesUpdateTrigger, setScalesUpdateTrigger] = useState(0);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
 
   // Les états de morphing sont maintenant gérés par useMorphing
   // Les états d'évolution génétique sont maintenant gérés par useEvolution
@@ -262,6 +265,42 @@ export default function MelodySequencer() {
     pattern,
     setPattern,
     saveToHistory
+  });
+
+  // Hook pour les raccourcis clavier globaux
+  const { getShortcutsList } = useKeyboardShortcuts({
+    // Actions de transport
+    handlePlay,
+    handleStop,
+    handleClear,
+    isPlaying,
+    
+    // Actions de pattern
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo,
+    regenerateRandomPattern,
+    randomParams,
+    
+    // Actions de manipulation
+    shiftOctaveUp,
+    shiftOctaveDown,
+    generateMorphTarget,
+    morphingEnabled,
+    
+    // Actions d'interface
+    setRandomVisible,
+    setSynthPopupOpen: handleSynthPopupOpen,
+    setVariationPopupOpen,
+    setFavoritesPopupOpen,
+    setScalesManagerOpen,
+    setMidiSettingsOpen,
+    setShortcutsHelpOpen,
+    
+    // Paramètres
+    setTempo,
+    tempo
   });
 
   // Fonctions undo/redo avec le hook
@@ -1395,6 +1434,9 @@ export default function MelodySequencer() {
         onCancel={() => setScalesManagerOpen(false)}
         onScalesUpdated={handleScalesUpdated}
       />
+      
+      {/* Aide des raccourcis clavier */}
+      <KeyboardShortcutsHelp />
     </div>
   );
 }
