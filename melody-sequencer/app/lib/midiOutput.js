@@ -175,6 +175,66 @@ export class MIDIOutput {
   }
   
   /**
+   * Joue une note pendant une durée donnée (Note On + délai + Note Off)
+   * @param {string|number} note Nom de la note (ex: "C4") ou numéro MIDI (0-127)
+   * @param {number} velocity Vélocité (0-127)
+   * @param {number} duration Durée en millisecondes
+   * @returns {boolean} Succès de l'envoi
+   */
+  playNote(note, velocity, duration) {
+    // Si c'est un numéro MIDI, utiliser directement
+    if (typeof note === 'number') {
+      return this.playNoteByMidi(note, velocity, duration);
+    }
+    
+    // Sinon, traiter comme nom de note
+    if (!this.sendNoteOn(note, velocity)) {
+      return false;
+    }
+    
+    // Programmer le Note Off après la durée spécifiée
+    setTimeout(() => {
+      this.sendNoteOff(note);
+    }, duration);
+    
+    return true;
+  }
+
+  /**
+   * Joue une note par numéro MIDI pendant une durée donnée
+   * @param {number} midiNote Numéro MIDI (0-127)
+   * @param {number} velocity Vélocité (0-127) 
+   * @param {number} duration Durée en millisecondes
+   * @returns {boolean} Succès de l'envoi
+   */
+  playNoteByMidi(midiNote, velocity, duration) {
+    if (!this.isConnected || !this.outputDevice) {
+      console.warn("Impossible de jouer note MIDI - Non connecté");
+      return false;
+    }
+    
+    const midiNoteValue = Math.min(127, Math.max(0, Math.round(midiNote)));
+    const velocityValue = Math.min(127, Math.max(0, Math.round(velocity)));
+    
+    try {
+      // Envoyer Note On
+      this.outputDevice.send([0x90 | this.midiChannel, midiNoteValue, velocityValue]);
+      
+      // Programmer le Note Off après la durée spécifiée
+      setTimeout(() => {
+        if (this.isConnected && this.outputDevice) {
+          this.outputDevice.send([0x80 | this.midiChannel, midiNoteValue, 0]);
+        }
+      }, duration);
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de la note MIDI:", error);
+      return false;
+    }
+  }
+
+  /**
    * Change le canal MIDI utilisé
    * @param {number} channel Numéro du canal (0-15)
    */
