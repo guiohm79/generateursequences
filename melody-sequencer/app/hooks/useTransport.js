@@ -219,15 +219,15 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
     }
 
     let newSynth;
-    switch (preset.type) {
+    switch (preset.synthType) {
       case 'MonoSynth':
-        newSynth = new Tone.MonoSynth(preset.config).toDestination();
+        newSynth = new Tone.MonoSynth(preset.options).toDestination();
         break;
       case 'PolySynth':
-        newSynth = new Tone.PolySynth(Tone.MonoSynth, preset.config).toDestination();
+        newSynth = new Tone.PolySynth(Tone.MonoSynth, preset.options).toDestination();
         break;
       case 'FMSynth':
-        newSynth = new Tone.FMSynth(preset.config).toDestination();
+        newSynth = new Tone.FMSynth(preset.options).toDestination();
         break;
       default:
         newSynth = new Tone.MonoSynth().toDestination();
