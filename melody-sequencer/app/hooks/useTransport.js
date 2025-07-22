@@ -168,6 +168,33 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
     }
   }, [currentPreset, midiOutputEnabled, noteLength, tempo]);
 
+  // Fonction auxiliaire pour arrêter complètement le transport
+  const stopTransportCleanly = useCallback(async () => {
+    return new Promise((resolve) => {
+      // Arrêter le transport immédiatement si actif
+      if (Tone.Transport.state === "started") {
+        Tone.Transport.stop();
+      }
+      
+      // Nettoyer la séquence programmée
+      if (transportId.current) {
+        Tone.Transport.clear(transportId.current);
+        transportId.current = null;
+      }
+      
+      // Attendre que le transport soit complètement arrêté
+      const checkStopped = () => {
+        if (Tone.Transport.state === "stopped") {
+          resolve();
+        } else {
+          setTimeout(checkStopped, 10);
+        }
+      };
+      
+      checkStopped();
+    });
+  }, []);
+
   // Fonction pour démarrer le transport
   const startTransport = useCallback(async (steps, pattern, onStepChange, setIsPlaying) => {
     // Mettre à jour la référence du pattern actuel
@@ -199,33 +226,6 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
     Tone.Transport.start(startTime);
     setIsPlaying(true);
   }, [playStep, noteLength, stopTransportCleanly]);
-  
-  // Fonction auxiliaire pour arrêter complètement le transport
-  const stopTransportCleanly = useCallback(async () => {
-    return new Promise((resolve) => {
-      // Arrêter le transport immédiatement si actif
-      if (Tone.Transport.state === "started") {
-        Tone.Transport.stop();
-      }
-      
-      // Nettoyer la séquence programmée
-      if (transportId.current) {
-        Tone.Transport.clear(transportId.current);
-        transportId.current = null;
-      }
-      
-      // Attendre que le transport soit complètement arrêté
-      const checkStopped = () => {
-        if (Tone.Transport.state === "stopped") {
-          resolve();
-        } else {
-          setTimeout(checkStopped, 10);
-        }
-      };
-      
-      checkStopped();
-    });
-  }, []);
 
   // Fonction pour arrêter le transport
   const stopTransport = useCallback(async (setIsPlaying, setCurrentStep) => {
