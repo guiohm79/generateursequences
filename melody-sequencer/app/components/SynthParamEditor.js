@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { PresetStorage } from "../lib/presetStorage";
 
 // Types de synthétiseurs supportés par Tone.js
@@ -32,15 +32,15 @@ export default function SynthParamEditor({ preset, onChange }) {
   const [descInput, setDescInput] = useState(preset.description);
   
   // Mettre à jour les paramètres locaux
-  const updateParams = (newParams) => {
+  const updateParams = useCallback((newParams) => {
     const updatedParams = { ...params, ...newParams };
     setParams(updatedParams);
     
     if (onChange) onChange(updatedParams);
-  };
+  }, [params, onChange]);
   
   // Mettre à jour un paramètre imbriqué
-  const updateNestedParam = (category, param, value) => {
+  const updateNestedParam = useCallback((category, param, value) => {
     setParams(prev => {
       const updated = { 
         ...prev, 
@@ -56,33 +56,41 @@ export default function SynthParamEditor({ preset, onChange }) {
       if (onChange) onChange(updated);
       return updated;
     });
-  };
+  }, [onChange]);
 
-  // Mettre à jour les métadonnées (label, description)
-  const updateMetadata = () => {
+  // Mettre à jour les métadonnées (label, description) de manière synchrone
+  const updateMetadata = useCallback((label, description) => {
     const updated = {
       ...params,
-      label: labelInput,
-      description: descInput
+      label: label,
+      description: description
     };
     setParams(updated);
     if (onChange) onChange(updated);
-  };
+  }, [params, onChange]);
   
   // Gestion du changement de type de synthétiseur
-  const handleSynthTypeChange = (e) => {
+  const handleSynthTypeChange = useCallback((e) => {
     updateParams({ synthType: e.target.value });
-  };
+  }, [updateParams]);
   
   // Gestion du changement de type d'oscillateur
-  const handleOscTypeChange = (e) => {
+  const handleOscTypeChange = useCallback((e) => {
     updateNestedParam('oscillator', 'type', e.target.value);
-  };
+  }, [updateNestedParam]);
   
-  // Exécuter updateMetadata quand les entrées changent
-  useEffect(() => {
-    updateMetadata();
-  }, [labelInput, descInput]);
+  // Gérer les changements des champs label et description
+  const handleLabelChange = useCallback((e) => {
+    const newLabel = e.target.value;
+    setLabelInput(newLabel);
+    updateMetadata(newLabel, descInput);
+  }, [updateMetadata, descInput]);
+  
+  const handleDescriptionChange = useCallback((e) => {
+    const newDesc = e.target.value;
+    setDescInput(newDesc);
+    updateMetadata(labelInput, newDesc);
+  }, [updateMetadata, labelInput]);
 
   return (
     <div className="synth-param-editor">
@@ -94,7 +102,7 @@ export default function SynthParamEditor({ preset, onChange }) {
             id="presetName"
             type="text" 
             value={labelInput} 
-            onChange={e => setLabelInput(e.target.value)} 
+            onChange={handleLabelChange} 
           />
         </div>
         <div className="param-row">
@@ -103,7 +111,7 @@ export default function SynthParamEditor({ preset, onChange }) {
             id="presetDesc"
             type="text" 
             value={descInput} 
-            onChange={e => setDescInput(e.target.value)} 
+            onChange={handleDescriptionChange} 
           />
         </div>
         <div className="param-row">
