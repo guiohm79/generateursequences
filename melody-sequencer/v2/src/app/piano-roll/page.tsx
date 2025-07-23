@@ -95,11 +95,12 @@ const PianoRollPage: React.FC = () => {
   
   const visibleNotes = getVisibleNotes();
   
-  // Calcul de la largeur des cellules basé sur le nombre de steps
+  // Calcul de la largeur des cellules basé sur le nombre de steps et l'écran
   const getCellWidth = (steps: number): string => {
-    if (steps <= 16) return 'min-w-14'; // Large pour peu de steps
-    if (steps <= 32) return 'min-w-10'; // Moyen pour 32 steps
-    return 'min-w-8'; // Petit pour 64 steps
+    // Mobile (xs/sm) - cellules plus petites
+    if (steps <= 16) return 'w-12 sm:w-14'; // Large pour peu de steps
+    if (steps <= 32) return 'w-8 sm:w-10'; // Moyen pour 32 steps
+    return 'w-6 sm:w-8'; // Petit pour 64 steps
   };
   
   const cellWidth = getCellWidth(stepCount);
@@ -183,18 +184,19 @@ const PianoRollPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+        <div className="mb-4 sm:mb-6 lg:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             🎹 Piano Roll
           </h1>
-          <p className="text-slate-400 text-lg">Éditeur de patterns professionnel - 16 pas, gamme en C</p>
+          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Éditeur de patterns - {stepCount} pas, gamme en C</p>
         </div>
 
         {/* Transport Controls */}
-        <div className="mb-8 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-2xl">
-          <div className="flex items-center gap-6">
+        <div className="mb-4 sm:mb-6 lg:mb-8 p-3 sm:p-4 lg:p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-2xl">
+          {/* Mobile Layout - Stack vertical */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 lg:gap-6">
             <button
               onClick={() => {
                 if (isPlaying) {
@@ -204,7 +206,7 @@ const PianoRollPage: React.FC = () => {
                 }
               }}
               disabled={!isInitialized}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-lg sm:text-base ${
                 isPlaying 
                   ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-500/30' 
                   : 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-emerald-500/30'
@@ -213,33 +215,39 @@ const PianoRollPage: React.FC = () => {
               {!isInitialized ? '🔄 Initializing...' : (isPlaying ? '⏹ Stop' : '▶ Play')}
             </button>
             
-            <div className="flex items-center gap-4">
-              <div className="px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
-                <span className="text-slate-300 text-sm">Step:</span>
-                <span className={`text-white font-mono ml-2 ${isPlaying ? 'animate-pulse' : ''}`}>
+            {/* Stats - Grid on mobile, flex on desktop */}
+            <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="px-3 sm:px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600 text-center sm:text-left">
+                <span className="text-slate-300 text-xs sm:text-sm block sm:inline">Step:</span>
+                <span className={`text-white font-mono ml-0 sm:ml-2 block sm:inline text-sm sm:text-base ${isPlaying ? 'animate-pulse' : ''}`}>
                   {currentStep + 1} / {stepCount}
                 </span>
               </div>
               
-              <div className="px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
-                <span className="text-slate-300 text-sm">Notes:</span>
-                <span className="text-blue-400 font-mono ml-2">{pattern.length}</span>
+              <div className="px-3 sm:px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600 text-center sm:text-left">
+                <span className="text-slate-300 text-xs sm:text-sm block sm:inline">Notes:</span>
+                <span className="text-blue-400 font-mono ml-0 sm:ml-2 block sm:inline text-sm sm:text-base">{pattern.length}</span>
               </div>
               
-              <div className="px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
-                <span className="text-slate-300 text-sm">Tempo:</span>
-                <input
-                  type="range"
-                  min="60"
-                  max="180"
-                  value={tempo}
-                  onChange={(e) => setTempo(parseInt(e.target.value))}
-                  className="ml-2 w-20 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="text-emerald-400 font-mono ml-2">{tempo}</span>
+              {/* Tempo - Full width on mobile */}
+              <div className="col-span-2 sm:col-span-1 px-3 sm:px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
+                <div className="flex items-center justify-between sm:justify-start">
+                  <span className="text-slate-300 text-xs sm:text-sm">Tempo:</span>
+                  <div className="flex items-center gap-2 ml-2">
+                    <input
+                      type="range"
+                      min="60"
+                      max="180"
+                      value={tempo}
+                      onChange={(e) => setTempo(parseInt(e.target.value))}
+                      className="w-16 sm:w-20 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-emerald-400 font-mono text-sm">{tempo}</span>
+                  </div>
+                </div>
               </div>
               
-              <div className={`px-3 py-2 rounded-lg text-xs font-semibold ${
+              <div className={`col-span-2 sm:col-span-1 px-3 py-2 rounded-lg text-xs font-semibold text-center ${
                 isInitialized 
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                   : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -253,16 +261,16 @@ const PianoRollPage: React.FC = () => {
         {/* Piano Roll Interface */}
         <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-2xl overflow-hidden">
           {/* Configuration Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-b border-slate-600/50">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-4 py-3 bg-slate-900/50 border-b border-slate-600/50 gap-3 sm:gap-0">
             {/* Steps Selector */}
-            <div className="flex items-center gap-4">
-              <span className="text-slate-300 font-semibold">📏 Steps:</span>
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+              <span className="text-slate-300 font-semibold text-sm sm:text-base">📏 Steps:</span>
+              <div className="flex gap-2 flex-wrap">
                 {STEP_OPTIONS.map(option => (
                   <button
                     key={option}
                     onClick={() => setStepCount(option)}
-                    className={`px-3 py-1 rounded-lg text-sm font-mono transition-all ${
+                    className={`px-4 py-2 sm:px-3 sm:py-1 rounded-lg text-sm font-mono transition-all touch-manipulation ${
                       stepCount === option
                         ? 'bg-blue-500 text-white shadow-blue-500/30'
                         : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
@@ -277,46 +285,46 @@ const PianoRollPage: React.FC = () => {
               </span>
             </div>
             
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-slate-400 text-center sm:text-right">
               Pattern: {stepCount} steps
             </div>
           </div>
           
           {/* Octave Navigation */}
-          <div className="flex items-center justify-between p-4 bg-slate-900/30 border-b border-slate-600/50">
-            <div className="flex items-center gap-4">
-              <span className="text-slate-300 font-semibold">🎹 Octaves:</span>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-slate-900/30 border-b border-slate-600/50 gap-3 sm:gap-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+              <span className="text-slate-300 font-semibold text-sm sm:text-base">🎹 Octaves:</span>
               
               {/* Octave Range Selector */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setVisibleOctaveStart(Math.max(1, visibleOctaveStart - 1))}
                   disabled={visibleOctaveStart <= 1}
-                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors"
+                  className="px-4 py-2 sm:px-3 sm:py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors touch-manipulation"
                 >
                   ←
                 </button>
                 
-                <span className="px-4 py-1 bg-slate-800 rounded-lg text-sm font-mono border border-slate-600">
+                <span className="px-4 py-2 sm:px-4 sm:py-1 bg-slate-800 rounded-lg text-sm font-mono border border-slate-600">
                   C{visibleOctaveStart} - C{Math.min(7, visibleOctaveStart + visibleOctaveCount - 1)}
                 </span>
                 
                 <button
                   onClick={() => setVisibleOctaveStart(Math.min(7 - visibleOctaveCount + 1, visibleOctaveStart + 1))}
                   disabled={visibleOctaveStart + visibleOctaveCount - 1 >= 7}
-                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors"
+                  className="px-4 py-2 sm:px-3 sm:py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors touch-manipulation"
                 >
                   →
                 </button>
               </div>
               
-              {/* Quick Jump Buttons */}
-              <div className="flex gap-1">
+              {/* Quick Jump Buttons - Hidden on very small screens */}
+              <div className="hidden xs:flex gap-1">
                 {[1, 2, 3, 4, 5].map(octave => (
                   <button
                     key={octave}
                     onClick={() => setVisibleOctaveStart(octave)}
-                    className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                    className={`px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-mono transition-colors touch-manipulation ${
                       octave >= visibleOctaveStart && octave < visibleOctaveStart + visibleOctaveCount
                         ? 'bg-blue-500 text-white'
                         : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
@@ -328,8 +336,8 @@ const PianoRollPage: React.FC = () => {
               </div>
             </div>
             
-            <div className="text-xs text-slate-400">
-              {visibleNotes.length} notes visibles
+            <div className="text-xs text-slate-400 text-center sm:text-right">
+              {visibleNotes.length} notes
             </div>
           </div>
           
@@ -337,7 +345,7 @@ const PianoRollPage: React.FC = () => {
           <div className="flex flex-col overflow-x-auto" onWheel={handleWheel}>
             {/* Header des steps - fixé en haut */}
             <div className="flex sticky top-0 z-10 bg-slate-900/80 backdrop-blur-sm border-b border-slate-600/30">
-              <div className="w-28 flex-shrink-0 bg-gradient-to-r from-slate-700/50 to-slate-800/50 py-2"></div>
+              <div className="w-24 sm:w-28 flex-shrink-0 bg-gradient-to-r from-slate-700/50 to-slate-800/50 py-2"></div>
               <div className="flex">
                 {Array.from({ length: stepCount }, (_, stepIndex) => {
                   const step = stepIndex + 1;
@@ -347,7 +355,7 @@ const PianoRollPage: React.FC = () => {
                     <div
                       key={stepIndex}
                       className={`
-                        ${cellWidth} text-center text-sm py-3 border-r border-slate-600/30
+                        ${cellWidth} text-center text-xs sm:text-sm py-2 sm:py-3 border-r border-slate-600/30
                         font-mono transition-all duration-200 flex-shrink-0
                         ${isAccentStep 
                           ? 'text-amber-400 font-bold bg-slate-950/60 shadow-inner' 
@@ -355,7 +363,7 @@ const PianoRollPage: React.FC = () => {
                         }
                       `}
                     >
-                      <span className={isAccentStep ? 'text-lg' : ''}>{step}</span>
+                      <span className={isAccentStep ? 'text-sm sm:text-lg' : ''}>{step}</span>
                     </div>
                   );
                 })}
@@ -364,8 +372,8 @@ const PianoRollPage: React.FC = () => {
             
             {/* Piano Roll Grid */}
             <div className="flex">
-              {/* Piano Keys (Left Side) - fixé à gauche */}
-              <div className="flex-shrink-0 w-28 bg-gradient-to-r from-slate-700/80 to-slate-800/80 border-r border-slate-600 sticky left-0 z-10">
+              {/* Piano Keys (Left Side) - fixé à gauche, adaptatif mobile */}
+              <div className="flex-shrink-0 w-24 sm:w-28 bg-gradient-to-r from-slate-700/80 to-slate-800/80 border-r border-slate-600 sticky left-0 z-10">
                 {visibleNotes.map((note, noteIndex) => {
                   const isBlack = isBlackKey(note);
                   const octave = getOctaveNumber(note);
@@ -376,8 +384,8 @@ const PianoRollPage: React.FC = () => {
                     <div
                       key={note}
                       className={`
-                        h-8 border-b flex items-center justify-between px-3 text-sm font-medium
-                        transition-all duration-200 hover:scale-[1.02] cursor-pointer
+                        h-10 sm:h-8 border-b flex items-center justify-between px-2 sm:px-3 text-xs sm:text-sm font-medium
+                        transition-all duration-200 hover:scale-[1.02] cursor-pointer touch-manipulation
                         ${isOctaveStart 
                           ? 'border-amber-500/50 border-b-2' 
                           : 'border-slate-600/50'
@@ -411,7 +419,7 @@ const PianoRollPage: React.FC = () => {
                     <div
                       key={note}
                       className={`
-                        h-8 border-b border-slate-600/30 flex
+                        h-10 sm:h-8 border-b border-slate-600/30 flex
                         ${isBlack ? 'bg-slate-900/30' : 'bg-slate-800/30'}
                       `}
                     >
@@ -426,23 +434,28 @@ const PianoRollPage: React.FC = () => {
                             className={`
                               ${cellWidth} h-full border-r border-slate-600/30 cursor-pointer
                               flex items-center justify-center text-xs relative flex-shrink-0
-                              transition-all duration-200
+                              transition-all duration-200 touch-manipulation
                               ${stepIndex === currentStep && isPlaying ? 'ring-2 ring-yellow-400 ring-opacity-60' : ''}
                               ${isAccentStep 
-                                ? 'bg-slate-950/60 hover:bg-slate-900/80 border-r-2 border-amber-500/50' 
+                                ? 'bg-slate-950/60 hover:bg-slate-900/80 active:bg-slate-800/90 border-r-2 border-amber-500/50' 
                                 : (isBlack 
-                                  ? 'bg-slate-900/40 hover:bg-slate-800/70' 
-                                  : 'bg-slate-800/40 hover:bg-slate-700/70'
+                                  ? 'bg-slate-900/40 hover:bg-slate-800/70 active:bg-slate-700/80' 
+                                  : 'bg-slate-800/40 hover:bg-slate-700/70 active:bg-slate-600/80'
                                 )
                               }
-                              ${hasNote ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 hover:from-blue-400/90 hover:to-blue-500/90 shadow-lg' : ''}
+                              ${hasNote ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 hover:from-blue-400/90 hover:to-blue-500/90 active:from-blue-600/90 active:to-blue-700/90 shadow-lg' : ''}
                             `}
                             onClick={() => toggleNote(stepIndex, note)}
                             title={`Step ${step}, Note ${note}`}
                           >
                             {hasNote && (
                               <div className={`
-                                ${stepCount <= 16 ? 'w-10 h-5' : stepCount <= 32 ? 'w-8 h-4' : 'w-6 h-3'} 
+                                ${stepCount <= 16 
+                                  ? 'w-8 h-4 sm:w-10 sm:h-5' 
+                                  : stepCount <= 32 
+                                  ? 'w-6 h-3 sm:w-8 sm:h-4' 
+                                  : 'w-4 h-2 sm:w-6 sm:h-3'
+                                } 
                                 rounded-lg shadow-lg
                                 ${isAccentStep 
                                   ? 'bg-gradient-to-br from-cyan-300 to-blue-400 shadow-cyan-300/50' 
@@ -471,9 +484,9 @@ const PianoRollPage: React.FC = () => {
         </div>
 
         {/* Pattern Info */}
-        <div className="mt-8 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-xl">
-          <h3 className="text-xl font-bold mb-4 text-slate-200">🎵 Pattern Info</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="mt-4 sm:mt-6 lg:mt-8 p-4 sm:p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-xl">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-slate-200">🎵 Pattern Info</h3>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             <div className="text-center p-3 bg-slate-700/50 rounded-xl border border-slate-600/50">
               <div className="text-2xl font-bold text-blue-400">{stepCount}</div>
               <div className="text-sm text-slate-400">Steps</div>
@@ -514,31 +527,35 @@ const PianoRollPage: React.FC = () => {
         </div>
 
         {/* Instructions */}
-        <div className="mt-8 p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-xl">
-          <h3 className="text-xl font-bold mb-4 text-slate-200">📚 Instructions</h3>
-          <div className="grid md:grid-cols-2 gap-6">
+        <div className="mt-4 sm:mt-6 lg:mt-8 p-4 sm:p-6 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-xl">
+          <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-slate-200">📚 Instructions</h3>
+          <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <h4 className="text-lg font-semibold text-blue-400 mb-3">🎮 Contrôles</h4>
-              <ul className="space-y-2 text-slate-300">
+              <h4 className="text-base sm:text-lg font-semibold text-blue-400 mb-2 sm:mb-3">🎮 Contrôles</h4>
+              <ul className="space-y-2 text-sm sm:text-base text-slate-300">
                 <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                  <strong>Clic</strong> sur une case pour ajouter/supprimer une note
+                  <span className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></span>
+                  <strong>Tap/Clic</strong> sur une case pour ajouter/supprimer une note
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0"></span>
                   <strong>Play/Stop</strong> pour contrôler la lecture
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-purple-400 rounded-full flex-shrink-0"></span>
+                  <strong>Molette/Swipe</strong> pour changer d'octave
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-semibold text-amber-400 mb-3">🎨 Interface</h4>
-              <ul className="space-y-2 text-slate-300">
+              <h4 className="text-base sm:text-lg font-semibold text-amber-400 mb-2 sm:mb-3">🎨 Interface</h4>
+              <ul className="space-y-2 text-sm sm:text-base text-slate-300">
                 <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
-                  <strong>Steps 1, 5, 9, 13</strong> temps forts (colonnes sombres)
+                  <span className="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0"></span>
+                  <strong>Colonnes sombres</strong> = temps forts (1, 5, 9, 13...)
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                  <span className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0"></span>
                   <strong>Touches piano</strong> noires/blanches avec octaves
                 </li>
               </ul>

@@ -34,22 +34,22 @@ export const MENU_ITEMS: MenuItem[] = [
     priority: 3
   },
 
-  // === CORE FEATURES (à venir) ===
+  // === CORE FEATURES ===
+  {
+    id: 'piano-roll',
+    title: 'Piano Roll',
+    description: '🚀 Piano Roll professionnel - DAW style, polyphonique, responsive',
+    href: '/piano-roll',
+    status: 'stable',
+    category: 'core',
+    priority: 1
+  },
   {
     id: 'sequencer-main',
     title: 'Séquenceur Principal',
     description: 'Interface principale du séquenceur basée sur l\'architecture simple',
     href: '/sequencer',
     status: 'planned',
-    category: 'core',
-    priority: 1
-  },
-  {
-    id: 'piano-roll',
-    title: 'Piano Roll',
-    description: 'Éditeur de patterns interactif style DAW (16 pas, gamme C)',
-    href: '/piano-roll',
-    status: 'stable',
     category: 'core',
     priority: 2
   },
@@ -63,7 +63,16 @@ export const MENU_ITEMS: MenuItem[] = [
     priority: 3
   },
 
-  // === FEATURES AVANCÉES (futur) ===
+  // === FEATURES AVANCÉES (prochaines) ===
+  {
+    id: 'velocity-editor',
+    title: 'Éditeur Vélocité',
+    description: 'Contrôle intensité par note avec slider/courbe',
+    href: '/velocity-editor',
+    status: 'planned',
+    category: 'features',
+    priority: 1
+  },
   {
     id: 'midi-export',
     title: 'Export MIDI',
@@ -71,7 +80,7 @@ export const MENU_ITEMS: MenuItem[] = [
     href: '/midi-export',
     status: 'planned',
     category: 'features',
-    priority: 1
+    priority: 2
   },
   {
     id: 'presets',

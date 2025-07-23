@@ -40,22 +40,23 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status - 🎉 **BASE SOLIDE ÉTABLIE**
-- ✅ **Architecture Simple** - SimpleAudioEngine robuste qui ne plante plus
-- ✅ **Menu Extensible** - Système de navigation pour futures fonctionnalités
-- ✅ **Structure Nettoyée** - Code complexe supprimé, architecture simplifiée
-- ✅ **Tests Fonctionnels** - /debug/test, /debug/test-tone, /debug/test-simple-audio
-- 🎯 **Prêt pour développement** - Base stable pour construire les features
-- 📋 **Documentation complète** - MENU_SYSTEM.md, PROJECT_STRUCTURE.md
+### V2 Status - 🚀 **PIANO ROLL COMPLET & FONCTIONNEL**
+- ✅ **Piano Roll Professionnel** - Interface moderne style DAW complète
+- ✅ **Audio Polyphonique** - SimpleAudioEngine avec PolySynth + reverb
+- ✅ **Navigation Octaves** - Scroll/boutons, gamme C1-C7 complète
+- ✅ **Steps Variables** - Support 8/16/32/64 steps avec accents adaptatifs
+- ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
+- ✅ **Architecture Robuste** - Base stable et extensible pour futures features
+- 📱 **Mobile-First** - Interface tactile optimisée pour tous écrans
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
-1. **Core Features** - Séquenceur principal basé sur SimpleAudioEngine
-2. **Piano Roll** - Éditeur de patterns interactif (version simple)
-3. **Transport Controls** - Interface play/stop/tempo intégrée
+1. **Éditeur Vélocité** - Contrôle intensité par note (slider/courbe)
+2. **Longueur Notes** - Support notes longues (pas seulement on/off)
+3. **Outils Sélection** - Sélection multiple, copier/coller, déplacer
 4. **Export MIDI** - Exportation des patterns créés
 5. **Presets System** - Sauvegarde/chargement de patterns
-6. **Effects** - Reverb, delay, filters pour le synthé
-7. **Advanced Features** - IA generation, outils d'analyse
+6. **Raccourcis Clavier** - Shortcuts (espace=play, delete, etc.)
+7. **Génération IA** - Magenta.js pour création assistée
 
 ## 🛠️ Quick Development Commands
 
