@@ -7,14 +7,16 @@ import { SimplePattern, SimpleStep } from '../../lib/SimpleAudioEngine';
 // Configuration du piano roll
 const STEPS = 16;
 const ACCENT_STEPS = [1, 5, 9, 13]; // Steps avec couleurs marquées (base 1)
-const NOTES = [
-  // Octave 4 (notes principales)
-  'C4', 'B3', 'A#3', 'A3', 'G#3', 'G3', 'F#3', 'F3', 'E3', 'D#3', 'D3', 'C#3',
-  // Octave 3
-  'C3', 'B2', 'A#2', 'A2', 'G#2', 'G2', 'F#2', 'F2', 'E2', 'D#2', 'D2', 'C#2',
-  // Octave 2
-  'C2', 'B1', 'A#1', 'A1', 'G#1', 'G1', 'F#1', 'F1', 'E1', 'D#1', 'D1', 'C#1'
-];
+
+// Génération des notes par octave
+const generateNotesForOctave = (octave: number): string[] => {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return noteNames.reverse().map(note => `${note}${octave}`); // Inversé pour affichage top-to-bottom
+};
+
+// Gamme étendue C1 à C7
+const ALL_OCTAVES = [7, 6, 5, 4, 3, 2, 1];
+const ALL_NOTES = ALL_OCTAVES.flatMap(octave => generateNotesForOctave(octave));
 
 // Pattern data structure
 interface NoteEvent {
@@ -41,6 +43,10 @@ const getOctaveNumber = (note: string) => {
 const PianoRollPage: React.FC = () => {
   const [pattern, setPattern] = useState<NoteEvent[]>([]);
   
+  // Navigation octaves
+  const [visibleOctaveStart, setVisibleOctaveStart] = useState(2); // Commence à C2
+  const [visibleOctaveCount, setVisibleOctaveCount] = useState(3); // Affiche 3 octaves
+  
   // Audio engine hook
   const { 
     isPlaying, 
@@ -58,13 +64,40 @@ const PianoRollPage: React.FC = () => {
   useEffect(() => {
     initialize();
   }, [initialize]);
+  
+  // Gestion du scroll de la molette pour naviguer dans les octaves
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    
+    if (e.deltaY > 0) {
+      // Scroll down - monter dans les octaves
+      setVisibleOctaveStart(Math.min(7 - visibleOctaveCount + 1, visibleOctaveStart + 1));
+    } else {
+      // Scroll up - descendre dans les octaves
+      setVisibleOctaveStart(Math.max(1, visibleOctaveStart - 1));
+    }
+  };
+  
+  // Calcul des notes visibles selon l'octave sélectionnée
+  const getVisibleNotes = (): string[] => {
+    const visibleOctaves = [];
+    for (let i = 0; i < visibleOctaveCount; i++) {
+      const octave = visibleOctaveStart + visibleOctaveCount - 1 - i; // Top to bottom
+      if (octave >= 1 && octave <= 7) {
+        visibleOctaves.push(octave);
+      }
+    }
+    return visibleOctaves.flatMap(octave => generateNotesForOctave(octave));
+  };
+  
+  const visibleNotes = getVisibleNotes();
 
   // Convert visual pattern to audio pattern
   const convertToAudioPattern = (visualPattern: NoteEvent[]): SimplePattern => {
     const audioPattern: SimplePattern = {};
     
-    // Initialize all notes with empty steps
-    NOTES.forEach(note => {
+    // Initialize all notes with empty steps (use ALL_NOTES for full range)
+    ALL_NOTES.forEach(note => {
       audioPattern[note] = Array(STEPS).fill(null).map(() => ({ on: false, velocity: 0 }));
     });
     
@@ -181,28 +214,90 @@ const PianoRollPage: React.FC = () => {
 
         {/* Piano Roll Interface */}
         <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-2xl overflow-hidden">
-          <div className="flex">
+          {/* Octave Navigation */}
+          <div className="flex items-center justify-between p-4 bg-slate-900/50 border-b border-slate-600/50">
+            <div className="flex items-center gap-4">
+              <span className="text-slate-300 font-semibold">🎹 Octaves:</span>
+              
+              {/* Octave Range Selector */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setVisibleOctaveStart(Math.max(1, visibleOctaveStart - 1))}
+                  disabled={visibleOctaveStart <= 1}
+                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors"
+                >
+                  ←
+                </button>
+                
+                <span className="px-4 py-1 bg-slate-800 rounded-lg text-sm font-mono border border-slate-600">
+                  C{visibleOctaveStart} - C{Math.min(7, visibleOctaveStart + visibleOctaveCount - 1)}
+                </span>
+                
+                <button
+                  onClick={() => setVisibleOctaveStart(Math.min(7 - visibleOctaveCount + 1, visibleOctaveStart + 1))}
+                  disabled={visibleOctaveStart + visibleOctaveCount - 1 >= 7}
+                  className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-mono transition-colors"
+                >
+                  →
+                </button>
+              </div>
+              
+              {/* Quick Jump Buttons */}
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(octave => (
+                  <button
+                    key={octave}
+                    onClick={() => setVisibleOctaveStart(octave)}
+                    className={`px-2 py-1 rounded text-xs font-mono transition-colors ${
+                      octave >= visibleOctaveStart && octave < visibleOctaveStart + visibleOctaveCount
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                    }`}
+                  >
+                    C{octave}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="text-xs text-slate-400">
+              {visibleNotes.length} notes visibles
+            </div>
+          </div>
+          
+          <div className="flex" onWheel={handleWheel}>
             {/* Piano Keys (Left Side) */}
             <div className="flex-shrink-0 w-28 bg-gradient-to-r from-slate-700/80 to-slate-800/80 border-r border-slate-600">
-              {NOTES.map((note, noteIndex) => {
+              {visibleNotes.map((note, noteIndex) => {
                 const isBlack = isBlackKey(note);
                 const octave = getOctaveNumber(note);
                 const noteName = note.replace(/[0-9]/g, '');
+                const isOctaveStart = noteName === 'C'; // C marque le début d'une octave
                 
                 return (
                   <div
                     key={note}
                     className={`
-                      h-8 border-b border-slate-600/50 flex items-center justify-between px-3 text-sm font-medium
+                      h-8 border-b flex items-center justify-between px-3 text-sm font-medium
                       transition-all duration-200 hover:scale-[1.02] cursor-pointer
+                      ${isOctaveStart 
+                        ? 'border-amber-500/50 border-b-2' 
+                        : 'border-slate-600/50'
+                      }
                       ${isBlack 
                         ? 'bg-gradient-to-r from-slate-900/90 to-slate-800/90 text-slate-300 shadow-inner' 
                         : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 shadow-sm'
                       }
                     `}
                   >
-                    <span className="font-bold tracking-wide">{noteName}</span>
-                    <span className={`text-xs font-mono ${isBlack ? 'text-slate-500' : 'text-slate-600'}`}>
+                    <span className={`font-bold tracking-wide ${isOctaveStart ? 'text-amber-400' : ''}`}>
+                      {noteName}
+                    </span>
+                    <span className={`text-xs font-mono ${
+                      isOctaveStart 
+                        ? 'text-amber-500 font-bold' 
+                        : (isBlack ? 'text-slate-500' : 'text-slate-600')
+                    }`}>
                       {octave}
                     </span>
                   </div>
@@ -212,7 +307,7 @@ const PianoRollPage: React.FC = () => {
 
             {/* Grid (Right Side) */}
             <div className="flex-1 min-w-0">
-              {NOTES.map((note, noteIndex) => {
+              {visibleNotes.map((note, noteIndex) => {
                 const isBlack = isBlackKey(note);
                 return (
                   <div
