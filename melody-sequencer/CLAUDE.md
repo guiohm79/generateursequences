@@ -26,10 +26,11 @@ melody-sequencer/
 - Contains full project history and lessons learned
 
 ### **When working on V2 (Active Development):**
-- Read `v2/CLAUDE_V2.md` for modern architecture patterns
-- V2 is **actively developed** with TypeScript + Magenta.js
-- Focus on clean architecture and AI features
-- Follow TDD approach with comprehensive testing
+- Read `v2/CLAUDE_V2.md` for architecture details
+- V2 has a **simple and robust foundation** - no more crashes!
+- Use `SimpleAudioEngine` as base for all audio features
+- Add features via the extensible menu system
+- Focus on progressive enhancement over complex architecture
 
 ## 🎵 Current Development Status (2025-07-23)
 
@@ -39,12 +40,22 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status  
-- 🎉 **Architecture Phase Complete** - Modular foundation implemented
-- ✅ **Interface Operational** - PianoRoll SVG + MagentaVisualizer working
-- 🏗️ **Robust Core** - EventBus, SynthEngine, PatternEngine, ErrorService
-- 🎯 **Next Session** - Integrate new architecture with components
-- 📋 **Full roadmap** in `v2/CLAUDE_V2.md`
+### V2 Status - 🎉 **BASE SOLIDE ÉTABLIE**
+- ✅ **Architecture Simple** - SimpleAudioEngine robuste qui ne plante plus
+- ✅ **Menu Extensible** - Système de navigation pour futures fonctionnalités
+- ✅ **Structure Nettoyée** - Code complexe supprimé, architecture simplifiée
+- ✅ **Tests Fonctionnels** - /debug/test, /debug/test-tone, /debug/test-simple-audio
+- 🎯 **Prêt pour développement** - Base stable pour construire les features
+- 📋 **Documentation complète** - MENU_SYSTEM.md, PROJECT_STRUCTURE.md
+
+### 🎯 **Priorités V2 (Prochaines Étapes)**
+1. **Core Features** - Séquenceur principal basé sur SimpleAudioEngine
+2. **Piano Roll** - Éditeur de patterns interactif (version simple)
+3. **Transport Controls** - Interface play/stop/tempo intégrée
+4. **Export MIDI** - Exportation des patterns créés
+5. **Presets System** - Sauvegarde/chargement de patterns
+6. **Effects** - Reverb, delay, filters pour le synthé
+7. **Advanced Features** - IA generation, outils d'analyse
 
 ## 🛠️ Quick Development Commands
 
@@ -56,13 +67,13 @@ npm run dev      # → http://localhost:3000
 npm run lint
 ```
 
-### V2 (Modern)
+### V2 (Simple & Robuste)
 ```bash
 cd v2
 npm install      # Setup dependencies
-npm run dev      # → http://localhost:3001 (when ready)
-npm test         # Run test suite
-npm run lint
+npm run dev      # → http://localhost:3000 (menu extensible)
+npm run build    # Compile production
+npm run lint     # Linting (désactivé temporairement)
 ```
 
 ## 🧭 Decision Tree: Which Version to Work On?
@@ -74,33 +85,45 @@ npm run lint
 - 🔍 **Investigating** bugs to avoid in V2
 
 **Work on V2 if:**
-- ✨ **New features** or improvements
-- 🏗️ **Architecture** work or refactoring
-- 🤖 **AI features** with Magenta.js
+- ✨ **New features** - Ajouter des fonctionnalités au menu extensible
+- 🏗️ **Architecture** - Construire sur la base SimpleAudioEngine stable
+- 🎵 **Core features** - Séquenceur, PianoRoll, Transport, Export MIDI
 - 📈 **Long-term** development goals
 
 ## ⚠️ Important Notes
 
-### V1 Anti-Patterns (Avoid in V2)
-- Complex nested React hooks with circular dependencies
-- Unstable function references causing re-renders  
-- Mixing Tone.js relative notation with absolute durations
-- No testing strategy or type safety
+### ❌ Architecture Complexe Évitée (Leçons Apprises)
+- EventBus et singletons multiples causaient des plantages
+- Lazy loading Tone.js mal implémenté créait des blocages  
+- PatternEngine et SynthEngine séparés ajoutaient de la complexité
+- Architecture modulaire trop complexe pour les besoins actuels
 
-### V2 Modern Patterns (Adopt)
-- AudioEngine singleton outside React lifecycle
-- Full TypeScript with strict mode
-- Test-driven development approach
-- Clean separation of concerns
+### ✅ Architecture Simple Adoptée (Ce qui Marche)
+- **SimpleAudioEngine** - Une classe, une responsabilité, pas de plantage
+- **useSimpleAudio** - Hook minimaliste avec polling d'état
+- **Menu extensible** - Système simple pour ajouter des features
+- **Types simplifiés** - Seulement ce qui est réellement utilisé
+- **Structure claire** - Organisation logique et documentée
 
 ## 📖 Documentation Navigation
 
-- **Project Overview**: This file + `README.md`
-- **V1 Complete Docs**: `v1/CLAUDE_V1.md`
-- **V2 Architecture**: `v2/CLAUDE_V2.md`  
-- **Feature Migration**: Guidelines in V2 docs
-- **Development History**: Complete timeline in V1 docs
+### 📁 V1 (Stable)
+- **V1 Complete Docs**: `v1/CLAUDE_V1.md` - Architecture complète V1
+- **Development History**: Timeline complète dans les docs V1
+
+### 📁 V2 (Simple & Robuste)  
+- **V2 Architecture**: `v2/CLAUDE_V2.md` - Architecture détaillée
+- **Menu System**: `v2/MENU_SYSTEM.md` - Guide pour ajouter des features
+- **Project Structure**: `v2/PROJECT_STRUCTURE.md` - Structure après nettoyage
+- **Cleanup Summary**: `v2/CLEANUP_SUMMARY.md` - Résumé du nettoyage
+
+### 🚀 Comment Ajouter une Feature V2
+1. **Ajouter l'item** dans `v2/src/data/menuItems.ts`
+2. **Créer la page** dans `v2/src/app/ma-feature/page.tsx`  
+3. **Développer** en utilisant `SimpleAudioEngine` comme base
+4. **Tester** via le menu de debug
+5. **Documenter** et mettre à jour le status
 
 ---
 
-**For version-specific guidance, always refer to the respective CLAUDE_V1.md or CLAUDE_V2.md files.**
+**🎵 V2 est prêt pour le développement avec une base solide et un système extensible!**

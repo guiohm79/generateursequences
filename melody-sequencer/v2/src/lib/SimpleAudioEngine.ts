@@ -45,9 +45,24 @@ export class SimpleAudioEngine {
         console.log('[SimpleAudioEngine] Audio context started');
       }
       
-      // Création du synthétiseur
-      this.synth = new this.Tone.Synth().toDestination();
-      console.log('[SimpleAudioEngine] Synth created');
+      // Création du synthétiseur polyphonique avec meilleur son
+      this.synth = new this.Tone.PolySynth(this.Tone.Synth, {
+        oscillator: {
+          type: "triangle"
+        },
+        envelope: {
+          attack: 0.02,
+          decay: 0.1,
+          sustain: 0.3,
+          release: 1
+        }
+      }).toDestination();
+      
+      // Ajout d'un peu de reverb pour un son plus riche
+      const reverb = new this.Tone.Reverb(0.4).toDestination();
+      this.synth.connect(reverb);
+      
+      console.log('[SimpleAudioEngine] PolySynth with reverb created');
       
       this.isInitialized = true;
       console.log('[SimpleAudioEngine] ✅ Initialization complete');
@@ -144,7 +159,7 @@ export class SimpleAudioEngine {
         const step = steps[this.currentStep];
         
         if (step && step.on) {
-          // Jouer la note
+          // Jouer la note avec PolySynth (supporte plusieurs notes simultanées)
           this.synth.triggerAttackRelease(noteName, '8n', undefined, step.velocity);
         }
       }

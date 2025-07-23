@@ -47,9 +47,9 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'piano-roll',
     title: 'Piano Roll',
-    description: 'Éditeur de patterns interactif avec le PianoRoll SVG',
+    description: 'Éditeur de patterns interactif style DAW (16 pas, gamme C)',
     href: '/piano-roll',
-    status: 'planned',
+    status: 'stable',
     category: 'core',
     priority: 2
   },

@@ -22,7 +22,8 @@
       "Bash(timeout 15 npm run dev)",
       "Bash(npx kill-port:*)",
       "Bash(timeout 10 npm run dev)",
-      "Bash(timeout 30 npm run build)"
+      "Bash(timeout 30 npm run build)",
+      "WebFetch(domain:magenta.withgoogle.com)"
     ],
     "deny": []
   }
