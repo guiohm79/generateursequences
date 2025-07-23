@@ -1,23 +1,19 @@
-export type NoteLength = '4n' | '8n' | '16n' | '32n' | '64n';
+/**
+ * Types pour l'architecture simple et robuste
+ * Seuls les types réellement utilisés sont conservés
+ */
 
-export interface Step {
+// Types de base pour SimpleAudioEngine
+export interface SimpleStep {
   on: boolean;
   velocity: number;
-  accent?: boolean;
-  slide?: boolean;
 }
 
-export interface Pattern {
-  [noteName: string]: Step[];
+export interface SimplePattern {
+  [noteName: string]: SimpleStep[];
 }
 
-export interface PlaybackConfig {
-  tempo: number;
-  noteLength: NoteLength;
-  midiOutputEnabled: boolean;
-  swing?: number;
-}
-
+// Types pour futures fonctionnalités
 export interface SynthPreset {
   id: string;
   name: string;
@@ -36,19 +32,3 @@ export interface SynthPreset {
     rolloff: number;
   };
 }
-
-export interface TransportState {
-  isPlaying: boolean;
-  currentStep: number;
-  tempo: number;
-  noteLength: NoteLength;
-}
-
-export type AudioEngineEventType = 'stepChange' | 'transportStart' | 'transportStop' | 'tempoChange';
-
-export interface AudioEngineEvent {
-  type: AudioEngineEventType;
-  data?: any;
-}
-
-export type AudioEngineListener = (event: AudioEngineEvent) => void;

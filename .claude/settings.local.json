@@ -17,7 +17,12 @@
       "WebFetch(domain:github.com)",
       "Bash(npx tsc:*)",
       "Bash(curl:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 15 npm run dev)",
+      "Bash(npx kill-port:*)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(timeout 30 npm run build)"
     ],
     "deny": []
   }
