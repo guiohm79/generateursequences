@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Melody Sequencer - Architecture V1/V2
 
-## Getting Started
+## 📁 Structure du Projet
 
-First, run the development server:
+### **v1/** - Version Stable Actuelle
+- **Status** : ✅ Fonctionnelle pour usage quotidien
+- **Tech Stack** : Next.js 15, React, Tone.js, Tailwind CSS
+- **Caractéristiques** :
+  - Séquenceur mélodique complet
+  - Génération aléatoire de patterns  
+  - Morphing et évolution génétique
+  - Export MIDI et système de favoris
+  - Gammes personnalisées et ambiances
 
+### **v2/** - Version Moderne avec IA
+- **Status** : 🚧 En développement actif
+- **Tech Stack** : Next.js 15, TypeScript, Tone.js, Magenta.js, Tailwind CSS
+- **Objectifs** :
+  - Architecture robuste sans bugs de transport
+  - Intelligence artificielle musicale intégrée
+  - Tests unitaires complets
+  - Code moderne et maintenable
+  - Performances optimisées
+
+## 🚀 Quick Start
+
+### Utiliser V1 (Stable)
 ```bash
+cd v1
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Développer V2 (Moderne)
+```bash
+cd v2
+npm install    # À faire lors du prochain développement
+npm run dev    
+# → http://localhost:3001
+```
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 📈 Roadmap V2
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Phase 1: Fondations (En Cours)
+- ✅ Setup Next.js + TypeScript + Tailwind + Tests
+- ✅ Architecture modulaire définie
+- 🚧 AudioEngine singleton implémentation
+- 🚧 Tests unitaires de base
 
-## Learn More
+### Phase 2: Core Features
+- 🔜 Piano roll basique avec TypeScript
+- 🔜 Transport audio stable (play/stop/tempo)
+- 🔜 Export MIDI fonctionnel
+- 🔜 Presets synthétiseurs
 
-To learn more about Next.js, take a look at the following resources:
+### Phase 3: AI Integration
+- 🔜 Intégration Magenta.js
+- 🔜 Smart pattern continuation
+- 🔜 Style transfer basique
+- 🔜 Drum pattern generation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Phase 4: V1 Feature Parity
+- 🔜 Génération aléatoire avancée
+- 🔜 Système de favoris
+- 🔜 Morphing et évolution génétique
+- 🔜 Gammes personnalisées
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Phase 5: AI Advanced Features
+- 🔜 Collaborative AI composition
+- 🔜 Genre detection et classification
+- 🔜 Harmonisation automatique
+- 🔜 Real-time AI assistance
 
-## Deploy on Vercel
+## 🔄 Status Actuel (2025-07-23)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### V1 - Production Ready
+- ✅ **Fonctionnel** pour usage quotidien
+- ⚠️ **Bugs mineurs** (vitesse lecture, transport occasionnel)
+- 🔒 **Maintenance uniquement** - Pas de nouvelles fonctionnalités
+- 📚 **Documentation complète** dans `v1/CLAUDE.md`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### V2 - Développement Actif
+- 🏗️ **Architecture définie** - TypeScript + Singleton pattern
+- 📋 **Documentation créée** - Voir `v2/CLAUDE.md`
+- 🧪 **Tests ready** - Vitest + Testing Library setup
+- 🎯 **Objectif** - Version stable avec IA d'ici fin développement
+
+## 📊 Comparaison Technique
+
+| Aspect | V1 | V2 |
+|--------|----|----|
+| **Langage** | JavaScript | TypeScript |
+| **Architecture** | Hooks React imbriqués | Singleton + Hooks simples |
+| **Tests** | Aucun | Vitest + Coverage |
+| **IA Musicale** | Random basique | Magenta.js intégré |
+| **Stabilité** | Bugs transport connus | Architecture robuste |
+| **Maintenance** | Difficile (dette technique) | Facile (code moderne) |
+
+## 🎯 Stratégie de Développement
+
+- **V1** reste utilisable pour la production
+- **V2** sert de laboratoire pour nouvelles fonctionnalités
+- **Migration progressive** des meilleures fonctionnalités V1 → V2
+- **Architecture moderne** dès le départ pour éviter la dette technique
+- **Approche parallèle** permet d'innover sans risquer la stabilité
+
+## 📚 Documentation
+
+- **V1** : Voir `v1/CLAUDE.md` pour architecture actuelle et historique
+- **V2** : Voir `v2/CLAUDE.md` pour nouvelle architecture et patterns
+- **Migration** : Guidelines de migration V1→V2 dans la doc V2
+
+---
+
+**Melody Sequencer V1/V2 - Developed with ♫ and powered by AI**

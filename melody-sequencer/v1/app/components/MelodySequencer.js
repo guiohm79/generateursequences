@@ -343,12 +343,13 @@ export default function MelodySequencer() {
 
   // Effet pour gérer le transport avec le hook
   useEffect(() => {
+    console.log('🎵 Transport useEffect triggered - isPlaying:', isPlaying, 'noteLength:', noteLength, 'steps:', steps);
     if (isPlaying) {
       startTransport(steps, currentPlayingPattern, setCurrentStep, setIsPlaying);
     } else {
       stopTransport(setIsPlaying, setCurrentStep);
     }
-  }, [isPlaying, startTransport, stopTransport, steps, currentPlayingPattern]);
+  }, [isPlaying, startTransport, stopTransport, steps, currentPlayingPattern, noteLength]);
 
   // Effet pour mettre à jour le pattern pendant la lecture
   useEffect(() => {
@@ -760,7 +761,11 @@ export default function MelodySequencer() {
               <span style={{ color: "#ccc", fontSize: "12px" }}>Vitesse:</span>
               <select 
                 value={noteLength}
-                onChange={(e) => setNoteLength(e.target.value)}
+                onChange={(e) => {
+                  const newNoteLength = e.target.value;
+                  console.log('🎶 Changing noteLength from', noteLength, 'to', newNoteLength);
+                  setNoteLength(newNoteLength);
+                }}
                 style={{
                   padding: "4px 8px",
                   backgroundColor: "#333",

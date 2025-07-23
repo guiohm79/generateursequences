@@ -197,6 +197,7 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
 
   // Fonction pour démarrer le transport
   const startTransport = useCallback(async (steps, pattern, onStepChange, setIsPlaying) => {
+    console.log('🚀 StartTransport called - noteLength:', noteLength, 'steps:', steps);
     // Mettre à jour la référence du pattern actuel
     currentPatternRef.current = pattern;
     
@@ -219,13 +220,23 @@ export function useTransport({ currentPreset, midiOutputEnabled, noteLength, tem
     // Attendre une petite pause pour s'assurer que tout est nettoyé
     await new Promise(resolve => setTimeout(resolve, 50));
     
+    // Calculer la durée réelle en secondes
+    const durationSeconds = {
+      "4n": (60 / tempo),         // Durée d'une noire en secondes
+      "8n": (60 / tempo) / 2,     // Durée d'une croche en secondes
+      "16n": (60 / tempo) / 4,    // Durée d'une double-croche en secondes
+      "32n": (60 / tempo) / 8,    // Durée d'une triple-croche en secondes
+      "64n": (60 / tempo) / 16    // Durée d'une quadruple-croche en secondes
+    }[noteLength] || (60 / tempo) / 4;
+    
     // Programmer la séquence avec un timing sûr
     const startTime = Tone.now() + 0.1; // Délai plus important
-    transportId.current = Tone.Transport.scheduleRepeat(sequence, noteLength, startTime);
+    console.log('⏰ Scheduling transport with noteLength:', noteLength, 'duration:', durationSeconds, 'seconds');
+    transportId.current = Tone.Transport.scheduleRepeat(sequence, durationSeconds, startTime);
     
     Tone.Transport.start(startTime);
     setIsPlaying(true);
-  }, [playStep, noteLength, stopTransportCleanly]);
+  }, [playStep, noteLength, tempo, stopTransportCleanly]);
 
   // Fonction pour arrêter le transport
   const stopTransport = useCallback(async (setIsPlaying, setCurrentStep) => {
