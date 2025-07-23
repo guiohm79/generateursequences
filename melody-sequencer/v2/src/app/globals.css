@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  body {
+    @apply text-white bg-black;
+  }
+}
+
+@layer components {
+  .sequencer-step {
+    @apply w-8 h-8 rounded border-2 cursor-pointer transition-all duration-150;
+  }
+  
+  .sequencer-step.active {
+    @apply bg-blue-500 border-blue-400;
+  }
+  
+  .sequencer-step.current {
+    @apply ring-2 ring-yellow-400 ring-offset-2 ring-offset-black;
+  }
+  
+  .sequencer-step.inactive {
+    @apply bg-gray-700 border-gray-600 hover:bg-gray-600;
+  }
+}
