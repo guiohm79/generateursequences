@@ -165,7 +165,8 @@ export class SimpleAudioEngine {
       }
       
       // Avancer au step suivant
-      const maxSteps = Math.max(...Object.values(this.pattern).map(steps => steps.length), 16);
+      const patternLengths = Object.values(this.pattern).map(steps => steps.length);
+      const maxSteps = patternLengths.length > 0 ? Math.max(...patternLengths) : 16;
       this.currentStep = (this.currentStep + 1) % maxSteps;
       
     } catch (error) {

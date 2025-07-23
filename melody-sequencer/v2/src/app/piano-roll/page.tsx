@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useSimpleAudio } from '../../hooks/useSimpleAudio';
 import { SimplePattern, SimpleStep } from '../../lib/SimpleAudioEngine';
 
-// Configuration du piano roll
-const STEPS = 16;
-const ACCENT_STEPS = [1, 5, 9, 13]; // Steps avec couleurs marquées (base 1)
+// Configuration du piano roll - dynamique
+const STEP_OPTIONS = [8, 16, 32, 64];
+const DEFAULT_STEPS = 16;
 
 // Génération des notes par octave
 const generateNotesForOctave = (octave: number): string[] => {
@@ -46,6 +46,9 @@ const PianoRollPage: React.FC = () => {
   // Navigation octaves
   const [visibleOctaveStart, setVisibleOctaveStart] = useState(2); // Commence à C2
   const [visibleOctaveCount, setVisibleOctaveCount] = useState(3); // Affiche 3 octaves
+  
+  // Configuration des steps
+  const [stepCount, setStepCount] = useState(DEFAULT_STEPS);
   
   // Audio engine hook
   const { 
@@ -91,14 +94,41 @@ const PianoRollPage: React.FC = () => {
   };
   
   const visibleNotes = getVisibleNotes();
+  
+  // Calcul de la largeur des cellules basé sur le nombre de steps
+  const getCellWidth = (steps: number): string => {
+    if (steps <= 16) return 'min-w-14'; // Large pour peu de steps
+    if (steps <= 32) return 'min-w-10'; // Moyen pour 32 steps
+    return 'min-w-8'; // Petit pour 64 steps
+  };
+  
+  const cellWidth = getCellWidth(stepCount);
+  
+  // Calcul des steps d'accents basé sur le nombre de steps
+  const getAccentSteps = (totalSteps: number): number[] => {
+    if (totalSteps <= 16) {
+      return [1, 5, 9, 13].filter(step => step <= totalSteps);
+    } else if (totalSteps <= 32) {
+      return [1, 5, 9, 13, 17, 21, 25, 29].filter(step => step <= totalSteps);
+    } else {
+      // Pour 64 steps, accent tous les 4 steps
+      const accents = [];
+      for (let i = 1; i <= totalSteps; i += 4) {
+        accents.push(i);
+      }
+      return accents;
+    }
+  };
+  
+  const accentSteps = getAccentSteps(stepCount);
 
   // Convert visual pattern to audio pattern
   const convertToAudioPattern = (visualPattern: NoteEvent[]): SimplePattern => {
     const audioPattern: SimplePattern = {};
     
-    // Initialize all notes with empty steps (use ALL_NOTES for full range)
+    // Initialize all notes with empty steps (use current stepCount)
     ALL_NOTES.forEach(note => {
-      audioPattern[note] = Array(STEPS).fill(null).map(() => ({ on: false, velocity: 0 }));
+      audioPattern[note] = Array(stepCount).fill(null).map(() => ({ on: false, velocity: 0 }));
     });
     
     // Fill in the active notes
@@ -128,16 +158,24 @@ const PianoRollPage: React.FC = () => {
         // Remove note
         return prev.filter(n => !(n.step === step && n.note === note));
       } else {
-        // Add note
-        return [...prev, {
-          step,
-          note,
-          velocity: 100,
-          isActive: true
-        }];
+        // Add note (seulement si dans la gamme de steps actuelle)
+        if (step < stepCount) {
+          return [...prev, {
+            step,
+            note,
+            velocity: 100,
+            isActive: true
+          }];
+        }
+        return prev;
       }
     });
   };
+  
+  // Nettoyer le pattern quand on change le nombre de steps
+  useEffect(() => {
+    setPattern(prev => prev.filter(note => note.step < stepCount));
+  }, [stepCount]);
 
   const isNoteActive = (step: number, note: string) => {
     return pattern.some(n => n.step === step && n.note === note && n.isActive);
@@ -179,7 +217,7 @@ const PianoRollPage: React.FC = () => {
               <div className="px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
                 <span className="text-slate-300 text-sm">Step:</span>
                 <span className={`text-white font-mono ml-2 ${isPlaying ? 'animate-pulse' : ''}`}>
-                  {currentStep + 1} / {STEPS}
+                  {currentStep + 1} / {stepCount}
                 </span>
               </div>
               
@@ -214,8 +252,38 @@ const PianoRollPage: React.FC = () => {
 
         {/* Piano Roll Interface */}
         <div className="bg-gradient-to-br from-slate-800/70 to-slate-900/70 backdrop-blur-sm rounded-2xl border border-slate-600/50 shadow-2xl overflow-hidden">
+          {/* Configuration Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-900/50 border-b border-slate-600/50">
+            {/* Steps Selector */}
+            <div className="flex items-center gap-4">
+              <span className="text-slate-300 font-semibold">📏 Steps:</span>
+              <div className="flex gap-2">
+                {STEP_OPTIONS.map(option => (
+                  <button
+                    key={option}
+                    onClick={() => setStepCount(option)}
+                    className={`px-3 py-1 rounded-lg text-sm font-mono transition-all ${
+                      stepCount === option
+                        ? 'bg-blue-500 text-white shadow-blue-500/30'
+                        : 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-slate-400">
+                {accentSteps.length} accents
+              </span>
+            </div>
+            
+            <div className="text-xs text-slate-400">
+              Pattern: {stepCount} steps
+            </div>
+          </div>
+          
           {/* Octave Navigation */}
-          <div className="flex items-center justify-between p-4 bg-slate-900/50 border-b border-slate-600/50">
+          <div className="flex items-center justify-between p-4 bg-slate-900/30 border-b border-slate-600/50">
             <div className="flex items-center gap-4">
               <span className="text-slate-300 font-semibold">🎹 Octaves:</span>
               
@@ -265,134 +333,139 @@ const PianoRollPage: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex" onWheel={handleWheel}>
-            {/* Piano Keys (Left Side) */}
-            <div className="flex-shrink-0 w-28 bg-gradient-to-r from-slate-700/80 to-slate-800/80 border-r border-slate-600">
-              {visibleNotes.map((note, noteIndex) => {
-                const isBlack = isBlackKey(note);
-                const octave = getOctaveNumber(note);
-                const noteName = note.replace(/[0-9]/g, '');
-                const isOctaveStart = noteName === 'C'; // C marque le début d'une octave
-                
-                return (
-                  <div
-                    key={note}
-                    className={`
-                      h-8 border-b flex items-center justify-between px-3 text-sm font-medium
-                      transition-all duration-200 hover:scale-[1.02] cursor-pointer
-                      ${isOctaveStart 
-                        ? 'border-amber-500/50 border-b-2' 
-                        : 'border-slate-600/50'
-                      }
-                      ${isBlack 
-                        ? 'bg-gradient-to-r from-slate-900/90 to-slate-800/90 text-slate-300 shadow-inner' 
-                        : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 shadow-sm'
-                      }
-                    `}
-                  >
-                    <span className={`font-bold tracking-wide ${isOctaveStart ? 'text-amber-400' : ''}`}>
-                      {noteName}
-                    </span>
-                    <span className={`text-xs font-mono ${
-                      isOctaveStart 
-                        ? 'text-amber-500 font-bold' 
-                        : (isBlack ? 'text-slate-500' : 'text-slate-600')
-                    }`}>
-                      {octave}
-                    </span>
-                  </div>
-                );
-              })}
+          {/* Container avec scroll unique */}
+          <div className="flex flex-col overflow-x-auto" onWheel={handleWheel}>
+            {/* Header des steps - fixé en haut */}
+            <div className="flex sticky top-0 z-10 bg-slate-900/80 backdrop-blur-sm border-b border-slate-600/30">
+              <div className="w-28 flex-shrink-0 bg-gradient-to-r from-slate-700/50 to-slate-800/50 py-2"></div>
+              <div className="flex">
+                {Array.from({ length: stepCount }, (_, stepIndex) => {
+                  const step = stepIndex + 1;
+                  const isAccentStep = accentSteps.includes(step);
+                  
+                  return (
+                    <div
+                      key={stepIndex}
+                      className={`
+                        ${cellWidth} text-center text-sm py-3 border-r border-slate-600/30
+                        font-mono transition-all duration-200 flex-shrink-0
+                        ${isAccentStep 
+                          ? 'text-amber-400 font-bold bg-slate-950/60 shadow-inner' 
+                          : 'text-slate-400 hover:text-slate-300'
+                        }
+                      `}
+                    >
+                      <span className={isAccentStep ? 'text-lg' : ''}>{step}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+            
+            {/* Piano Roll Grid */}
+            <div className="flex">
+              {/* Piano Keys (Left Side) - fixé à gauche */}
+              <div className="flex-shrink-0 w-28 bg-gradient-to-r from-slate-700/80 to-slate-800/80 border-r border-slate-600 sticky left-0 z-10">
+                {visibleNotes.map((note, noteIndex) => {
+                  const isBlack = isBlackKey(note);
+                  const octave = getOctaveNumber(note);
+                  const noteName = note.replace(/[0-9]/g, '');
+                  const isOctaveStart = noteName === 'C'; // C marque le début d'une octave
+                  
+                  return (
+                    <div
+                      key={note}
+                      className={`
+                        h-8 border-b flex items-center justify-between px-3 text-sm font-medium
+                        transition-all duration-200 hover:scale-[1.02] cursor-pointer
+                        ${isOctaveStart 
+                          ? 'border-amber-500/50 border-b-2' 
+                          : 'border-slate-600/50'
+                        }
+                        ${isBlack 
+                          ? 'bg-gradient-to-r from-slate-900/90 to-slate-800/90 text-slate-300 shadow-inner' 
+                          : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 shadow-sm'
+                        }
+                      `}
+                    >
+                      <span className={`font-bold tracking-wide ${isOctaveStart ? 'text-amber-400' : ''}`}>
+                        {noteName}
+                      </span>
+                      <span className={`text-xs font-mono ${
+                        isOctaveStart 
+                          ? 'text-amber-500 font-bold' 
+                          : (isBlack ? 'text-slate-500' : 'text-slate-600')
+                      }`}>
+                        {octave}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
 
-            {/* Grid (Right Side) */}
-            <div className="flex-1 min-w-0">
-              {visibleNotes.map((note, noteIndex) => {
-                const isBlack = isBlackKey(note);
-                return (
-                  <div
-                    key={note}
-                    className={`
-                      h-8 border-b border-slate-600/30 flex
-                      ${isBlack ? 'bg-slate-900/30' : 'bg-slate-800/30'}
-                    `}
-                  >
-                    {Array.from({ length: STEPS }, (_, stepIndex) => {
-                      const step = stepIndex + 1;
-                      const isAccentStep = ACCENT_STEPS.includes(step);
-                      const hasNote = isNoteActive(stepIndex, note);
-                      
-                      return (
-                        <div
-                          key={stepIndex}
-                          className={`
-                            flex-1 min-w-14 h-full border-r border-slate-600/30 cursor-pointer
-                            flex items-center justify-center text-xs relative
-                            transition-all duration-200
-                            ${stepIndex === currentStep && isPlaying ? 'ring-2 ring-yellow-400 ring-opacity-60' : ''}
-                            ${isAccentStep 
-                              ? 'bg-slate-950/60 hover:bg-slate-900/80 border-r-2 border-amber-500/50' 
-                              : (isBlack 
-                                ? 'bg-slate-900/40 hover:bg-slate-800/70' 
-                                : 'bg-slate-800/40 hover:bg-slate-700/70'
-                              )
-                            }
-                            ${hasNote ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 hover:from-blue-400/90 hover:to-blue-500/90 shadow-lg' : ''}
-                          `}
-                          onClick={() => toggleNote(stepIndex, note)}
-                          title={`Step ${step}, Note ${note}`}
-                        >
-                          {hasNote && (
-                            <div className={`
-                              w-10 h-5 rounded-lg shadow-lg
+              {/* Grid (Right Side) - scrollable horizontalement */}
+              <div className="flex-shrink-0">
+                {visibleNotes.map((note, noteIndex) => {
+                  const isBlack = isBlackKey(note);
+                  return (
+                    <div
+                      key={note}
+                      className={`
+                        h-8 border-b border-slate-600/30 flex
+                        ${isBlack ? 'bg-slate-900/30' : 'bg-slate-800/30'}
+                      `}
+                    >
+                      {Array.from({ length: stepCount }, (_, stepIndex) => {
+                        const step = stepIndex + 1;
+                        const isAccentStep = accentSteps.includes(step);
+                        const hasNote = isNoteActive(stepIndex, note);
+                        
+                        return (
+                          <div
+                            key={stepIndex}
+                            className={`
+                              ${cellWidth} h-full border-r border-slate-600/30 cursor-pointer
+                              flex items-center justify-center text-xs relative flex-shrink-0
+                              transition-all duration-200
+                              ${stepIndex === currentStep && isPlaying ? 'ring-2 ring-yellow-400 ring-opacity-60' : ''}
                               ${isAccentStep 
-                                ? 'bg-gradient-to-br from-cyan-300 to-blue-400 shadow-cyan-300/50' 
-                                : 'bg-gradient-to-br from-blue-400 to-blue-500 shadow-blue-400/50'
+                                ? 'bg-slate-950/60 hover:bg-slate-900/80 border-r-2 border-amber-500/50' 
+                                : (isBlack 
+                                  ? 'bg-slate-900/40 hover:bg-slate-800/70' 
+                                  : 'bg-slate-800/40 hover:bg-slate-700/70'
+                                )
                               }
-                              ${stepIndex === currentStep && isPlaying ? 'animate-pulse ring-1 ring-yellow-300' : ''}
-                            `} />
-                          )}
-                          
-                          {/* Grid dots for empty cells */}
-                          {!hasNote && (
-                            <div className={`
-                              w-1 h-1 rounded-full opacity-20
-                              ${isAccentStep ? 'bg-amber-400' : 'bg-slate-500'}
-                            `} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Step Numbers Header */}
-          <div className="flex mt-3 border-t border-slate-600/30">
-            <div className="w-28 flex-shrink-0 bg-gradient-to-r from-slate-700/50 to-slate-800/50 py-2"></div>
-            <div className="flex-1 flex">
-              {Array.from({ length: STEPS }, (_, stepIndex) => {
-                const step = stepIndex + 1;
-                const isAccentStep = ACCENT_STEPS.includes(step);
-                
-                return (
-                  <div
-                    key={stepIndex}
-                    className={`
-                      flex-1 min-w-14 text-center text-sm py-3 border-r border-slate-600/30
-                      font-mono transition-all duration-200
-                      ${isAccentStep 
-                        ? 'text-amber-400 font-bold bg-slate-950/60 shadow-inner' 
-                        : 'text-slate-400 hover:text-slate-300'
-                      }
-                    `}
-                  >
-                    <span className={isAccentStep ? 'text-lg' : ''}>{step}</span>
-                  </div>
-                );
-              })}
+                              ${hasNote ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 hover:from-blue-400/90 hover:to-blue-500/90 shadow-lg' : ''}
+                            `}
+                            onClick={() => toggleNote(stepIndex, note)}
+                            title={`Step ${step}, Note ${note}`}
+                          >
+                            {hasNote && (
+                              <div className={`
+                                ${stepCount <= 16 ? 'w-10 h-5' : stepCount <= 32 ? 'w-8 h-4' : 'w-6 h-3'} 
+                                rounded-lg shadow-lg
+                                ${isAccentStep 
+                                  ? 'bg-gradient-to-br from-cyan-300 to-blue-400 shadow-cyan-300/50' 
+                                  : 'bg-gradient-to-br from-blue-400 to-blue-500 shadow-blue-400/50'
+                                }
+                                ${stepIndex === currentStep && isPlaying ? 'animate-pulse ring-1 ring-yellow-300' : ''}
+                              `} />
+                            )}
+                            
+                            {/* Grid dots for empty cells */}
+                            {!hasNote && (
+                              <div className={`
+                                w-1 h-1 rounded-full opacity-20
+                                ${isAccentStep ? 'bg-amber-400' : 'bg-slate-500'}
+                              `} />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
@@ -402,7 +475,7 @@ const PianoRollPage: React.FC = () => {
           <h3 className="text-xl font-bold mb-4 text-slate-200">🎵 Pattern Info</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="text-center p-3 bg-slate-700/50 rounded-xl border border-slate-600/50">
-              <div className="text-2xl font-bold text-blue-400">{STEPS}</div>
+              <div className="text-2xl font-bold text-blue-400">{stepCount}</div>
               <div className="text-sm text-slate-400">Steps</div>
             </div>
             <div className="text-center p-3 bg-slate-700/50 rounded-xl border border-slate-600/50">
@@ -414,7 +487,7 @@ const PianoRollPage: React.FC = () => {
               <div className="text-sm text-slate-400">Gamme</div>
             </div>
             <div className="text-center p-3 bg-slate-700/50 rounded-xl border border-slate-600/50">
-              <div className="text-2xl font-bold text-amber-400">{ACCENT_STEPS.length}</div>
+              <div className="text-2xl font-bold text-amber-400">{accentSteps.length}</div>
               <div className="text-sm text-slate-400">Accents</div>
             </div>
           </div>
