@@ -379,11 +379,13 @@ const PianoRollPage: React.FC = () => {
     isInitialized, 
     currentStep, 
     tempo,
+    noteSpeed,
     initialize, 
     start, 
     stop, 
     setPattern: setAudioPattern,
-    setTempo 
+    setTempo,
+    setNoteSpeed
   } = useSimpleAudio();
   
   // Auto-initialize on mount
@@ -979,6 +981,31 @@ const PianoRollPage: React.FC = () => {
                       title={`Tempo: ${tempo} BPM`}
                     />
                     <span className="text-emerald-400 font-mono text-sm">{tempo}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vitesse de lecture */}
+              <div className="col-span-2 sm:col-span-1 px-3 sm:px-4 py-2 bg-slate-700/70 rounded-lg border border-slate-600">
+                <div className="flex items-center justify-between sm:justify-start">
+                  <span className="text-slate-300 text-xs sm:text-sm">Vitesse:</span>
+                  <div className="flex items-center gap-1 ml-2">
+                    {(['8n', '16n', '32n'] as const).map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => setNoteSpeed(speed)}
+                        className={`
+                          px-2 py-1 rounded text-xs font-mono transition-colors
+                          ${noteSpeed === speed 
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                          }
+                        `}
+                        title={`Vitesse: ${speed === '8n' ? '1/8 (lent)' : speed === '16n' ? '1/16 (normal)' : '1/32 (rapide)'}`}
+                      >
+                        {speed}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>

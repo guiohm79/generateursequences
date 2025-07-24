@@ -23,6 +23,7 @@ export class SimpleAudioEngine {
   private currentStep = 0;
   private pattern: SimplePattern = {};
   private tempo = 120;
+  private noteSpeed: '8n' | '16n' | '32n' = '16n'; // Vitesse de lecture
   
   /**
    * Initialisation simple et claire
@@ -108,8 +109,8 @@ export class SimpleAudioEngine {
       this.isPlaying = true;
       this.currentStep = 0;
       
-      // Calcul de l'intervalle (en ms)
-      const stepInterval = (60 / this.tempo / 4) * 1000; // 16th notes
+      // Calcul de l'intervalle basé sur la vitesse de lecture
+      const stepInterval = this.calculateStepInterval();
       
       // Démarrage de la boucle de lecture
       this.intervalId = setInterval(() => {
@@ -188,16 +189,50 @@ export class SimpleAudioEngine {
       setTimeout(() => this.start(), 50);
     }
   }
+
+  /**
+   * Changer la vitesse de lecture (seulement pour l'audio, pas l'export MIDI)
+   */
+  setNoteSpeed(speed: '8n' | '16n' | '32n'): void {
+    this.noteSpeed = speed;
+    
+    // Si en cours de lecture, redémarrer avec la nouvelle vitesse
+    if (this.isPlaying) {
+      this.stop();
+      setTimeout(() => this.start(), 50);
+    }
+  }
+
+  /**
+   * Calculer l'intervalle entre les steps selon la vitesse de lecture
+   */
+  private calculateStepInterval(): number {
+    const baseInterval = (60 / this.tempo / 4) * 1000; // 16th note de base
+    
+    switch (this.noteSpeed) {
+      case '8n':  return baseInterval * 2;    // 2x plus lent (8th notes)
+      case '16n': return baseInterval;        // Normal (16th notes)
+      case '32n': return baseInterval / 2;    // 2x plus rapide (32nd notes)
+      default:    return baseInterval;
+    }
+  }
   
   /**
    * Obtenir l'état actuel
    */
-  getState() {
+  getState(): {
+    isInitialized: boolean;
+    isPlaying: boolean;
+    currentStep: number;
+    tempo: number;
+    noteSpeed: '8n' | '16n' | '32n';
+  } {
     return {
       isInitialized: this.isInitialized,
       isPlaying: this.isPlaying,
       currentStep: this.currentStep,
-      tempo: this.tempo
+      tempo: this.tempo,
+      noteSpeed: this.noteSpeed
     };
   }
   
