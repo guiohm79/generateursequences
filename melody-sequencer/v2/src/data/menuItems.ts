@@ -129,12 +129,21 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'undo-redo',
-    title: 'Undo/Redo',
-    description: 'Historique des actions et annulation',
-    href: '/undo-redo',
-    status: 'planned',
+    title: '↶↷ Undo/Redo',
+    description: '✅ IMPLÉMENTÉ - Historique 50 actions + interface complète + Ctrl+Z/Y',
+    href: '/piano-roll',
+    status: 'stable',
     category: 'features',
     priority: 8
+  },
+  {
+    id: 'keyboard-shortcuts',
+    title: '⌨️ Raccourcis Clavier Globaux',
+    description: '✅ IMPLÉMENTÉ - 20+ raccourcis pro (Espace=Play, Ctrl+S/O/E, navigation)',
+    href: '/piano-roll',
+    status: 'stable',
+    category: 'features',
+    priority: 9
   },
   {
     id: 'quantization',

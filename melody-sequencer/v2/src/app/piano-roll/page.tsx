@@ -7,6 +7,7 @@ import { midiEngine, MidiNote } from '../../lib/MidiEngine';
 import { PresetManager } from '../../lib/PresetManager';
 import { SequencerPreset } from '../../types';
 import { MidiParser } from '../../lib/MidiParser';
+import { UndoRedoManager } from '../../lib/UndoRedoManager';
 
 // Configuration du piano roll - dynamique
 const STEP_OPTIONS = [8, 16, 32, 64];
@@ -215,10 +216,15 @@ const PianoRollPage: React.FC = () => {
     if (selectedNotes.size === 0) return;
     
     setPattern(prev => {
-      return prev.filter(noteEvent => {
+      const newPattern = prev.filter(noteEvent => {
         const noteId = createNoteId(noteEvent.step, noteEvent.note);
         return !selectedNotes.has(noteId);
       });
+      
+      // Sauvegarder dans l'historique
+      setTimeout(() => saveToHistory(`Supprimer ${selectedNotes.size} note(s)`), 0);
+      
+      return newPattern;
     });
     
     setSelectedNotes(new Set());
@@ -283,7 +289,14 @@ const PianoRollPage: React.FC = () => {
     });
     
     if (newNotes.length > 0) {
-      setPattern(prev => [...prev, ...newNotes]);
+      setPattern(prev => {
+        const newPattern = [...prev, ...newNotes];
+        
+        // Sauvegarder dans l'historique
+        setTimeout(() => saveToHistory(`Coller ${newNotes.length} note(s)`), 0);
+        
+        return newPattern;
+      });
       
       // Sélectionner les nouvelles notes collées
       const newSelection = new Set(newNotes.map(n => createNoteId(n.step, n.note)));
@@ -385,6 +398,10 @@ const PianoRollPage: React.FC = () => {
   // État pour l'import MIDI
   const [isDragOver, setIsDragOver] = useState(false);
   const [midiImportStatus, setMidiImportStatus] = useState<string>('');
+  
+  // Gestionnaire Undo/Redo
+  const [undoRedoManager] = useState(() => new UndoRedoManager());
+  const [historyInfo, setHistoryInfo] = useState(undoRedoManager.getHistoryInfo());
   
   // Audio engine hook
   const { 
@@ -493,6 +510,20 @@ const PianoRollPage: React.FC = () => {
             e.preventDefault();
             if (pattern.filter(n => n.isActive).length > 0) {
               handleExportMidi();
+            }
+            break;
+          case 'z':
+            // Ctrl+Z : Undo
+            e.preventDefault();
+            if (historyInfo.canUndo) {
+              handleUndo();
+            }
+            break;
+          case 'y':
+            // Ctrl+Y : Redo
+            e.preventDefault();
+            if (historyInfo.canRedo) {
+              handleRedo();
             }
             break;
         }
@@ -608,6 +639,7 @@ const PianoRollPage: React.FC = () => {
             // C seul : Clear pattern (avec confirmation)
             e.preventDefault();
             if (confirm('Effacer tout le pattern ?')) {
+              saveToHistory('Clear pattern (raccourci C)');
               setPattern([]);
               setSelectedNotes(new Set());
             }
@@ -736,6 +768,9 @@ const PianoRollPage: React.FC = () => {
     setPattern(prev => {
       const existingNote = prev.find(n => n.step === step && n.note === note);
       
+      let newPattern;
+      let action;
+      
       if (existingNote) {
         // Remove note et de la sélection
         setSelectedNotes(prev => {
@@ -743,21 +778,29 @@ const PianoRollPage: React.FC = () => {
           newSelection.delete(noteId);
           return newSelection;
         });
-        return prev.filter(n => !(n.step === step && n.note === note));
+        newPattern = prev.filter(n => !(n.step === step && n.note === note));
+        action = `Supprimer note ${note}`;
       } else {
         // Add note (seulement si dans la gamme de steps actuelle)
         if (step < stepCount) {
           // Ne pas ajouter automatiquement à la sélection
-          return [...prev, {
+          newPattern = [...prev, {
             step,
             note,
             velocity: 100, // Vélocité par défaut
             isActive: true,
             duration: 1 // Durée par défaut: 1 step
           }];
+          action = `Ajouter note ${note}`;
+        } else {
+          return prev;
         }
-        return prev;
       }
+      
+      // Sauvegarder dans l'historique après la mise à jour
+      setTimeout(() => saveToHistory(action), 0);
+      
+      return newPattern;
     });
   };
   
@@ -1112,6 +1155,9 @@ const PianoRollPage: React.FC = () => {
     setSelectedNotes(new Set());
     setShowLoadDialog(false);
     
+    // Sauvegarder dans l'historique
+    saveToHistory(`Charger preset "${preset.name}"`);
+    
     setExportStatus(`✅ Preset "${preset.name}" chargé (${newPattern.length} notes)`);
     setTimeout(() => setExportStatus(''), 3000);
   };
@@ -1147,6 +1193,14 @@ const PianoRollPage: React.FC = () => {
   useEffect(() => {
     loadPresets();
   }, []);
+
+  // Initialiser l'historique avec l'état initial
+  useEffect(() => {
+    if (pattern.length === 0) {
+      undoRedoManager.saveState([], stepCount, 'État initial');
+      updateHistoryInfo();
+    }
+  }, []); // Une seule fois au montage
 
   // === GESTION DE L'IMPORT MIDI ===
   const handleMidiFileImport = async (file: File) => {
@@ -1186,6 +1240,9 @@ const PianoRollPage: React.FC = () => {
                             result.stepsUsed <= 32 ? 32 : 64;
         setStepCount(newStepCount);
       }
+
+      // Sauvegarder dans l'historique
+      saveToHistory(`Import MIDI (${result.totalNotes} notes)`);
 
       // Message de succès avec détails
       let successMessage = `✅ Import réussi! ${result.totalNotes} notes`;
@@ -1252,6 +1309,40 @@ const PianoRollPage: React.FC = () => {
     }
 
     await handleMidiFileImport(midiFile);
+  };
+
+  // === GESTION UNDO/REDO ===
+  const updateHistoryInfo = () => {
+    setHistoryInfo(undoRedoManager.getHistoryInfo());
+  };
+
+  const saveToHistory = (action: string) => {
+    undoRedoManager.saveStateIfDifferent(pattern, stepCount, action);
+    updateHistoryInfo();
+  };
+
+  const handleUndo = () => {
+    const previousState = undoRedoManager.undo();
+    if (previousState) {
+      setPattern(previousState.pattern);
+      setStepCount(previousState.stepCount);
+      setSelectedNotes(new Set()); // Clear selection après undo
+      updateHistoryInfo();
+      setExportStatus(`↶ Undo: ${previousState.action || 'Action précédente'}`);
+      setTimeout(() => setExportStatus(''), 2000);
+    }
+  };
+
+  const handleRedo = () => {
+    const nextState = undoRedoManager.redo();
+    if (nextState) {
+      setPattern(nextState.pattern);
+      setStepCount(nextState.stepCount);
+      setSelectedNotes(new Set()); // Clear selection après redo
+      updateHistoryInfo();
+      setExportStatus(`↷ Redo: ${nextState.action || 'Action suivante'}`);
+      setTimeout(() => setExportStatus(''), 2000);
+    }
   };
 
   return (
@@ -1466,6 +1557,7 @@ const PianoRollPage: React.FC = () => {
                 <button
                   onClick={() => {
                     if (confirm('Effacer tout le pattern ?')) {
+                      saveToHistory('Clear pattern');
                       setPattern([]);
                       setSelectedNotes(new Set());
                       setExportStatus('✅ Pattern effacé');
@@ -1501,6 +1593,45 @@ const PianoRollPage: React.FC = () => {
                     {midiImportStatus}
                   </div>
                 )}
+              </div>
+
+              {/* Undo/Redo */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={handleUndo}
+                  disabled={!historyInfo.canUndo}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${!historyInfo.canUndo
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={!historyInfo.canUndo ? 'Aucune action à annuler' : `Annuler: ${historyInfo.undoAction || 'Action précédente'} (Ctrl+Z)`}
+                >
+                  ↶ Undo
+                </button>
+
+                <button
+                  onClick={handleRedo}
+                  disabled={!historyInfo.canRedo}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${!historyInfo.canRedo
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-slate-500 to-slate-600 hover:from-slate-600 hover:to-slate-700 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={!historyInfo.canRedo ? 'Aucune action à refaire' : `Refaire: ${historyInfo.redoAction || 'Action suivante'} (Ctrl+Y)`}
+                >
+                  ↷ Redo
+                </button>
+
+                <div className="text-xs text-slate-400">
+                  Historique: {historyInfo.currentIndex + 1}/{historyInfo.historySize}
+                </div>
               </div>
               
             </div>
@@ -1912,6 +2043,10 @@ const PianoRollPage: React.FC = () => {
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
                   <strong>Ctrl+D/S/O/E</strong> Dupliquer/Sauver/Ouvrir/Export
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0"></span>
+                  <strong>Ctrl+Z/Y</strong> Undo/Redo (historique 50 actions)
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0"></span>

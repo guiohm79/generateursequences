@@ -40,7 +40,7 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status - 🎹 **PIANO ROLL PROFESSIONNEL + MIDI EXPORT COMPLET**
+### V2 Status - 🎹 **SÉQUENCEUR PROFESSIONNEL COMPLET + TOUTES FONCTIONNALITÉS CORE**
 - ✅ **Piano Roll DAW-Grade** - Interface professionnelle style studio
 - ✅ **Audio Polyphonique** - SimpleAudioEngine avec PolySynth + reverb
 - ✅ **Navigation Octaves** - Scroll/boutons, gamme C1-C7 complète
@@ -50,20 +50,24 @@ melody-sequencer/
 - ✅ **Sélection Multiple** - Rectangle, Ctrl+clic, copier/coller
 - ✅ **Déplacement Flèches** - Navigation précise avec clavier
 - ✅ **Export MIDI Professionnel** - Module réutilisable, timing parfait
+- ✅ **Import MIDI Complet** - Drag & drop + sélecteur, limitation 64 steps automatique
+- ✅ **Système Presets** - Sauvegarde localStorage + export/import JSON
+- ✅ **Raccourcis Clavier Globaux** - 20+ raccourcis professionnels (Espace=Play, Ctrl+Z/Y, etc.)
+- ✅ **Undo/Redo Professionnel** - Historique 50 actions avec interface complète
 - ✅ **Vitesses de Lecture** - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
 - ✅ **Architecture Robuste** - Base stable et extensible
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
-1. **Presets System** - Sauvegarde/chargement de patterns
-2. **Raccourcis Clavier** - Shortcuts globaux (espace=play, etc.)
-3. **Undo/Redo** - Historique des actions
-4. **Quantization** - Alignement automatique des notes
-5. **Scale Helper** - Assistant gammes et accords
-6. **MIDI Import** - Importation de fichiers .mid
-7. **Génération IA** - Magenta.js pour création assistée
-8. **Multi-patterns** - Gestion de plusieurs patterns
+1. ✅ ~~**Presets System**~~ - **TERMINÉ** - Sauvegarde localStorage + export/import JSON
+2. ✅ ~~**Raccourcis Clavier**~~ - **TERMINÉ** - 20+ shortcuts professionnels  
+3. ✅ ~~**Undo/Redo**~~ - **TERMINÉ** - Historique 50 actions avec interface
+4. ✅ ~~**MIDI Import**~~ - **TERMINÉ** - Drag & drop + limitation 64 steps
+5. **Quantization** - Alignement automatique des notes sur la grille
+6. **Scale Helper** - Assistant gammes et accords musicaux
+7. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+8. **Génération IA** - Magenta.js pour création assistée de mélodies
 
 ## 🛠️ Quick Development Commands
 
@@ -136,17 +140,20 @@ npm run lint     # Linting (désactivé temporairement)
 
 **🎵 V2 est prêt pour le développement avec une base solide et un système extensible!**
 
-  📋 DÉVELOPPEMENT ACTUEL :
-  ✅ Piano Roll Professionnel TERMINÉ
-  ✅ Vélocité par couleurs + drag vertical
-  ✅ Notes longues + redimensionnement
-  ✅ Sélection multiple + copier/coller
-  ✅ Déplacement par flèches clavier
-  ✅ Export MIDI professionnel TERMINÉ
-  ✅ Vitesses de lecture (1/8, 1/16, 1/32) TERMINÉ
+  📋 **TOUTES LES FONCTIONNALITÉS CORE TERMINÉES !**
+  ✅ Piano Roll Professionnel DAW-grade
+  ✅ Export/Import MIDI complet avec limitation intelligente
+  ✅ Système Presets localStorage + JSON
+  ✅ Raccourcis Clavier Globaux (20+ shortcuts)
+  ✅ Undo/Redo Professionnel (50 actions)
+  ✅ Vélocité couleurs + drag vertical temps réel
+  ✅ Notes longues + redimensionnement horizontal
+  ✅ Sélection multiple + copier/coller + flèches
+  ✅ Interface responsive mobile/desktop parfaite
+  ✅ Architecture robuste SimpleAudioEngine
   
-  🎯 PROCHAINES ÉTAPES :
-  1. Système presets (save/load)
-  2. Raccourcis clavier globaux
-  3. Undo/Redo system
-  4. MIDI Import
+  🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
+  1. **Quantization** - Alignement sur grille
+  2. **Scale Helper** - Assistant musical  
+  3. **Multi-patterns** - Gestion séquences multiples
+  4. **Génération IA** - Création assistée Magenta.js
