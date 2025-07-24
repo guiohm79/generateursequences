@@ -461,9 +461,52 @@ const PianoRollPage: React.FC = () => {
               }
             }
             break;
+          case 'd':
+            // Ctrl+D : Dupliquer les notes sélectionnées
+            e.preventDefault();
+            if (selectedNotes.size > 0) {
+              copySelectedNotes();
+              // Coller avec décalage d'un step
+              if (mousePosition) {
+                pasteNotes(mousePosition.step + 1, mousePosition.note);
+              }
+            }
+            break;
+          case 's':
+            // Ctrl+S : Sauvegarder preset rapide
+            e.preventDefault();
+            const activeNotes = pattern.filter(note => note.isActive);
+            if (activeNotes.length > 0) {
+              setPresetName(`Quick Save ${new Date().toLocaleTimeString()}`);
+              setShowPresetDialog(true);
+            }
+            break;
+          case 'o':
+            // Ctrl+O : Ouvrir presets
+            e.preventDefault();
+            if (presets.length > 0) {
+              setShowLoadDialog(true);
+            }
+            break;
+          case 'e':
+            // Ctrl+E : Export MIDI rapide
+            e.preventDefault();
+            if (pattern.filter(n => n.isActive).length > 0) {
+              handleExportMidi();
+            }
+            break;
         }
       } else {
         switch (e.key) {
+          case ' ':
+            // Espace : Play/Stop global
+            e.preventDefault();
+            if (isPlaying) {
+              stop();
+            } else {
+              start();
+            }
+            break;
           case 'Delete':
           case 'Backspace':
             e.preventDefault();
@@ -473,22 +516,108 @@ const PianoRollPage: React.FC = () => {
             e.preventDefault();
             setSelectedNotes(new Set());
             setSelectionRect(null);
+            // Fermer les dialogs ouverts
+            setShowPresetDialog(false);
+            setShowLoadDialog(false);
             break;
           case 'ArrowLeft':
             e.preventDefault();
-            moveSelectedNotes(-1, 0); // Gauche: -1 step
+            if (e.shiftKey && selectedNotes.size > 0) {
+              // Shift+Flèche : Déplacer plus rapidement
+              moveSelectedNotes(-4, 0);
+            } else {
+              moveSelectedNotes(-1, 0); // Gauche: -1 step
+            }
             break;
           case 'ArrowRight':
             e.preventDefault();
-            moveSelectedNotes(1, 0); // Droite: +1 step
+            if (e.shiftKey && selectedNotes.size > 0) {
+              moveSelectedNotes(4, 0);
+            } else {
+              moveSelectedNotes(1, 0); // Droite: +1 step
+            }
             break;
           case 'ArrowUp':
             e.preventDefault();
-            moveSelectedNotes(0, -1); // Haut: -1 note (vers les aigûs, index plus bas)
+            if (e.shiftKey && selectedNotes.size > 0) {
+              // Shift+Flèche : Déplacer d'une octave
+              moveSelectedNotes(0, -12);
+            } else {
+              moveSelectedNotes(0, -1); // Haut: -1 note (vers les aigûs, index plus bas)
+            }
             break;
           case 'ArrowDown':
             e.preventDefault();
-            moveSelectedNotes(0, 1); // Bas: +1 note (vers les graves, index plus haut)
+            if (e.shiftKey && selectedNotes.size > 0) {
+              moveSelectedNotes(0, 12);
+            } else {
+              moveSelectedNotes(0, 1); // Bas: +1 note (vers les graves, index plus haut)
+            }
+            break;
+          case 'Home':
+            // Home : Aller au début
+            e.preventDefault();
+            if (selectedNotes.size > 0) {
+              // Déplacer sélection au step 0
+              const minStep = Math.min(...Array.from(selectedNotes).map(id => parseNoteId(id).step));
+              moveSelectedNotes(-minStep, 0);
+            }
+            break;
+          case 'End':
+            // End : Aller à la fin
+            e.preventDefault();
+            if (selectedNotes.size > 0) {
+              const maxStep = Math.max(...Array.from(selectedNotes).map(id => parseNoteId(id).step));
+              const moveDistance = (stepCount - 1) - maxStep;
+              if (moveDistance > 0) {
+                moveSelectedNotes(moveDistance, 0);
+              }
+            }
+            break;
+          case 'PageUp':
+            // Page Up : Monter d'une octave dans la vue
+            e.preventDefault();
+            if (visibleOctaveStart < 7) {
+              setVisibleOctaveStart(prev => Math.min(7, prev + 1));
+            }
+            break;
+          case 'PageDown':
+            // Page Down : Descendre d'une octave dans la vue
+            e.preventDefault();
+            if (visibleOctaveStart > 1) {
+              setVisibleOctaveStart(prev => Math.max(1, prev - 1));
+            }
+            break;
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+            // Chiffres 1-4 : Changer vitesse de lecture
+            e.preventDefault();
+            const speedMap: { [key: string]: '8n' | '16n' | '32n' } = {
+              '1': '8n',     // 1/8 notes (lent)
+              '2': '16n',    // 1/16 notes (normal)
+              '3': '32n',    // 1/32 notes (rapide)
+              '4': '16n'     // Retour normal
+            };
+            if (speedMap[e.key]) {
+              setNoteSpeed(speedMap[e.key]);
+            }
+            break;
+          case 'c':
+            // C seul : Clear pattern (avec confirmation)
+            e.preventDefault();
+            if (confirm('Effacer tout le pattern ?')) {
+              setPattern([]);
+              setSelectedNotes(new Set());
+            }
+            break;
+          case 'm':
+            // M : Mute/Unmute (Stop si playing)
+            e.preventDefault();
+            if (isPlaying) {
+              stop();
+            }
             break;
         }
       }
@@ -779,8 +908,11 @@ const PianoRollPage: React.FC = () => {
       document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
       document.addEventListener('touchend', handleGlobalEnd);
       
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.cursor = 'ns-resize';
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.userSelect = 'none';
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.touchAction = 'none';
     }
     
@@ -788,7 +920,9 @@ const PianoRollPage: React.FC = () => {
       document.addEventListener('mousemove', handleGlobalMouseMoveResize);
       document.addEventListener('mouseup', handleGlobalEnd);
       
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.cursor = 'ew-resize';
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.userSelect = 'none';
     }
     
@@ -799,8 +933,11 @@ const PianoRollPage: React.FC = () => {
       document.removeEventListener('touchmove', handleGlobalTouchMove);
       document.removeEventListener('touchend', handleGlobalEnd);
       
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.cursor = '';
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.userSelect = '';
+      // eslint-disable-next-line react/forbid-dom-props
       document.body.style.touchAction = '';
     };
   }, [dragState, resizeState, pattern]);
@@ -1314,7 +1451,7 @@ const PianoRollPage: React.FC = () => {
                 </label>
               </div>
 
-              {/* Import MIDI */}
+              {/* Import MIDI & Actions */}
               <div className="flex flex-col sm:flex-row items-center gap-3">
                 <label className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white hover:shadow-xl cursor-pointer">
                   🎼 Importer MIDI
@@ -1325,6 +1462,29 @@ const PianoRollPage: React.FC = () => {
                     className="hidden"
                   />
                 </label>
+
+                <button
+                  onClick={() => {
+                    if (confirm('Effacer tout le pattern ?')) {
+                      setPattern([]);
+                      setSelectedNotes(new Set());
+                      setExportStatus('✅ Pattern effacé');
+                      setTimeout(() => setExportStatus(''), 2000);
+                    }
+                  }}
+                  disabled={pattern.filter(n => n.isActive).length === 0}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${pattern.filter(n => n.isActive).length === 0
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={pattern.filter(n => n.isActive).length === 0 ? 'Aucune note à effacer' : 'Effacer toutes les notes (raccourci: C)'}
+                >
+                  🗑️ Clear
+                </button>
                 
                 <div className="text-xs text-slate-400 max-w-xs text-center">
                   Ou glissez-déposez un fichier .mid sur l'interface
@@ -1626,10 +1786,9 @@ const PianoRollPage: React.FC = () => {
                 <div 
                   className="absolute border-2 border-yellow-400 bg-yellow-400/10 pointer-events-none z-20"
                   style={{
-                    left: Math.min(selectionRect.startX, selectionRect.endX),
-                    top: Math.min(selectionRect.startY, selectionRect.endY),
-                    width: Math.abs(selectionRect.endX - selectionRect.startX),
-                    height: Math.abs(selectionRect.endY - selectionRect.startY),
+                    transform: `translate(${Math.min(selectionRect.startX, selectionRect.endX)}px, ${Math.min(selectionRect.startY, selectionRect.endY)}px)`,
+                    width: `${Math.abs(selectionRect.endX - selectionRect.startX)}px`,
+                    height: `${Math.abs(selectionRect.endY - selectionRect.startY)}px`,
                   }}
                 />
               )}
@@ -1744,11 +1903,27 @@ const PianoRollPage: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
-                  <strong>Raccourcis</strong> Ctrl+A (tout), Ctrl+C/V (copier/coller), Delete
+                  <strong>Espace</strong> Play/Stop global
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-teal-400 rounded-full flex-shrink-0"></span>
-                  <strong>Flèches</strong> déplacer les notes sélectionnées (←→ steps, ↑↓ notes)
+                  <span className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></span>
+                  <strong>Ctrl+A/C/V</strong> Sélectionner tout/Copier/Coller
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                  <strong>Ctrl+D/S/O/E</strong> Dupliquer/Sauver/Ouvrir/Export
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0"></span>
+                  <strong>Flèches</strong> déplacer notes (Shift = rapide/octave)
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-purple-400 rounded-full flex-shrink-0"></span>
+                  <strong>Home/End/PgUp/PgDn</strong> Navigation avancée
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-orange-400 rounded-full flex-shrink-0"></span>
+                  <strong>1/2/3/4</strong> Vitesses lecture, <strong>C</strong> Clear, <strong>M</strong> Mute
                 </li>
               </ul>
             </div>
