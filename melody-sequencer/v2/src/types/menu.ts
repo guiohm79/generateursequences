@@ -8,7 +8,7 @@ export interface MenuItem {
   description: string;
   href: string;
   status: 'stable' | 'testing' | 'new' | 'planned' | 'broken';
-  category: 'core' | 'debug' | 'features' | 'tools' | 'experimental';
+  category: 'core' | 'debug' | 'features' | 'tools' | 'experimental' | 'modes';
   priority: number; // 1 = highest
 }
 
@@ -39,6 +39,7 @@ export const MENU_STATUS_LABELS = {
 export const CATEGORY_COLORS = {
   core: 'bg-green-900 border-green-600',
   debug: 'bg-yellow-900 border-yellow-600',
+  modes: 'bg-indigo-900 border-indigo-600',
   features: 'bg-blue-900 border-blue-600',
   tools: 'bg-purple-900 border-purple-600',
   experimental: 'bg-red-900 border-red-600'

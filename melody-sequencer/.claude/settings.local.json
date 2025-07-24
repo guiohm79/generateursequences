@@ -17,7 +17,12 @@
       "Bash(git commit:*)",
       "Bash(npm install:*)",
       "Bash(timeout 10s npm run dev)",
-      "Bash(timeout 5s npm run dev)"
+      "Bash(timeout 5s npm run dev)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(git restore:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }

@@ -7,6 +7,15 @@ import { MenuItem, MenuCategory } from '../types/menu';
 export const MENU_ITEMS: MenuItem[] = [
   // === DEBUG & TESTS ===
   {
+    id: 'pianoroll-base',
+    title: '🧪 Piano Roll Base (Expérimentation)',
+    description: 'Version copie du Piano Roll pour refactorisation sécurisée',
+    href: '/pianorollBase',
+    status: 'testing',
+    category: 'debug',
+    priority: 0
+  },
+  {
     id: 'test-react',
     title: 'Test Base React',
     description: 'Vérifier que React/Next.js fonctionne correctement',
@@ -43,6 +52,53 @@ export const MENU_ITEMS: MenuItem[] = [
     status: 'stable',
     category: 'core',
     priority: 1
+  },
+  
+  // === MODES PIANO ROLL ===
+  {
+    id: 'mode-edition',
+    title: '🎹 Mode Édition',
+    description: 'Piano Roll classique avec toutes les fonctionnalités',
+    href: '/modes/edition',
+    status: 'stable',
+    category: 'modes',
+    priority: 1
+  },
+  {
+    id: 'mode-test',
+    title: '🧪 Mode Test',
+    description: 'Zone d\'expérimentation pour la refactorisation Piano Roll',
+    href: '/modes/test',
+    status: 'testing',
+    category: 'modes',
+    priority: 2
+  },
+  {
+    id: 'mode-inspiration',
+    title: '✨ Mode Inspiration',
+    description: 'Assistant IA pour génération de mélodies (Magenta.js)',
+    href: '/modes/inspiration',
+    status: 'planned',
+    category: 'modes',
+    priority: 3
+  },
+  {
+    id: 'mode-arrangement',
+    title: '🎼 Mode Arrangement',
+    description: 'Gestion multi-patterns et structure de composition',
+    href: '/modes/arrangement',
+    status: 'planned',
+    category: 'modes',
+    priority: 4
+  },
+  {
+    id: 'mode-scales',
+    title: '🎵 Mode Gammes',
+    description: 'Assistant gammes et accords musicaux',
+    href: '/modes/scales',
+    status: 'planned',
+    category: 'modes',
+    priority: 5
   },
   {
     id: 'sequencer-main',
@@ -221,6 +277,13 @@ export function getMenuCategories(): MenuCategory[] {
       color: 'bg-green-900 border-green-600',
       items: []
     },
+    modes: {
+      id: 'modes',
+      title: '🎛️ Modes Piano Roll',
+      description: 'Différents modes du Piano Roll (Édition, Inspiration, Arrangement, etc.)',
+      color: 'bg-indigo-900 border-indigo-600',
+      items: []
+    },
     features: {
       id: 'features',
       title: '✨ Features Avancées',
@@ -260,6 +323,7 @@ export function getMenuCategories(): MenuCategory[] {
   return [
     categories.debug,
     categories.core,
+    categories.modes,
     categories.features,
     categories.tools,
     categories.experimental
