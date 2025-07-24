@@ -57,6 +57,7 @@ melody-sequencer/
 - ✅ **Vitesses de Lecture** - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
 - ✅ **Architecture Robuste** - Base stable et extensible
+- ✅ **MODULARISATION RÉUSSIE** - 8 hooks + 4 utils + architecture multi-modes
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -64,10 +65,12 @@ melody-sequencer/
 2. ✅ ~~**Raccourcis Clavier**~~ - **TERMINÉ** - 20+ shortcuts professionnels  
 3. ✅ ~~**Undo/Redo**~~ - **TERMINÉ** - Historique 50 actions avec interface
 4. ✅ ~~**MIDI Import**~~ - **TERMINÉ** - Drag & drop + limitation 64 steps
-5. **Quantization** - Alignement automatique des notes sur la grille
-6. **Scale Helper** - Assistant gammes et accords musicaux
-7. **Multi-patterns** - Gestion de plusieurs patterns/séquences
-8. **Génération IA** - Magenta.js pour création assistée de mélodies
+5. ✅ ~~**Modularisation Piano Roll**~~ - **TERMINÉ** - Architecture hooks + utils modulaire
+6. **Composants UI Modulaires** - Finaliser l'extraction des composants UI
+7. **Quantization** - Alignement automatique des notes sur la grille
+8. **Scale Helper** - Assistant gammes et accords musicaux
+9. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+10. **Génération IA** - Magenta.js pour création assistée de mélodies
 
 ## 🛠️ Quick Development Commands
 
