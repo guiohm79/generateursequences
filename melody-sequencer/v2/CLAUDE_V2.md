@@ -45,7 +45,7 @@ npm run test:coverage
 
 ## Current Status (Session 2025-07-24)
 
-### 🎹 **PIANO ROLL PROFESSIONNEL - COMPLET & FONCTIONNEL**
+### 🎹 **PIANO ROLL PROFESSIONNEL + MIDI EXPORT - COMPLET & FONCTIONNEL**
 
 #### ✅ **Core Features (Production Ready)**
 - **Piano Roll DAW-Grade** - Interface professionnelle style studio
@@ -55,7 +55,7 @@ npm run test:coverage
 - **Responsive Design** - Optimisé mobile/tablette/desktop avec touch
 - **Architecture Robuste** - Aucun crash, performance optimale
 
-#### ✅ **Advanced Features (Nouvellement Ajoutées)**
+#### ✅ **Advanced Features (Complètement Implémentées)**
 - **🎨 Éditeur Vélocité**
   - Couleurs vert (faible) → rouge (forte) en temps réel
   - Drag vertical sur n'importe quelle partie de la note
@@ -81,25 +81,43 @@ npm run test:coverage
   - **Flèches** - Déplacer sélection (←→ steps, ↑↓ notes)
   - **Escape** - Désélectionner tout
 
+- **🎼 Export MIDI Professionnel**
+  - Module MidiEngine réutilisable et modulaire
+  - Export parfait vers fichiers .mid avec timing précis
+  - Support complet des notes longues et vélocité
+  - Construction MIDI manuelle basée sur l'approche V1 qui fonctionnait
+  - Page dédiée `/midi` pour tests et documentation
+  - Intégration transparente dans le piano roll
+
+- **🎵 Vitesses de Lecture**
+  - Support 1/8 (lent), 1/16 (normal), 1/32 (rapide)
+  - Interface avec boutons de sélection intuitifs
+  - **CRITIQUE** : Affecte SEULEMENT l'audio de lecture
+  - **Export MIDI toujours cohérent** (évite les problèmes V1)
+  - Architecture séparée pour éviter les bugs de timing
+
 #### 🔍 **Détails Techniques Avancés**
 - **Collage intelligent** - Position curseur souris avec fallback centre
 - **Déplacement précis** - Validation limites + détection collisions
 - **Gestion vélocité** - Affichage uniforme sur toute longueur note
 - **Interactions optimisées** - Pas de sélection auto des nouvelles notes
 - **Performance** - Wheel events avec passive:false, scroll fluide
+- **MIDI Engine** - Construction manuelle avec delta times, validation complète
+- **Vitesses sécurisées** - Séparation audio/MIDI pour éviter les problèmes V1
 
 ### 🎯 **PROCHAINES PRIORITÉS**
-1. **Export MIDI** - Exportation patterns en fichiers .mid
-2. **Presets System** - Sauvegarde/chargement patterns
+1. **Presets System** - Sauvegarde/chargement patterns
+2. **MIDI Import** - Importation de fichiers .mid
 3. **Undo/Redo** - Historique des actions
 4. **Quantization** - Alignement automatique
-5. **Scale Helper** - Assistant gammes et accords
-6. **Multi-patterns** - Gestion plusieurs patterns
-7. **AI Generation** - Intégration Magenta.js
+5. **Raccourcis Clavier Globaux** - Espace=play, etc.
+6. **Scale Helper** - Assistant gammes et accords
+7. **Multi-patterns** - Gestion plusieurs patterns
+8. **AI Generation** - Intégration Magenta.js
 
 ### 📊 **Architecture Finale V2 - Production**
 ```
-V2 Piano Roll Professionnel (COMPLET):
+V2 Piano Roll Professionnel + MIDI (COMPLET):
 ├── 🎹 Piano Roll Interface/
 │   ├── page.tsx (1000+ lignes optimisées)
 │   ├── Navigation octaves (C1-C7, scroll+boutons)
@@ -109,13 +127,23 @@ V2 Piano Roll Professionnel (COMPLET):
 │   ├── Sélection multiple (rectangle + Ctrl+clic)
 │   ├── Copier/coller (position curseur intelligent)
 │   ├── Déplacement flèches (précision pixel)
+│   ├── Export MIDI intégré (bouton + feedback)
+│   ├── Vitesses lecture (1/8, 1/16, 1/32)
 │   └── Mobile/tactile (preventDefault optimisé)
 ├── 🔊 Audio Engine/
-│   ├── SimpleAudioEngine.ts (PolySynth stable)
-│   ├── useSimpleAudio.ts (hook états)
+│   ├── SimpleAudioEngine.ts (PolySynth + vitesses)
+│   ├── useSimpleAudio.ts (hook états + vitesses)
 │   ├── Pattern conversion (notes longues support)
 │   ├── Vélocité normalization (0-127 → 0-1)
+│   ├── Vitesses sécurisées (séparation audio/MIDI)
 │   └── Transport temps réel (aucun lag)
+├── 🎼 MIDI Engine/
+│   ├── MidiEngine.ts (module réutilisable)
+│   ├── Construction manuelle (delta times V1)
+│   ├── Export .mid (timing parfait)
+│   ├── Validation complète (notes + vélocité)
+│   ├── Page dédiée /midi (tests + doc)
+│   └── Architecture modulaire (usage multiple)
 ├── 🎯 Interactions/
 │   ├── États sélection (Set<NoteId> optimisé)
 │   ├── Drag states (vélocité + resize + selection)
@@ -127,6 +155,7 @@ V2 Piano Roll Professionnel (COMPLET):
     ├── Responsive parfait (mobile/desktop)
     ├── Animations fluides (transitions CSS)
     ├── Feedback visuel (hover/drag/selection)
+    ├── Contrôles vitesse (boutons intuitifs)
     └── Accessibilité (ARIA labels, keyboard nav)
 ```
 
@@ -264,4 +293,4 @@ const handleKeyDown = (e: KeyboardEvent) => {
 - **🚀 V2 Docs**: This file - Modern architecture and development guide
 - **📋 Quick Start**: `../README.md` - Development commands and comparison
 
-**V2 is now PRODUCTION READY with professional piano roll interface complete.**
+**V2 is now PRODUCTION READY with professional piano roll interface + MIDI export + reading speeds complete.**

@@ -38,7 +38,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     id: 'piano-roll',
     title: '🎹 Piano Roll Professionnel',
-    description: '✅ COMPLET - Vélocité, notes longues, sélection multiple, raccourcis clavier',
+    description: '✅ COMPLET - Vélocité, notes longues, sélection multiple, export MIDI, vitesses lecture',
     href: '/piano-roll',
     status: 'stable',
     category: 'core',
@@ -93,12 +93,21 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'midi-export',
-    title: '🎼 Export/Import MIDI',
-    description: '✅ MODULE - Export vers .mid, base pour import futur',
+    title: '✅ Export/Import MIDI',
+    description: 'IMPLÉMENTÉ - Export .mid professionnel, timing parfait, module réutilisable',
     href: '/midi',
     status: 'stable',
     category: 'features',
     priority: 4
+  },
+  {
+    id: 'reading-speeds',
+    title: '✅ Vitesses de Lecture',
+    description: 'IMPLÉMENTÉ - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)',
+    href: '/piano-roll',
+    status: 'stable',
+    category: 'features',
+    priority: 5
   },
   {
     id: 'presets',
@@ -107,7 +116,16 @@ export const MENU_ITEMS: MenuItem[] = [
     href: '/presets',
     status: 'planned',
     category: 'features',
-    priority: 5
+    priority: 6
+  },
+  {
+    id: 'midi-import',
+    title: 'Import MIDI',
+    description: 'Importation et lecture de fichiers .mid existants',
+    href: '/midi',
+    status: 'planned',
+    category: 'features',
+    priority: 7
   },
   {
     id: 'undo-redo',
@@ -116,7 +134,7 @@ export const MENU_ITEMS: MenuItem[] = [
     href: '/undo-redo',
     status: 'planned',
     category: 'features',
-    priority: 6
+    priority: 8
   },
   {
     id: 'quantization',
@@ -125,7 +143,7 @@ export const MENU_ITEMS: MenuItem[] = [
     href: '/quantization',
     status: 'planned',
     category: 'features',
-    priority: 7
+    priority: 9
   },
   {
     id: 'scale-helper',
@@ -134,7 +152,7 @@ export const MENU_ITEMS: MenuItem[] = [
     href: '/scale-helper',
     status: 'planned',
     category: 'features',
-    priority: 8
+    priority: 10
   },
 
   // === OUTILS ===

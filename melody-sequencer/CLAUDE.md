@@ -40,7 +40,7 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status - 🎹 **PIANO ROLL PROFESSIONNEL COMPLET**
+### V2 Status - 🎹 **PIANO ROLL PROFESSIONNEL + MIDI EXPORT COMPLET**
 - ✅ **Piano Roll DAW-Grade** - Interface professionnelle style studio
 - ✅ **Audio Polyphonique** - SimpleAudioEngine avec PolySynth + reverb
 - ✅ **Navigation Octaves** - Scroll/boutons, gamme C1-C7 complète
@@ -49,17 +49,19 @@ melody-sequencer/
 - ✅ **Notes Longues** - Support durée + redimensionnement horizontal
 - ✅ **Sélection Multiple** - Rectangle, Ctrl+clic, copier/coller
 - ✅ **Déplacement Flèches** - Navigation précise avec clavier
+- ✅ **Export MIDI Professionnel** - Module réutilisable, timing parfait
+- ✅ **Vitesses de Lecture** - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
 - ✅ **Architecture Robuste** - Base stable et extensible
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
-1. **Export MIDI** - Exportation des patterns créés vers fichiers .mid
-2. **Presets System** - Sauvegarde/chargement de patterns
-3. **Raccourcis Clavier** - Shortcuts globaux (espace=play, etc.)
-4. **Undo/Redo** - Historique des actions
-5. **Quantization** - Alignement automatique des notes
-6. **Scale Helper** - Assistant gammes et accords
+1. **Presets System** - Sauvegarde/chargement de patterns
+2. **Raccourcis Clavier** - Shortcuts globaux (espace=play, etc.)
+3. **Undo/Redo** - Historique des actions
+4. **Quantization** - Alignement automatique des notes
+5. **Scale Helper** - Assistant gammes et accords
+6. **MIDI Import** - Importation de fichiers .mid
 7. **Génération IA** - Magenta.js pour création assistée
 8. **Multi-patterns** - Gestion de plusieurs patterns
 
@@ -140,9 +142,11 @@ npm run lint     # Linting (désactivé temporairement)
   ✅ Notes longues + redimensionnement
   ✅ Sélection multiple + copier/coller
   ✅ Déplacement par flèches clavier
+  ✅ Export MIDI professionnel TERMINÉ
+  ✅ Vitesses de lecture (1/8, 1/16, 1/32) TERMINÉ
   
   🎯 PROCHAINES ÉTAPES :
-  1. Export MIDI (.mid files)
-  2. Système presets (save/load)
-  3. Raccourcis clavier globaux
-  4. Undo/Redo system
+  1. Système presets (save/load)
+  2. Raccourcis clavier globaux
+  3. Undo/Redo system
+  4. MIDI Import
