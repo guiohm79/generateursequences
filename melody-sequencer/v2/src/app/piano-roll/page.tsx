@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSimpleAudio } from '../../hooks/useSimpleAudio';
 import { SimplePattern, SimpleStep } from '../../lib/SimpleAudioEngine';
+import { midiEngine, MidiNote } from '../../lib/MidiEngine';
 
 // Configuration du piano roll - dynamique
 const STEP_OPTIONS = [8, 16, 32, 64];
@@ -368,6 +369,9 @@ const PianoRollPage: React.FC = () => {
   
   // Configuration des steps
   const [stepCount, setStepCount] = useState(DEFAULT_STEPS);
+  
+  // État pour l'export MIDI
+  const [exportStatus, setExportStatus] = useState<string>('');
   
   // Audio engine hook
   const { 
@@ -867,6 +871,51 @@ const PianoRollPage: React.FC = () => {
     return noteEvent ? noteEvent.duration : 1;
   };
 
+  // Fonctions MIDI Export
+  const convertToMidiNotes = (): MidiNote[] => {
+    return pattern.filter(note => note.isActive).map(note => ({
+      step: note.step,
+      note: note.note,
+      velocity: note.velocity,
+      duration: note.duration,
+      isActive: note.isActive
+    }));
+  };
+
+  const handleExportMidi = async () => {
+    try {
+      setExportStatus('Export en cours...');
+      
+      const midiNotes = convertToMidiNotes();
+      
+      if (midiNotes.length === 0) {
+        setExportStatus('❌ Aucune note active à exporter');
+        setTimeout(() => setExportStatus(''), 3000);
+        return;
+      }
+
+      const result = midiEngine.exportToMidi(midiNotes, {
+        tempo: tempo,
+        timeSignature: [4, 4]
+      });
+
+      if (result.success && result.data && result.filename) {
+        midiEngine.downloadMidiFile(result);
+        const info = midiEngine.getMidiInfo(midiNotes);
+        setExportStatus(
+          `✅ Export réussi! ${info.activeNotes} notes → ${result.filename}`
+        );
+        setTimeout(() => setExportStatus(''), 5000);
+      } else {
+        setExportStatus(`❌ Erreur: ${result.error}`);
+        setTimeout(() => setExportStatus(''), 3000);
+      }
+    } catch (error) {
+      setExportStatus(`❌ Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`);
+      setTimeout(() => setExportStatus(''), 3000);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
@@ -941,6 +990,37 @@ const PianoRollPage: React.FC = () => {
               }`}>
                 {isInitialized ? '🟢 Ready' : '🟡 Loading'}
               </div>
+            </div>
+            
+            {/* Section Export MIDI */}
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center gap-3">
+              <button
+                onClick={handleExportMidi}
+                disabled={pattern.length === 0}
+                className={`
+                  px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                  flex items-center gap-2 shadow-lg
+                  ${pattern.length === 0 
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white hover:shadow-xl'
+                  }
+                `}
+                title={pattern.length === 0 ? 'Créez d\'abord des notes' : 'Exporter le pattern vers un fichier MIDI'}
+              >
+                🎼 Export MIDI
+              </button>
+              
+              {exportStatus && (
+                <div className={`
+                  px-3 py-2 rounded-lg text-sm font-medium max-w-sm
+                  ${exportStatus.includes('✅') 
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  }
+                `}>
+                  {exportStatus}
+                </div>
+              )}
             </div>
           </div>
         </div>

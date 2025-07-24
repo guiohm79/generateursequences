@@ -93,10 +93,10 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'midi-export',
-    title: 'Export MIDI',
-    description: 'Exporter les patterns en fichiers MIDI (.mid)',
-    href: '/midi-export',
-    status: 'planned',
+    title: '🎼 Export/Import MIDI',
+    description: '✅ MODULE - Export vers .mid, base pour import futur',
+    href: '/midi',
+    status: 'stable',
     category: 'features',
     priority: 4
   },

@@ -14,7 +14,10 @@
       "Bash(node:*)",
       "Bash(npx eslint:*)",
       "Bash(sed:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npm install:*)",
+      "Bash(timeout 10s npm run dev)",
+      "Bash(timeout 5s npm run dev)"
     ],
     "deny": []
   }
