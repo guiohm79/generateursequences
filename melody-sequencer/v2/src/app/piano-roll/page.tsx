@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useSimpleAudio } from '../../hooks/useSimpleAudio';
 import { SimplePattern, SimpleStep } from '../../lib/SimpleAudioEngine';
 import { midiEngine, MidiNote } from '../../lib/MidiEngine';
+import { PresetManager } from '../../lib/PresetManager';
+import { SequencerPreset } from '../../types';
 
 // Configuration du piano roll - dynamique
 const STEP_OPTIONS = [8, 16, 32, 64];
@@ -372,6 +374,12 @@ const PianoRollPage: React.FC = () => {
   
   // État pour l'export MIDI
   const [exportStatus, setExportStatus] = useState<string>('');
+  
+  // État pour les presets
+  const [presets, setPresets] = useState<SequencerPreset[]>([]);
+  const [showPresetDialog, setShowPresetDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [presetName, setPresetName] = useState('');
   
   // Audio engine hook
   const { 
@@ -918,6 +926,86 @@ const PianoRollPage: React.FC = () => {
     }
   };
 
+  // === GESTION DES PRESETS ===
+  const loadPresets = () => {
+    const allPresets = PresetManager.getAllPresets();
+    setPresets(allPresets.sort((a, b) => b.timestamp - a.timestamp));
+  };
+
+  const handleSavePreset = () => {
+    if (!presetName.trim()) {
+      alert('Veuillez entrer un nom pour le preset');
+      return;
+    }
+
+    const activeNotes = pattern.filter(note => note.isActive);
+    if (activeNotes.length === 0) {
+      alert('Créez d\'abord des notes avant de sauvegarder');
+      return;
+    }
+
+    const preset = PresetManager.savePreset(
+      presetName,
+      stepCount,
+      activeNotes,
+      { 
+        bpm: tempo,
+        description: `Preset avec ${activeNotes.length} notes`
+      }
+    );
+
+    setPresets(prev => [preset, ...prev]);
+    setPresetName('');
+    setShowPresetDialog(false);
+    setExportStatus(`✅ Preset "${preset.name}" sauvegardé`);
+    setTimeout(() => setExportStatus(''), 3000);
+  };
+
+  const handleLoadPreset = (preset: SequencerPreset) => {
+    const notesMap = PresetManager.convertPresetToNotesMap(preset);
+    const newPattern = Array.from(notesMap.values());
+    
+    setPattern(newPattern);
+    setStepCount(preset.steps);
+    setSelectedNotes(new Set());
+    setShowLoadDialog(false);
+    
+    setExportStatus(`✅ Preset "${preset.name}" chargé (${newPattern.length} notes)`);
+    setTimeout(() => setExportStatus(''), 3000);
+  };
+
+  const handleDeletePreset = (preset: SequencerPreset) => {
+    if (confirm(`Supprimer le preset "${preset.name}" ?`)) {
+      if (PresetManager.deletePreset(preset.id)) {
+        setPresets(prev => prev.filter(p => p.id !== preset.id));
+        setExportStatus(`✅ Preset "${preset.name}" supprimé`);
+        setTimeout(() => setExportStatus(''), 3000);
+      }
+    }
+  };
+
+  const handleImportPresetFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const importedPresets = await PresetManager.importMultiplePresets(file);
+    if (importedPresets.length > 0) {
+      loadPresets();
+      setExportStatus(`✅ ${importedPresets.length} preset(s) importé(s)`);
+      setTimeout(() => setExportStatus(''), 3000);
+    } else {
+      setExportStatus('❌ Erreur lors de l\'import du fichier');
+      setTimeout(() => setExportStatus(''), 3000);
+    }
+
+    event.target.value = '';
+  };
+
+  // Charger les presets au montage
+  useEffect(() => {
+    loadPresets();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
@@ -1019,35 +1107,85 @@ const PianoRollPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Section Export MIDI */}
-            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center gap-3">
-              <button
-                onClick={handleExportMidi}
-                disabled={pattern.length === 0}
-                className={`
-                  px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
-                  flex items-center gap-2 shadow-lg
-                  ${pattern.length === 0 
-                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white hover:shadow-xl'
-                  }
-                `}
-                title={pattern.length === 0 ? 'Créez d\'abord des notes' : 'Exporter le pattern vers un fichier MIDI'}
-              >
-                🎼 Export MIDI
-              </button>
+            {/* Section Export MIDI & Presets */}
+            <div className="mt-4 sm:mt-6 space-y-4">
               
-              {exportStatus && (
-                <div className={`
-                  px-3 py-2 rounded-lg text-sm font-medium max-w-sm
-                  ${exportStatus.includes('✅') 
-                    ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-                    : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  }
-                `}>
-                  {exportStatus}
-                </div>
-              )}
+              {/* Export MIDI */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={handleExportMidi}
+                  disabled={pattern.length === 0}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${pattern.length === 0 
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={pattern.length === 0 ? 'Créez d\'abord des notes' : 'Exporter le pattern vers un fichier MIDI'}
+                >
+                  🎼 Export MIDI
+                </button>
+                
+                {exportStatus && (
+                  <div className={`
+                    px-3 py-2 rounded-lg text-sm font-medium max-w-sm
+                    ${exportStatus.includes('✅') 
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                      : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }
+                  `}>
+                    {exportStatus}
+                  </div>
+                )}
+              </div>
+
+              {/* Presets */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={() => setShowPresetDialog(true)}
+                  disabled={pattern.filter(n => n.isActive).length === 0}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${pattern.filter(n => n.isActive).length === 0
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={pattern.filter(n => n.isActive).length === 0 ? 'Créez d\'abord des notes' : 'Sauvegarder le pattern actuel'}
+                >
+                  💾 Sauvegarder
+                </button>
+
+                <button
+                  onClick={() => setShowLoadDialog(true)}
+                  disabled={presets.length === 0}
+                  className={`
+                    px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200
+                    flex items-center gap-2 shadow-lg
+                    ${presets.length === 0
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                      : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white hover:shadow-xl'
+                    }
+                  `}
+                  title={presets.length === 0 ? 'Aucun preset sauvegardé' : 'Charger un preset existant'}
+                >
+                  📁 Charger ({presets.length})
+                </button>
+
+                <label className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white hover:shadow-xl cursor-pointer">
+                  📤 Importer
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportPresetFile}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+              
             </div>
           </div>
         </div>
@@ -1460,6 +1598,138 @@ const PianoRollPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Dialog Sauvegarde Preset */}
+      {showPresetDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4">
+              💾 Sauvegarder Preset
+            </h2>
+            
+            <input
+              type="text"
+              placeholder="Nom du preset..."
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              className="w-full px-4 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleSavePreset();
+                } else if (e.key === 'Escape') {
+                  setShowPresetDialog(false);
+                  setPresetName('');
+                }
+              }}
+            />
+            
+            <div className="text-sm text-slate-300 mb-4">
+              📊 Pattern actuel: {pattern.filter(n => n.isActive).length} notes, {stepCount} steps
+            </div>
+            
+            <div className="flex gap-4">
+              <button
+                onClick={handleSavePreset}
+                disabled={!presetName.trim()}
+                className={`
+                  flex-1 px-4 py-2 rounded-lg font-medium transition-colors
+                  ${presetName.trim()
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }
+                `}
+              >
+                Sauvegarder
+              </button>
+              <button
+                onClick={() => {
+                  setShowPresetDialog(false);
+                  setPresetName('');
+                }}
+                className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog Chargement Preset */}
+      {showLoadDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <h2 className="text-xl font-bold text-white mb-4">
+              📁 Charger Preset
+            </h2>
+            
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+              {presets.length === 0 ? (
+                <div className="text-center text-slate-400 py-8">
+                  Aucun preset sauvegardé
+                </div>
+              ) : (
+                presets.map(preset => (
+                  <div
+                    key={preset.id}
+                    className="p-3 bg-slate-700 rounded-lg border border-slate-600 hover:border-slate-500 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-medium text-white">{preset.name}</h3>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => PresetManager.exportPreset(preset)}
+                          className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded"
+                          title="Exporter ce preset"
+                        >
+                          📤
+                        </button>
+                        <button
+                          onClick={() => handleDeletePreset(preset)}
+                          className="text-xs px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded"
+                          title="Supprimer ce preset"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm text-slate-300 space-y-1 mb-3">
+                      <div className="flex gap-4">
+                        <span>🎵 {preset.notes.length} notes</span>
+                        <span>📏 {preset.steps} steps</span>
+                        {preset.metadata?.bpm && <span>🎼 {preset.metadata.bpm} BPM</span>}
+                      </div>
+                      <div>📅 {new Date(preset.timestamp).toLocaleDateString()}</div>
+                      {preset.metadata?.description && (
+                        <div className="text-xs italic">{preset.metadata.description}</div>
+                      )}
+                    </div>
+                    
+                    <button
+                      onClick={() => handleLoadPreset(preset)}
+                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      🎹 Charger ce preset
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowLoadDialog(false)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

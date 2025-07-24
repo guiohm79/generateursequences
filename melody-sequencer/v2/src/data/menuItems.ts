@@ -111,10 +111,10 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'presets',
-    title: 'Système Presets',
-    description: 'Sauvegarder et charger des patterns complets',
+    title: '💾 Système Presets',
+    description: '✅ IMPLÉMENTÉ - Sauvegarde/chargement localStorage + export/import JSON',
     href: '/presets',
-    status: 'planned',
+    status: 'stable',
     category: 'features',
     priority: 6
   },

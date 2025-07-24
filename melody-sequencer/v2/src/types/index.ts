@@ -32,3 +32,25 @@ export interface SynthPreset {
     rolloff: number;
   };
 }
+
+// Types pour système de presets
+export interface NoteEvent {
+  step: number;
+  note: string;
+  velocity: number;
+  isActive: boolean;
+  duration: number;
+}
+
+export interface SequencerPreset {
+  id: string;
+  name: string;
+  timestamp: number;
+  steps: number;
+  notes: NoteEvent[];
+  metadata?: {
+    bpm?: number;
+    description?: string;
+    author?: string;
+  };
+}
