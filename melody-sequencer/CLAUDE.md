@@ -128,3 +128,12 @@ npm run lint     # Linting (désactivé temporairement)
 ---
 
 **🎵 V2 est prêt pour le développement avec une base solide et un système extensible!**
+
+  📋 PROCHAINE SESSION :
+  1. Éditeur vélocité (contrôle intensité)
+  2. Support longueur notes (sustain)
+  3. Outils sélection multiple
+  4. Export MIDI
+  5. Système presets
+  6. Raccourcis clavier
+  7. Génération IA

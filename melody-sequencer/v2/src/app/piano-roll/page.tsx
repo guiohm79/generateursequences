@@ -31,6 +31,21 @@ const isBlackKey = (note: string) => {
   return note.includes('#');
 };
 
+// Vélocité vers couleurs avec classes CSS prédéfinies (vert faible → rouge fort)
+const getVelocityColorClass = (velocity: number): string => {
+  const normalized = Math.max(0, Math.min(127, velocity)) / 127;
+  
+  if (normalized < 0.25) {
+    return 'bg-gradient-to-br from-green-400 to-green-500 shadow-green-400/50';
+  } else if (normalized < 0.5) {
+    return 'bg-gradient-to-br from-green-500 to-yellow-400 shadow-green-500/50';
+  } else if (normalized < 0.75) {
+    return 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-yellow-400/50';
+  } else {
+    return 'bg-gradient-to-br from-orange-500 to-red-500 shadow-red-500/50';
+  }
+};
+
 const getNoteDisplayName = (note: string) => {
   return note; // Keep full note name with octave
 };
@@ -42,6 +57,16 @@ const getOctaveNumber = (note: string) => {
 
 const PianoRollPage: React.FC = () => {
   const [pattern, setPattern] = useState<NoteEvent[]>([]);
+  
+  // État pour l'édition de vélocité par drag
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    step: number;
+    note: string;
+    startY: number;
+    startVelocity: number;
+    currentVelocity: number;
+  } | null>(null);
   
   // Navigation octaves
   const [visibleOctaveStart, setVisibleOctaveStart] = useState(2); // Commence à C2
@@ -164,7 +189,7 @@ const PianoRollPage: React.FC = () => {
           return [...prev, {
             step,
             note,
-            velocity: 100,
+            velocity: 100, // Vélocité par défaut
             isActive: true
           }];
         }
@@ -173,6 +198,129 @@ const PianoRollPage: React.FC = () => {
     });
   };
   
+  // Gestion du drag pour éditer la vélocité (souris)
+  const handleMouseDown = (step: number, note: string, e: React.MouseEvent) => {
+    const existingNote = pattern.find(n => n.step === step && n.note === note);
+    if (existingNote && e.button === 0) { // Clic gauche seulement
+      e.preventDefault();
+      e.stopPropagation();
+      
+      setDragState({
+        isDragging: true,
+        step,
+        note,
+        startY: e.clientY,
+        startVelocity: existingNote.velocity,
+        currentVelocity: existingNote.velocity
+      });
+    }
+  };
+  
+  // Gestion du drag pour éditer la vélocité (tactile)
+  const handleTouchStart = (step: number, note: string, e: React.TouchEvent) => {
+    const existingNote = pattern.find(n => n.step === step && n.note === note);
+    if (existingNote) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const touch = e.touches[0];
+      setDragState({
+        isDragging: true,
+        step,
+        note,
+        startY: touch.clientY,
+        startVelocity: existingNote.velocity,
+        currentVelocity: existingNote.velocity
+      });
+    }
+  };
+  
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (dragState?.isDragging) {
+      e.preventDefault();
+      const deltaY = dragState.startY - e.clientY; // Inversé: haut = plus fort
+      const sensitivity = 2; // Pixels par unité de vélocité
+      const newVelocity = Math.max(1, Math.min(127, dragState.startVelocity + Math.round(deltaY / sensitivity)));
+      
+      setDragState(prev => prev ? { ...prev, currentVelocity: newVelocity } : null);
+    }
+  };
+  
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (dragState?.isDragging) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Sauvegarder la nouvelle vélocité
+      setPattern(prev => prev.map(n => 
+        n.step === dragState.step && n.note === dragState.note
+          ? { ...n, velocity: dragState.currentVelocity }
+          : n
+      ));
+      
+      setDragState(null);
+    }
+  };
+  
+  // Gestion globale des événements pour le drag (souris + tactile)
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (dragState?.isDragging) {
+        const deltaY = dragState.startY - e.clientY;
+        const sensitivity = 2;
+        const newVelocity = Math.max(1, Math.min(127, dragState.startVelocity + Math.round(deltaY / sensitivity)));
+        
+        setDragState(prev => prev ? { ...prev, currentVelocity: newVelocity } : null);
+      }
+    };
+    
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      if (dragState?.isDragging) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const deltaY = dragState.startY - touch.clientY;
+        const sensitivity = 2;
+        const newVelocity = Math.max(1, Math.min(127, dragState.startVelocity + Math.round(deltaY / sensitivity)));
+        
+        setDragState(prev => prev ? { ...prev, currentVelocity: newVelocity } : null);
+      }
+    };
+    
+    const handleGlobalEnd = () => {
+      if (dragState?.isDragging) {
+        // Sauvegarder
+        setPattern(prev => prev.map(n => 
+          n.step === dragState.step && n.note === dragState.note
+            ? { ...n, velocity: dragState.currentVelocity }
+            : n
+        ));
+        setDragState(null);
+      }
+    };
+    
+    if (dragState?.isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalEnd);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalEnd);
+      
+      document.body.style.cursor = 'ns-resize';
+      document.body.style.userSelect = 'none';
+      document.body.style.touchAction = 'none';
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalEnd);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalEnd);
+      
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.body.style.touchAction = '';
+    };
+  }, [dragState, pattern]);
+  
   // Nettoyer le pattern quand on change le nombre de steps
   useEffect(() => {
     setPattern(prev => prev.filter(note => note.step < stepCount));
@@ -180,6 +328,17 @@ const PianoRollPage: React.FC = () => {
 
   const isNoteActive = (step: number, note: string) => {
     return pattern.some(n => n.step === step && n.note === note && n.isActive);
+  };
+  
+  // Récupérer la vélocité d'une note (avec drag en cours)
+  const getNoteVelocity = (step: number, note: string): number => {
+    // Si on est en train de dragger cette note, utiliser la vélocité temporaire
+    if (dragState?.isDragging && dragState.step === step && dragState.note === note) {
+      return dragState.currentVelocity;
+    }
+    
+    const noteEvent = pattern.find(n => n.step === step && n.note === note);
+    return noteEvent ? noteEvent.velocity : 100;
   };
 
   return (
@@ -428,6 +587,9 @@ const PianoRollPage: React.FC = () => {
                         const isAccentStep = accentSteps.includes(step);
                         const hasNote = isNoteActive(stepIndex, note);
                         
+                        const noteVelocity = getNoteVelocity(stepIndex, note);
+                        const isDraggingThis = dragState?.isDragging && dragState.step === stepIndex && dragState.note === note;
+                        
                         return (
                           <div
                             key={stepIndex}
@@ -443,10 +605,14 @@ const PianoRollPage: React.FC = () => {
                                   : 'bg-slate-800/40 hover:bg-slate-700/70 active:bg-slate-600/80'
                                 )
                               }
-                              ${hasNote ? 'bg-gradient-to-br from-blue-500/90 to-blue-600/90 hover:from-blue-400/90 hover:to-blue-500/90 active:from-blue-600/90 active:to-blue-700/90 shadow-lg' : ''}
+                              ${isDraggingThis ? 'ring-2 ring-blue-400 cursor-ns-resize' : ''}
                             `}
-                            onClick={() => toggleNote(stepIndex, note)}
-                            title={`Step ${step}, Note ${note}`}
+                            onClick={() => !dragState?.isDragging && toggleNote(stepIndex, note)}
+                            onMouseDown={(e) => hasNote && handleMouseDown(stepIndex, note, e)}
+                            onTouchStart={(e) => hasNote && handleTouchStart(stepIndex, note, e)}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            title={`Step ${step}, Note ${note}${hasNote ? ` (Velocity: ${noteVelocity})` : ''}${isDraggingThis ? ' - Drag vertical pour ajuster' : ''}`}
                           >
                             {hasNote && (
                               <div className={`
@@ -457,12 +623,18 @@ const PianoRollPage: React.FC = () => {
                                   : 'w-4 h-2 sm:w-6 sm:h-3'
                                 } 
                                 rounded-lg shadow-lg
-                                ${isAccentStep 
-                                  ? 'bg-gradient-to-br from-cyan-300 to-blue-400 shadow-cyan-300/50' 
-                                  : 'bg-gradient-to-br from-blue-400 to-blue-500 shadow-blue-400/50'
-                                }
+                                ${getVelocityColorClass(noteVelocity)}
                                 ${stepIndex === currentStep && isPlaying ? 'animate-pulse ring-1 ring-yellow-300' : ''}
-                              `} />
+                                ${isDraggingThis ? 'ring-2 ring-white ring-opacity-80 scale-110' : ''}
+                              `} 
+                            />
+                            )}
+                            
+                            {/* Indicateur de vélocité pendant le drag */}
+                            {isDraggingThis && (
+                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900 border border-slate-600 px-2 py-1 rounded text-xs font-mono text-white shadow-xl">
+                                {noteVelocity}
+                              </div>
                             )}
                             
                             {/* Grid dots for empty cells */}
@@ -538,6 +710,10 @@ const PianoRollPage: React.FC = () => {
                   <strong>Tap/Clic</strong> sur une case pour ajouter/supprimer une note
                 </li>
                 <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-amber-400 rounded-full flex-shrink-0"></span>
+                  <strong>Drag vertical</strong> sur une note pour ajuster sa vélocité
+                </li>
+                <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0"></span>
                   <strong>Play/Stop</strong> pour contrôler la lecture
                 </li>
@@ -557,6 +733,10 @@ const PianoRollPage: React.FC = () => {
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-cyan-400 rounded-full flex-shrink-0"></span>
                   <strong>Touches piano</strong> noires/blanches avec octaves
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
+                  <strong>Couleurs notes</strong> vert (faible) → rouge (forte vélocité)
                 </li>
               </ul>
             </div>
