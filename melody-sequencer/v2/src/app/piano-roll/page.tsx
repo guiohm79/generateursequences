@@ -27,6 +27,24 @@ interface NoteEvent {
   duration: number; // Longueur en steps (1 = un seul step, 2 = deux steps, etc.)
 }
 
+// Type pour identifier une note de manière unique
+type NoteId = string; // Format: "step-note" (ex: "5-C4")
+
+// État de sélection par rectangle
+interface SelectionRectangle {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  isSelecting: boolean;
+}
+
+// Type pour le clipboard
+interface ClipboardData {
+  notes: NoteEvent[];
+  relativePositions: { stepOffset: number; noteOffset: number }[];
+}
+
 // Helper functions
 const isBlackKey = (note: string) => {
   return note.includes('#');
@@ -79,6 +97,271 @@ const PianoRollPage: React.FC = () => {
     currentDuration: number;
   } | null>(null);
   
+  // État de sélection multiple
+  const [selectedNotes, setSelectedNotes] = useState<Set<NoteId>>(new Set());
+  const [selectionRect, setSelectionRect] = useState<SelectionRectangle | null>(null);
+  const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ step: number; note: string } | null>(null);
+  
+  // Helper pour créer un ID unique de note
+  const createNoteId = (step: number, note: string): NoteId => `${step}-${note}`;
+  
+  // Helper pour parser un ID de note
+  const parseNoteId = (noteId: NoteId): { step: number; note: string } => {
+    const [stepStr, note] = noteId.split('-');
+    return { step: parseInt(stepStr), note };
+  };
+  
+  // Vérifier si une note est sélectionnée
+  const isNoteSelected = (step: number, note: string): boolean => {
+    return selectedNotes.has(createNoteId(step, note));
+  };
+  
+  // Gestion de la sélection par rectangle
+  const handleGridMouseDown = (e: React.MouseEvent) => {
+    // Seulement si on clique dans une zone vide (pas sur une note)
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('grid-cell-empty')) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const startX = e.clientX - rect.left;
+      const startY = e.clientY - rect.top;
+      
+      setSelectionRect({
+        startX,
+        startY,
+        endX: startX,
+        endY: startY,
+        isSelecting: true
+      });
+      
+      // Vider la sélection actuelle si pas de Ctrl
+      if (!e.ctrlKey && !e.metaKey) {
+        setSelectedNotes(new Set());
+      }
+    }
+  };
+  
+  const handleGridMouseMove = (e: React.MouseEvent) => {
+    if (selectionRect?.isSelecting) {
+      e.preventDefault();
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const endX = e.clientX - rect.left;
+      const endY = e.clientY - rect.top;
+      
+      setSelectionRect(prev => prev ? {
+        ...prev,
+        endX,
+        endY
+      } : null);
+      
+      // Calculer les notes dans le rectangle
+      updateSelectionFromRect(selectionRect.startX, selectionRect.startY, endX, endY);
+    }
+  };
+  
+  // Suivre la position de la souris pour le collage
+  const handleCellMouseEnter = (step: number, note: string) => {
+    setMousePosition({ step, note });
+  };
+  
+  const handleGridMouseUp = (e: React.MouseEvent) => {
+    if (selectionRect?.isSelecting) {
+      setSelectionRect(null);
+    }
+  };
+  
+  // Mettre à jour la sélection basée sur le rectangle
+  const updateSelectionFromRect = (startX: number, startY: number, endX: number, endY: number) => {
+    const minX = Math.min(startX, endX);
+    const maxX = Math.max(startX, endX);
+    const minY = Math.min(startY, endY);
+    const maxY = Math.max(startY, endY);
+    
+    const newSelection = new Set<NoteId>();
+    
+    // Parcourir toutes les notes pour voir lesquelles sont dans le rectangle
+    pattern.forEach(noteEvent => {
+      // Calculer la position approximative de la note sur la grille
+      // Cette logique devra être ajustée selon la mise en page exacte
+      const noteIndex = visibleNotes.indexOf(noteEvent.note);
+      if (noteIndex !== -1) {
+        const cellWidth = stepCount <= 16 ? 56 : stepCount <= 32 ? 40 : 32;
+        const cellHeight = 32; // Hauteur approximative d'une cellule
+        
+        const noteX = noteEvent.step * cellWidth;
+        const noteY = noteIndex * cellHeight;
+        const noteWidth = cellWidth * noteEvent.duration;
+        
+        // Vérifier si la note intersecte avec le rectangle
+        if (noteX < maxX && noteX + noteWidth > minX && 
+            noteY < maxY && noteY + cellHeight > minY) {
+          newSelection.add(createNoteId(noteEvent.step, noteEvent.note));
+        }
+      }
+    });
+    
+    setSelectedNotes(newSelection);
+  };
+  
+  // Actions sur la sélection
+  const deleteSelectedNotes = () => {
+    if (selectedNotes.size === 0) return;
+    
+    setPattern(prev => {
+      return prev.filter(noteEvent => {
+        const noteId = createNoteId(noteEvent.step, noteEvent.note);
+        return !selectedNotes.has(noteId);
+      });
+    });
+    
+    setSelectedNotes(new Set());
+  };
+  
+  const copySelectedNotes = () => {
+    if (selectedNotes.size === 0) return;
+    
+    const selectedNotesArray = pattern.filter(noteEvent => {
+      const noteId = createNoteId(noteEvent.step, noteEvent.note);
+      return selectedNotes.has(noteId);
+    });
+    
+    if (selectedNotesArray.length === 0) return;
+    
+    // Calculer les positions relatives par rapport au premier élément
+    const minStep = Math.min(...selectedNotesArray.map(n => n.step));
+    const noteIndices = selectedNotesArray.map(n => visibleNotes.indexOf(n.note));
+    const minNoteIndex = Math.min(...noteIndices);
+    
+    const relativePositions = selectedNotesArray.map(noteEvent => ({
+      stepOffset: noteEvent.step - minStep,
+      noteOffset: visibleNotes.indexOf(noteEvent.note) - minNoteIndex
+    }));
+    
+    setClipboard({
+      notes: [...selectedNotesArray],
+      relativePositions
+    });
+  };
+  
+  const pasteNotes = (targetStep: number, targetNote: string) => {
+    if (!clipboard) return;
+    
+    const targetNoteIndex = visibleNotes.indexOf(targetNote);
+    if (targetNoteIndex === -1) return;
+    
+    const newNotes: NoteEvent[] = [];
+    
+    clipboard.notes.forEach((originalNote, index) => {
+      const relativePos = clipboard.relativePositions[index];
+      const newStep = targetStep + relativePos.stepOffset;
+      const newNoteIndex = targetNoteIndex + relativePos.noteOffset;
+      
+      // Vérifier que la nouvelle position est valide
+      if (newStep >= 0 && newStep < stepCount && 
+          newNoteIndex >= 0 && newNoteIndex < visibleNotes.length) {
+        const newNote = visibleNotes[newNoteIndex];
+        
+        // Vérifier qu'il n'y a pas déjà une note à cette position
+        const existingNote = pattern.find(n => n.step === newStep && n.note === newNote);
+        if (!existingNote) {
+          newNotes.push({
+            step: newStep,
+            note: newNote,
+            velocity: originalNote.velocity,
+            isActive: true,
+            duration: originalNote.duration
+          });
+        }
+      }
+    });
+    
+    if (newNotes.length > 0) {
+      setPattern(prev => [...prev, ...newNotes]);
+      
+      // Sélectionner les nouvelles notes collées
+      const newSelection = new Set(newNotes.map(n => createNoteId(n.step, n.note)));
+      setSelectedNotes(newSelection);
+    }
+  };
+  
+  const selectAllNotes = () => {
+    const allNoteIds = pattern.map(noteEvent => createNoteId(noteEvent.step, noteEvent.note));
+    setSelectedNotes(new Set(allNoteIds));
+  };
+  
+  // Déplacer les notes sélectionnées
+  const moveSelectedNotes = (stepDelta: number, noteDelta: number) => {
+    if (selectedNotes.size === 0) return;
+    
+    const selectedNotesArray = pattern.filter(noteEvent => {
+      const noteId = createNoteId(noteEvent.step, noteEvent.note);
+      return selectedNotes.has(noteId);
+    });
+    
+    // Vérifier si le déplacement est possible pour toutes les notes
+    const canMove = selectedNotesArray.every(noteEvent => {
+      const newStep = noteEvent.step + stepDelta;
+      const currentNoteIndex = visibleNotes.indexOf(noteEvent.note);
+      const newNoteIndex = currentNoteIndex + noteDelta;
+      
+      // Vérifier les limites
+      if (newStep < 0 || newStep >= stepCount) return false;
+      if (newNoteIndex < 0 || newNoteIndex >= visibleNotes.length) return false;
+      
+      // Vérifier les collisions avec des notes non-sélectionnées
+      const newNote = visibleNotes[newNoteIndex];
+      const conflictingNote = pattern.find(n => 
+        n.step === newStep && 
+        n.note === newNote && 
+        !selectedNotes.has(createNoteId(n.step, n.note))
+      );
+      
+      return !conflictingNote;
+    });
+    
+    if (!canMove) return;
+    
+    // Effectuer le déplacement
+    setPattern(prev => {
+      // Supprimer les notes sélectionnées
+      const withoutSelected = prev.filter(noteEvent => {
+        const noteId = createNoteId(noteEvent.step, noteEvent.note);
+        return !selectedNotes.has(noteId);
+      });
+      
+      // Ajouter les notes déplacées
+      const movedNotes = selectedNotesArray.map(noteEvent => {
+        const currentNoteIndex = visibleNotes.indexOf(noteEvent.note);
+        const newNoteIndex = currentNoteIndex + noteDelta;
+        const newNote = visibleNotes[newNoteIndex];
+        
+        return {
+          ...noteEvent,
+          step: noteEvent.step + stepDelta,
+          note: newNote
+        };
+      });
+      
+      return [...withoutSelected, ...movedNotes];
+    });
+    
+    // Mettre à jour la sélection avec les nouvelles positions
+    const newSelection = new Set(
+      selectedNotesArray.map(noteEvent => {
+        const currentNoteIndex = visibleNotes.indexOf(noteEvent.note);
+        const newNoteIndex = currentNoteIndex + noteDelta;
+        const newNote = visibleNotes[newNoteIndex];
+        const newStep = noteEvent.step + stepDelta;
+        return createNoteId(newStep, newNote);
+      })
+    );
+    
+    setSelectedNotes(newSelection);
+  };
+  
   // Navigation octaves
   const [visibleOctaveStart, setVisibleOctaveStart] = useState(2); // Commence à C2
   const [visibleOctaveCount, setVisibleOctaveCount] = useState(3); // Affiche 3 octaves
@@ -129,6 +412,75 @@ const PianoRollPage: React.FC = () => {
       };
     }
   }, [visibleOctaveStart, visibleOctaveCount]);
+  
+  // Gestion des raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Éviter d'intercepter les raccourcis dans les inputs
+      if (e.target instanceof HTMLInputElement) return;
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'a':
+            e.preventDefault();
+            selectAllNotes();
+            break;
+          case 'c':
+            e.preventDefault();
+            copySelectedNotes();
+            break;
+          case 'v':
+            e.preventDefault();
+            // Coller à la position de la souris si disponible, sinon au centre
+            if (mousePosition) {
+              pasteNotes(mousePosition.step, mousePosition.note);
+            } else {
+              const centerStep = Math.floor(stepCount / 2);
+              const centerNote = visibleNotes[Math.floor(visibleNotes.length / 2)];
+              if (centerNote) {
+                pasteNotes(centerStep, centerNote);
+              }
+            }
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case 'Delete':
+          case 'Backspace':
+            e.preventDefault();
+            deleteSelectedNotes();
+            break;
+          case 'Escape':
+            e.preventDefault();
+            setSelectedNotes(new Set());
+            setSelectionRect(null);
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            moveSelectedNotes(-1, 0); // Gauche: -1 step
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            moveSelectedNotes(1, 0); // Droite: +1 step
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            moveSelectedNotes(0, -1); // Haut: -1 note (vers les aigûs, index plus bas)
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            moveSelectedNotes(0, 1); // Bas: +1 note (vers les graves, index plus haut)
+            break;
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedNotes, clipboard, stepCount, pattern]);
   
   // Calcul des notes visibles selon l'octave sélectionnée
   const getVisibleNotes = (): string[] => {
@@ -216,16 +568,38 @@ const PianoRollPage: React.FC = () => {
     setAudioPattern(audioPattern);
   }, [pattern, setAudioPattern]);
 
-  const toggleNote = (step: number, note: string) => {
+  const toggleNote = (step: number, note: string, isCtrlClick: boolean = false) => {
+    const noteId = createNoteId(step, note);
+    
+    if (isCtrlClick) {
+      // Ctrl+clic : ajouter/retirer de la sélection
+      setSelectedNotes(prev => {
+        const newSelection = new Set(prev);
+        if (newSelection.has(noteId)) {
+          newSelection.delete(noteId);
+        } else {
+          newSelection.add(noteId);
+        }
+        return newSelection;
+      });
+      return; // Ne pas créer/supprimer la note
+    }
+    
     setPattern(prev => {
       const existingNote = prev.find(n => n.step === step && n.note === note);
       
       if (existingNote) {
-        // Remove note
+        // Remove note et de la sélection
+        setSelectedNotes(prev => {
+          const newSelection = new Set(prev);
+          newSelection.delete(noteId);
+          return newSelection;
+        });
         return prev.filter(n => !(n.step === step && n.note === note));
       } else {
         // Add note (seulement si dans la gamme de steps actuelle)
         if (step < stepCount) {
+          // Ne pas ajouter automatiquement à la sélection
           return [...prev, {
             step,
             note,
@@ -747,6 +1121,7 @@ const PianoRollPage: React.FC = () => {
                         // Ou si on drag n'importe quelle partie de cette note longue
                         const isDraggingThisLongNote = dragState?.isDragging && noteInfo.noteEvent && dragState.step === noteInfo.noteEvent.step && dragState.note === note;
                         const showDragFeedback = isDraggingThis || isDraggingThisLongNote;
+                        const isSelected = hasNote && noteInfo.noteEvent && isNoteSelected(noteInfo.noteEvent.step, note);
                         
                         return (
                           <div
@@ -765,12 +1140,19 @@ const PianoRollPage: React.FC = () => {
                               }
                               ${showDragFeedback ? 'ring-2 ring-blue-400 cursor-ns-resize' : ''}
                               ${noteInfo.isMiddle ? 'border-r-0' : ''}
+                              ${isSelected ? 'ring-2 ring-yellow-400 ring-opacity-80' : ''}
                             `}
-                            onClick={() => !dragState?.isDragging && toggleNote(stepIndex, note)}
+                            onClick={(e) => {
+                              if (!dragState?.isDragging) {
+                                const isCtrlClick = e.ctrlKey || e.metaKey;
+                                toggleNote(stepIndex, note, isCtrlClick);
+                              }
+                            }}
                             onMouseDown={(e) => hasNote && handleMouseDown(stepIndex, note, e)}
                             onTouchStart={(e) => hasNote && handleTouchStart(stepIndex, note, e)}
                             onMouseMove={handleMouseMove}
                             onMouseUp={handleMouseUp}
+                            onMouseEnter={() => handleCellMouseEnter(stepIndex, note)}
                             title={`Step ${step}, Note ${note}${hasNote ? ` (Velocity: ${noteVelocity})` : ''}${isDraggingThis ? ' - Drag vertical pour ajuster' : ''}`}
                           >
                             {hasNote && (
@@ -793,6 +1175,7 @@ const PianoRollPage: React.FC = () => {
                                 ${stepIndex === currentStep && isPlaying ? 'animate-pulse ring-1 ring-yellow-300' : ''}
                                 ${showDragFeedback ? 'ring-2 ring-white ring-opacity-80 scale-110' : ''}
                                 ${noteInfo.isMiddle ? 'opacity-80' : ''}
+                                ${isSelected ? 'ring-2 ring-yellow-300 ring-opacity-90 scale-105' : ''}
                                 flex items-center justify-center
                               `}
                             >
@@ -835,6 +1218,19 @@ const PianoRollPage: React.FC = () => {
                   );
                 })}
               </div>
+              
+              {/* Rectangle de sélection */}
+              {selectionRect?.isSelecting && (
+                <div 
+                  className="absolute border-2 border-yellow-400 bg-yellow-400/10 pointer-events-none z-20"
+                  style={{
+                    left: Math.min(selectionRect.startX, selectionRect.endX),
+                    top: Math.min(selectionRect.startY, selectionRect.endY),
+                    width: Math.abs(selectionRect.endX - selectionRect.startX),
+                    height: Math.abs(selectionRect.endY - selectionRect.startY),
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -859,6 +1255,12 @@ const PianoRollPage: React.FC = () => {
               <div className="text-2xl font-bold text-amber-400">{accentSteps.length}</div>
               <div className="text-sm text-slate-400">Accents</div>
             </div>
+            {selectedNotes.size > 0 && (
+              <div className="text-center p-3 bg-slate-700/50 rounded-xl border border-yellow-500/50">
+                <div className="text-2xl font-bold text-yellow-400">{selectedNotes.size}</div>
+                <div className="text-sm text-slate-400">Sélectionnées</div>
+              </div>
+            )}
           </div>
           
           {pattern.length > 0 && (
@@ -902,6 +1304,14 @@ const PianoRollPage: React.FC = () => {
                   <strong>Drag horizontal</strong> sur le bord droit pour étendre la note
                 </li>
                 <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0"></span>
+                  <strong>Ctrl+clic</strong> pour sélectionner plusieurs notes
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-pink-400 rounded-full flex-shrink-0"></span>
+                  <strong>Drag rectangle</strong> dans zone vide pour sélection multiple
+                </li>
+                <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0"></span>
                   <strong>Play/Stop</strong> pour contrôler la lecture
                 </li>
@@ -929,6 +1339,14 @@ const PianoRollPage: React.FC = () => {
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-indigo-400 rounded-full flex-shrink-0"></span>
                   <strong>Notes longues</strong> s'étendent sur plusieurs steps avec durée
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-red-400 rounded-full flex-shrink-0"></span>
+                  <strong>Raccourcis</strong> Ctrl+A (tout), Ctrl+C/V (copier/coller), Delete
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-teal-400 rounded-full flex-shrink-0"></span>
+                  <strong>Flèches</strong> déplacer les notes sélectionnées (←→ steps, ↑↓ notes)
                 </li>
               </ul>
             </div>
