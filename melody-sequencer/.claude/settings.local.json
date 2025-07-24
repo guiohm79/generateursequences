@@ -22,7 +22,8 @@
       "Bash(mv:*)",
       "Bash(git restore:*)",
       "Bash(rm:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

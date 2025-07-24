@@ -43,25 +43,25 @@ export function useUndoRedo() {
   const undo = useCallback((): NoteEvent[] | null => {
     const restoredState = undoRedoManagerRef.current.undo();
     updateHistoryInfo();
-    return restoredState;
+    return restoredState?.pattern || null;
   }, [updateHistoryInfo]);
 
   // Refaire la dernière action annulée
   const redo = useCallback((): NoteEvent[] | null => {
     const restoredState = undoRedoManagerRef.current.redo();
     updateHistoryInfo();
-    return restoredState;
+    return restoredState?.pattern || null;
   }, [updateHistoryInfo]);
 
   // Vider l'historique
   const clearHistory = useCallback(() => {
-    undoRedoManagerRef.current.clearHistory();
+    undoRedoManagerRef.current.clear();
     updateHistoryInfo();
   }, [updateHistoryInfo]);
 
-  // Obtenir l'historique complet pour le debug
-  const getFullHistory = useCallback(() => {
-    return undoRedoManagerRef.current.getFullHistory();
+  // Obtenir l'état actuel pour le debug
+  const getCurrentState = useCallback(() => {
+    return undoRedoManagerRef.current.getCurrentState();
   }, []);
 
   // Obtenir les statistiques d'utilisation
@@ -86,7 +86,7 @@ export function useUndoRedo() {
     
     // Actions utilitaires
     clearHistory,
-    getFullHistory,
+    getCurrentState,
     getUsageStats,
     updateHistoryInfo,
     

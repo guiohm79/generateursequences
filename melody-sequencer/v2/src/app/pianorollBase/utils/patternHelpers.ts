@@ -84,19 +84,27 @@ export const convertPatternToAudioFormat = (
 ): SimplePattern => {
   const result: SimplePattern = {};
   
+  // Créer des arrays de SimpleStep pour chaque note
   pattern.forEach(noteEvent => {
     if (noteEvent.isActive) {
       const noteName = noteEvent.note;
       
       if (!result[noteName]) {
-        result[noteName] = [];
+        // Initialiser avec des steps vides
+        result[noteName] = Array.from({ length: steps }, () => ({
+          on: false,
+          velocity: 100
+        }));
       }
       
-      result[noteName].push({
-        step: noteEvent.step,
-        velocity: noteEvent.velocity,
-        duration: noteEvent.duration
-      });
+      // Activer le step correspondant
+      if (result[noteName][noteEvent.step]) {
+        result[noteName][noteEvent.step] = {
+          on: true,
+          velocity: noteEvent.velocity,
+          duration: noteEvent.duration
+        };
+      }
     }
   });
   

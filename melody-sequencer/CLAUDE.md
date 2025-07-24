@@ -57,7 +57,7 @@ melody-sequencer/
 - ✅ **Vitesses de Lecture** - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
 - ✅ **Architecture Robuste** - Base stable et extensible
-- ✅ **MODULARISATION RÉUSSIE** - 8 hooks + 4 utils + architecture multi-modes
+- ✅ **MODULARISATION PARTIELLE** - 8 hooks + 4 utils + architecture multi-modes (composants UI à reprendre)
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -66,7 +66,7 @@ melody-sequencer/
 3. ✅ ~~**Undo/Redo**~~ - **TERMINÉ** - Historique 50 actions avec interface
 4. ✅ ~~**MIDI Import**~~ - **TERMINÉ** - Drag & drop + limitation 64 steps
 5. ✅ ~~**Modularisation Piano Roll**~~ - **TERMINÉ** - Architecture hooks + utils modulaire
-6. **Composants UI Modulaires** - Finaliser l'extraction des composants UI
+6. ⚠️ **Composants UI Modulaires** - **À REPRENDRE** - Extraction incomplète détectée (voir PHASE3_CORRECTION_CRITIQUE.md)
 7. **Quantization** - Alignement automatique des notes sur la grille
 8. **Scale Helper** - Assistant gammes et accords musicaux
 9. **Multi-patterns** - Gestion de plusieurs patterns/séquences
@@ -154,6 +154,7 @@ npm run lint     # Linting (désactivé temporairement)
   ✅ Sélection multiple + copier/coller + flèches
   ✅ Interface responsive mobile/desktop parfaite
   ✅ Architecture robuste SimpleAudioEngine
+  ✅ Modularisation partielle (8 hooks + 4 utils, composants UI à reprendre)
   
   🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
   1. **Quantization** - Alignement sur grille
