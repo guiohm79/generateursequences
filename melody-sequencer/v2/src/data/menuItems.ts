@@ -37,8 +37,8 @@ export const MENU_ITEMS: MenuItem[] = [
   // === CORE FEATURES ===
   {
     id: 'piano-roll',
-    title: 'Piano Roll',
-    description: '🚀 Piano Roll professionnel - DAW style, polyphonique, responsive',
+    title: '🎹 Piano Roll Professionnel',
+    description: '✅ COMPLET - Vélocité, notes longues, sélection multiple, raccourcis clavier',
     href: '/piano-roll',
     status: 'stable',
     category: 'core',
@@ -63,42 +63,78 @@ export const MENU_ITEMS: MenuItem[] = [
     priority: 3
   },
 
-  // === FEATURES AVANCÉES (prochaines) ===
+  // === FEATURES AVANCÉES ===
   {
     id: 'velocity-editor',
-    title: 'Éditeur Vélocité',
-    description: 'Contrôle intensité par note avec slider/courbe',
-    href: '/velocity-editor',
-    status: 'planned',
+    title: '✅ Éditeur Vélocité',
+    description: 'IMPLÉMENTÉ - Couleurs vert→rouge, drag vertical temps réel',
+    href: '/piano-roll',
+    status: 'stable',
     category: 'features',
     priority: 1
   },
   {
+    id: 'note-length',
+    title: '✅ Notes Longues',
+    description: 'IMPLÉMENTÉ - Durée variable, redimensionnement horizontal',
+    href: '/piano-roll',
+    status: 'stable',
+    category: 'features',
+    priority: 2
+  },
+  {
+    id: 'multi-selection',
+    title: '✅ Sélection Multiple',
+    description: 'IMPLÉMENTÉ - Rectangle, Ctrl+clic, copier/coller, flèches',
+    href: '/piano-roll',
+    status: 'stable',
+    category: 'features',
+    priority: 3
+  },
+  {
     id: 'midi-export',
     title: 'Export MIDI',
-    description: 'Exporter les patterns en fichiers MIDI',
+    description: 'Exporter les patterns en fichiers MIDI (.mid)',
     href: '/midi-export',
     status: 'planned',
     category: 'features',
-    priority: 2
+    priority: 4
   },
   {
     id: 'presets',
-    title: 'Gestion Presets',
-    description: 'Sauvegarder et charger des presets de synthé',
+    title: 'Système Presets',
+    description: 'Sauvegarder et charger des patterns complets',
     href: '/presets',
     status: 'planned',
     category: 'features',
-    priority: 2
+    priority: 5
   },
   {
-    id: 'effects',
-    title: 'Effets Audio',
-    description: 'Reverb, delay, filters pour le synthétiseur',
-    href: '/effects',
+    id: 'undo-redo',
+    title: 'Undo/Redo',
+    description: 'Historique des actions et annulation',
+    href: '/undo-redo',
     status: 'planned',
     category: 'features',
-    priority: 3
+    priority: 6
+  },
+  {
+    id: 'quantization',
+    title: 'Quantization',
+    description: 'Alignement automatique des notes sur la grille',
+    href: '/quantization',
+    status: 'planned',
+    category: 'features',
+    priority: 7
+  },
+  {
+    id: 'scale-helper',
+    title: 'Assistant Gammes',
+    description: 'Helper pour gammes et accords musicaux',
+    href: '/scale-helper',
+    status: 'planned',
+    category: 'features',
+    priority: 8
   },
 
   // === OUTILS ===

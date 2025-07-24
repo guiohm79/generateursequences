@@ -32,7 +32,7 @@ melody-sequencer/
 - Add features via the extensible menu system
 - Focus on progressive enhancement over complex architecture
 
-## 🎵 Current Development Status (2025-07-23)
+## 🎵 Current Development Status (2025-07-24)
 
 ### V1 Status
 - ✅ **Production ready** - Fully functional sequencer
@@ -40,23 +40,28 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status - 🚀 **PIANO ROLL COMPLET & FONCTIONNEL**
-- ✅ **Piano Roll Professionnel** - Interface moderne style DAW complète
+### V2 Status - 🎹 **PIANO ROLL PROFESSIONNEL COMPLET**
+- ✅ **Piano Roll DAW-Grade** - Interface professionnelle style studio
 - ✅ **Audio Polyphonique** - SimpleAudioEngine avec PolySynth + reverb
 - ✅ **Navigation Octaves** - Scroll/boutons, gamme C1-C7 complète
 - ✅ **Steps Variables** - Support 8/16/32/64 steps avec accents adaptatifs
+- ✅ **Éditeur Vélocité** - Couleurs vert→rouge + drag vertical temps réel
+- ✅ **Notes Longues** - Support durée + redimensionnement horizontal
+- ✅ **Sélection Multiple** - Rectangle, Ctrl+clic, copier/coller
+- ✅ **Déplacement Flèches** - Navigation précise avec clavier
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
-- ✅ **Architecture Robuste** - Base stable et extensible pour futures features
-- 📱 **Mobile-First** - Interface tactile optimisée pour tous écrans
+- ✅ **Architecture Robuste** - Base stable et extensible
+- 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
-1. **Éditeur Vélocité** - Contrôle intensité par note (slider/courbe)
-2. **Longueur Notes** - Support notes longues (pas seulement on/off)
-3. **Outils Sélection** - Sélection multiple, copier/coller, déplacer
-4. **Export MIDI** - Exportation des patterns créés
-5. **Presets System** - Sauvegarde/chargement de patterns
-6. **Raccourcis Clavier** - Shortcuts (espace=play, delete, etc.)
+1. **Export MIDI** - Exportation des patterns créés vers fichiers .mid
+2. **Presets System** - Sauvegarde/chargement de patterns
+3. **Raccourcis Clavier** - Shortcuts globaux (espace=play, etc.)
+4. **Undo/Redo** - Historique des actions
+5. **Quantization** - Alignement automatique des notes
+6. **Scale Helper** - Assistant gammes et accords
 7. **Génération IA** - Magenta.js pour création assistée
+8. **Multi-patterns** - Gestion de plusieurs patterns
 
 ## 🛠️ Quick Development Commands
 
@@ -129,11 +134,15 @@ npm run lint     # Linting (désactivé temporairement)
 
 **🎵 V2 est prêt pour le développement avec une base solide et un système extensible!**
 
-  📋 PROCHAINE SESSION :
-  1. Éditeur vélocité (contrôle intensité)
-  2. Support longueur notes (sustain)
-  3. Outils sélection multiple
-  4. Export MIDI
-  5. Système presets
-  6. Raccourcis clavier
-  7. Génération IA
+  📋 DÉVELOPPEMENT ACTUEL :
+  ✅ Piano Roll Professionnel TERMINÉ
+  ✅ Vélocité par couleurs + drag vertical
+  ✅ Notes longues + redimensionnement
+  ✅ Sélection multiple + copier/coller
+  ✅ Déplacement par flèches clavier
+  
+  🎯 PROCHAINES ÉTAPES :
+  1. Export MIDI (.mid files)
+  2. Système presets (save/load)
+  3. Raccourcis clavier globaux
+  4. Undo/Redo system
