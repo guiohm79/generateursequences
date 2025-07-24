@@ -7,6 +7,7 @@
 export interface SimpleStep {
   on: boolean;
   velocity: number;
+  duration?: number; // Durée en steps (optionnel, pour compatibilité)
 }
 
 export interface SimplePattern {

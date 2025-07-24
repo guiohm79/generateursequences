@@ -18,12 +18,13 @@ const generateNotesForOctave = (octave: number): string[] => {
 const ALL_OCTAVES = [7, 6, 5, 4, 3, 2, 1];
 const ALL_NOTES = ALL_OCTAVES.flatMap(octave => generateNotesForOctave(octave));
 
-// Pattern data structure
+// Pattern data structure avec support des notes longues
 interface NoteEvent {
   step: number;
   note: string;
   velocity: number;
   isActive: boolean;
+  duration: number; // Longueur en steps (1 = un seul step, 2 = deux steps, etc.)
 }
 
 // Helper functions
@@ -68,6 +69,16 @@ const PianoRollPage: React.FC = () => {
     currentVelocity: number;
   } | null>(null);
   
+  // État pour le redimensionnement des notes par drag horizontal
+  const [resizeState, setResizeState] = useState<{
+    isResizing: boolean;
+    step: number;
+    note: string;
+    startX: number;
+    startDuration: number;
+    currentDuration: number;
+  } | null>(null);
+  
   // Navigation octaves
   const [visibleOctaveStart, setVisibleOctaveStart] = useState(2); // Commence à C2
   const [visibleOctaveCount, setVisibleOctaveCount] = useState(3); // Affiche 3 octaves
@@ -94,10 +105,11 @@ const PianoRollPage: React.FC = () => {
   }, [initialize]);
   
   // Gestion du scroll de la molette pour naviguer dans les octaves
-  const handleWheel = (e: React.WheelEvent) => {
+  const handleWheel = (e: Event) => {
+    const wheelEvent = e as WheelEvent;
     e.preventDefault();
     
-    if (e.deltaY > 0) {
+    if (wheelEvent.deltaY > 0) {
       // Scroll down - monter dans les octaves
       setVisibleOctaveStart(Math.min(7 - visibleOctaveCount + 1, visibleOctaveStart + 1));
     } else {
@@ -105,6 +117,18 @@ const PianoRollPage: React.FC = () => {
       setVisibleOctaveStart(Math.max(1, visibleOctaveStart - 1));
     }
   };
+  
+  // Effet pour gérer l'événement wheel avec passive: false
+  useEffect(() => {
+    const pianoRollContainer = document.querySelector('.piano-roll-container');
+    if (pianoRollContainer) {
+      pianoRollContainer.addEventListener('wheel', handleWheel, { passive: false });
+      
+      return () => {
+        pianoRollContainer.removeEventListener('wheel', handleWheel);
+      };
+    }
+  }, [visibleOctaveStart, visibleOctaveCount]);
   
   // Calcul des notes visibles selon l'octave sélectionnée
   const getVisibleNotes = (): string[] => {
@@ -157,13 +181,29 @@ const PianoRollPage: React.FC = () => {
       audioPattern[note] = Array(stepCount).fill(null).map(() => ({ on: false, velocity: 0 }));
     });
     
-    // Fill in the active notes
+    // Fill in the active notes with duration support
     visualPattern.forEach(noteEvent => {
-      if (audioPattern[noteEvent.note] && audioPattern[noteEvent.note][noteEvent.step]) {
-        audioPattern[noteEvent.note][noteEvent.step] = {
-          on: true,
-          velocity: noteEvent.velocity / 127 // Normalize to 0-1
-        };
+      if (audioPattern[noteEvent.note]) {
+        // Note de début avec durée
+        if (audioPattern[noteEvent.note][noteEvent.step]) {
+          audioPattern[noteEvent.note][noteEvent.step] = {
+            on: true,
+            velocity: noteEvent.velocity / 127, // Normalize to 0-1
+            duration: noteEvent.duration
+          };
+        }
+        
+        // Marquer les steps intermédiaires comme "sustain"
+        for (let i = 1; i < noteEvent.duration; i++) {
+          const sustainStep = noteEvent.step + i;
+          if (sustainStep < stepCount && audioPattern[noteEvent.note][sustainStep]) {
+            audioPattern[noteEvent.note][sustainStep] = {
+              on: false, // Pas de nouveau déclenchement
+              velocity: 0,
+              duration: 0 // Marquer comme sustain
+            };
+          }
+        }
       }
     });
     
@@ -190,7 +230,8 @@ const PianoRollPage: React.FC = () => {
             step,
             note,
             velocity: 100, // Vélocité par défaut
-            isActive: true
+            isActive: true,
+            duration: 1 // Durée par défaut: 1 step
           }];
         }
         return prev;
@@ -198,39 +239,59 @@ const PianoRollPage: React.FC = () => {
     });
   };
   
-  // Gestion du drag pour éditer la vélocité (souris)
+  // Gestion du drag pour éditer la vélocité (souris) - fonctionne sur toute la note longue
   const handleMouseDown = (step: number, note: string, e: React.MouseEvent) => {
-    const existingNote = pattern.find(n => n.step === step && n.note === note);
-    if (existingNote && e.button === 0) { // Clic gauche seulement
+    const noteInfo = isPartOfNote(step, note);
+    if (noteInfo.noteEvent && e.button === 0) { // Clic gauche seulement
       e.preventDefault();
       e.stopPropagation();
       
+      // Utiliser les données de la note principale, pas du step clique
       setDragState({
         isDragging: true,
-        step,
+        step: noteInfo.noteEvent.step, // Step de la note principale
         note,
         startY: e.clientY,
-        startVelocity: existingNote.velocity,
-        currentVelocity: existingNote.velocity
+        startVelocity: noteInfo.noteEvent.velocity,
+        currentVelocity: noteInfo.noteEvent.velocity
       });
     }
   };
   
-  // Gestion du drag pour éditer la vélocité (tactile)
+  // Gestion du drag pour éditer la vélocité (tactile) - fonctionne sur toute la note longue
   const handleTouchStart = (step: number, note: string, e: React.TouchEvent) => {
+    const noteInfo = isPartOfNote(step, note);
+    if (noteInfo.noteEvent) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const touch = e.touches[0];
+      // Utiliser les données de la note principale
+      setDragState({
+        isDragging: true,
+        step: noteInfo.noteEvent.step, // Step de la note principale
+        note,
+        startY: touch.clientY,
+        startVelocity: noteInfo.noteEvent.velocity,
+        currentVelocity: noteInfo.noteEvent.velocity
+      });
+    }
+  };
+  
+  // Gestion du drag pour redimensionner les notes (souris)
+  const handleResizeMouseDown = (step: number, note: string, e: React.MouseEvent) => {
     const existingNote = pattern.find(n => n.step === step && n.note === note);
     if (existingNote) {
       e.preventDefault();
       e.stopPropagation();
       
-      const touch = e.touches[0];
-      setDragState({
-        isDragging: true,
+      setResizeState({
+        isResizing: true,
         step,
         note,
-        startY: touch.clientY,
-        startVelocity: existingNote.velocity,
-        currentVelocity: existingNote.velocity
+        startX: e.clientX,
+        startDuration: existingNote.duration,
+        currentDuration: existingNote.duration
       });
     }
   };
@@ -288,13 +349,34 @@ const PianoRollPage: React.FC = () => {
     
     const handleGlobalEnd = () => {
       if (dragState?.isDragging) {
-        // Sauvegarder
+        // Sauvegarder la vélocité
         setPattern(prev => prev.map(n => 
           n.step === dragState.step && n.note === dragState.note
             ? { ...n, velocity: dragState.currentVelocity }
             : n
         ));
         setDragState(null);
+      }
+      
+      if (resizeState?.isResizing) {
+        // Sauvegarder la durée
+        setPattern(prev => prev.map(n => 
+          n.step === resizeState.step && n.note === resizeState.note
+            ? { ...n, duration: resizeState.currentDuration }
+            : n
+        ));
+        setResizeState(null);
+      }
+    };
+    
+    const handleGlobalMouseMoveResize = (e: MouseEvent) => {
+      if (resizeState?.isResizing) {
+        const deltaX = e.clientX - resizeState.startX;
+        const cellWidthPx = stepCount <= 16 ? 56 : stepCount <= 32 ? 40 : 32; // Approximation
+        const stepsDelta = Math.round(deltaX / cellWidthPx);
+        const newDuration = Math.max(1, Math.min(stepCount - resizeState.step, resizeState.startDuration + stepsDelta));
+        
+        setResizeState(prev => prev ? { ...prev, currentDuration: newDuration } : null);
       }
     };
     
@@ -309,8 +391,17 @@ const PianoRollPage: React.FC = () => {
       document.body.style.touchAction = 'none';
     }
     
+    if (resizeState?.isResizing) {
+      document.addEventListener('mousemove', handleGlobalMouseMoveResize);
+      document.addEventListener('mouseup', handleGlobalEnd);
+      
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+    }
+    
     return () => {
       document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mousemove', handleGlobalMouseMoveResize);
       document.removeEventListener('mouseup', handleGlobalEnd);
       document.removeEventListener('touchmove', handleGlobalTouchMove);
       document.removeEventListener('touchend', handleGlobalEnd);
@@ -319,7 +410,7 @@ const PianoRollPage: React.FC = () => {
       document.body.style.userSelect = '';
       document.body.style.touchAction = '';
     };
-  }, [dragState, pattern]);
+  }, [dragState, resizeState, pattern]);
   
   // Nettoyer le pattern quand on change le nombre de steps
   useEffect(() => {
@@ -327,18 +418,79 @@ const PianoRollPage: React.FC = () => {
   }, [stepCount]);
 
   const isNoteActive = (step: number, note: string) => {
-    return pattern.some(n => n.step === step && n.note === note && n.isActive);
+    const noteInfo = isPartOfNote(step, note);
+    return noteInfo.noteEvent !== null;
   };
   
-  // Récupérer la vélocité d'une note (avec drag en cours)
+  // Récupérer la vélocité d'une note (avec drag en cours) - fonctionne pour les notes longues
   const getNoteVelocity = (step: number, note: string): number => {
-    // Si on est en train de dragger cette note, utiliser la vélocité temporaire
-    if (dragState?.isDragging && dragState.step === step && dragState.note === note) {
+    const noteInfo = isPartOfNote(step, note);
+    
+    if (!noteInfo.noteEvent) return 100;
+    
+    // Si on est en train de dragger cette note (n'importe quelle partie), utiliser la vélocité temporaire
+    if (dragState?.isDragging && dragState.step === noteInfo.noteEvent.step && dragState.note === note) {
       return dragState.currentVelocity;
     }
     
+    // Retourner la vélocité de la note principale (celle qui contient les données)
+    return noteInfo.noteEvent.velocity;
+  };
+  
+  // Vérifier si un step fait partie d'une note longue
+  const isPartOfNote = (step: number, note: string): { isStart: boolean; isMiddle: boolean; isEnd: boolean; noteEvent: NoteEvent | null } => {
+    // Chercher une note qui commence à ce step
+    const directNote = pattern.find(n => n.step === step && n.note === note);
+    if (directNote) {
+      return {
+        isStart: true,
+        isMiddle: false,
+        isEnd: directNote.duration === 1,
+        noteEvent: directNote
+      };
+    }
+    
+    // Chercher une note longue qui englobe ce step
+    const longNote = pattern.find(n => {
+      const currentDuration = resizeState?.isResizing && resizeState.step === n.step && resizeState.note === n.note 
+        ? resizeState.currentDuration 
+        : n.duration;
+      
+      return n.note === note && 
+             n.step < step && 
+             n.step + currentDuration > step;
+    });
+    
+    if (longNote) {
+      const currentDuration = resizeState?.isResizing && resizeState.step === longNote.step && resizeState.note === longNote.note 
+        ? resizeState.currentDuration 
+        : longNote.duration;
+      const isLastStep = step === longNote.step + currentDuration - 1;
+      return {
+        isStart: false,
+        isMiddle: !isLastStep,
+        isEnd: isLastStep,
+        noteEvent: longNote
+      };
+    }
+    
+    return {
+      isStart: false,
+      isMiddle: false,
+      isEnd: false,
+      noteEvent: null
+    };
+  };
+  
+  // Récupérer la durée d'une note (avec resize en cours)
+  const getNoteDuration = (step: number, note: string): number => {
+    // Si on est en train de redimensionner cette note, utiliser la durée temporaire
+    if (resizeState?.isResizing && resizeState.step === step && resizeState.note === note) {
+      return resizeState.currentDuration;
+    }
+    
     const noteEvent = pattern.find(n => n.step === step && n.note === note);
-    return noteEvent ? noteEvent.velocity : 100;
+    return noteEvent ? noteEvent.duration : 1;
   };
 
   return (
@@ -400,6 +552,8 @@ const PianoRollPage: React.FC = () => {
                       value={tempo}
                       onChange={(e) => setTempo(parseInt(e.target.value))}
                       className="w-16 sm:w-20 h-2 bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                      aria-label="Tempo control"
+                      title={`Tempo: ${tempo} BPM`}
                     />
                     <span className="text-emerald-400 font-mono text-sm">{tempo}</span>
                   </div>
@@ -501,7 +655,7 @@ const PianoRollPage: React.FC = () => {
           </div>
           
           {/* Container avec scroll unique */}
-          <div className="flex flex-col overflow-x-auto" onWheel={handleWheel}>
+          <div className="flex flex-col overflow-x-auto piano-roll-container">
             {/* Header des steps - fixé en haut */}
             <div className="flex sticky top-0 z-10 bg-slate-900/80 backdrop-blur-sm border-b border-slate-600/30">
               <div className="w-24 sm:w-28 flex-shrink-0 bg-gradient-to-r from-slate-700/50 to-slate-800/50 py-2"></div>
@@ -585,10 +739,14 @@ const PianoRollPage: React.FC = () => {
                       {Array.from({ length: stepCount }, (_, stepIndex) => {
                         const step = stepIndex + 1;
                         const isAccentStep = accentSteps.includes(step);
-                        const hasNote = isNoteActive(stepIndex, note);
                         
+                        const noteInfo = isPartOfNote(stepIndex, note);
+                        const hasNote = noteInfo.noteEvent !== null;
                         const noteVelocity = getNoteVelocity(stepIndex, note);
                         const isDraggingThis = dragState?.isDragging && dragState.step === stepIndex && dragState.note === note;
+                        // Ou si on drag n'importe quelle partie de cette note longue
+                        const isDraggingThisLongNote = dragState?.isDragging && noteInfo.noteEvent && dragState.step === noteInfo.noteEvent.step && dragState.note === note;
+                        const showDragFeedback = isDraggingThis || isDraggingThisLongNote;
                         
                         return (
                           <div
@@ -605,7 +763,8 @@ const PianoRollPage: React.FC = () => {
                                   : 'bg-slate-800/40 hover:bg-slate-700/70 active:bg-slate-600/80'
                                 )
                               }
-                              ${isDraggingThis ? 'ring-2 ring-blue-400 cursor-ns-resize' : ''}
+                              ${showDragFeedback ? 'ring-2 ring-blue-400 cursor-ns-resize' : ''}
+                              ${noteInfo.isMiddle ? 'border-r-0' : ''}
                             `}
                             onClick={() => !dragState?.isDragging && toggleNote(stepIndex, note)}
                             onMouseDown={(e) => hasNote && handleMouseDown(stepIndex, note, e)}
@@ -616,22 +775,47 @@ const PianoRollPage: React.FC = () => {
                           >
                             {hasNote && (
                               <div className={`
-                                ${stepCount <= 16 
-                                  ? 'w-8 h-4 sm:w-10 sm:h-5' 
-                                  : stepCount <= 32 
-                                  ? 'w-6 h-3 sm:w-8 sm:h-4' 
-                                  : 'w-4 h-2 sm:w-6 sm:h-3'
-                                } 
-                                rounded-lg shadow-lg
+                                ${noteInfo.isStart 
+                                  ? (stepCount <= 16 
+                                    ? 'w-8 h-4 sm:w-10 sm:h-5' 
+                                    : stepCount <= 32 
+                                    ? 'w-6 h-3 sm:w-8 sm:h-4' 
+                                    : 'w-4 h-2 sm:w-6 sm:h-3'
+                                  )
+                                  : 'w-full h-4 sm:h-5'
+                                }
+                                ${noteInfo.isStart ? 'rounded-l-lg' : ''}
+                                ${noteInfo.isEnd ? 'rounded-r-lg' : ''}
+                                ${noteInfo.isMiddle ? 'rounded-none' : ''}
+                                ${noteInfo.isStart && noteInfo.isEnd ? 'rounded-lg' : ''}
+                                shadow-lg
                                 ${getVelocityColorClass(noteVelocity)}
                                 ${stepIndex === currentStep && isPlaying ? 'animate-pulse ring-1 ring-yellow-300' : ''}
-                                ${isDraggingThis ? 'ring-2 ring-white ring-opacity-80 scale-110' : ''}
-                              `} 
-                            />
+                                ${showDragFeedback ? 'ring-2 ring-white ring-opacity-80 scale-110' : ''}
+                                ${noteInfo.isMiddle ? 'opacity-80' : ''}
+                                flex items-center justify-center
+                              `}
+                            >
+                              {/* Indicateur de début de note */}
+                              {noteInfo.isStart && noteInfo.noteEvent && noteInfo.noteEvent.duration > 1 && (
+                                <div className="text-white text-xs font-bold opacity-70">
+                                  {noteInfo.noteEvent.duration}
+                                </div>
+                              )}
+                              
+                              {/* Poignée de redimensionnement à droite */}
+                              {noteInfo.isEnd && (
+                                <div 
+                                  className="absolute right-0 top-0 bottom-0 w-1 bg-white/20 hover:bg-white/40 cursor-ew-resize transition-colors"
+                                  onMouseDown={(e) => handleResizeMouseDown(noteInfo.noteEvent!.step, note, e)}
+                                  title="Drag pour redimensionner"
+                                />
+                              )}
+                            </div>
                             )}
                             
                             {/* Indicateur de vélocité pendant le drag */}
-                            {isDraggingThis && (
+                            {showDragFeedback && (
                               <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900 border border-slate-600 px-2 py-1 rounded text-xs font-mono text-white shadow-xl">
                                 {noteVelocity}
                               </div>
@@ -714,6 +898,10 @@ const PianoRollPage: React.FC = () => {
                   <strong>Drag vertical</strong> sur une note pour ajuster sa vélocité
                 </li>
                 <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-orange-400 rounded-full flex-shrink-0"></span>
+                  <strong>Drag horizontal</strong> sur le bord droit pour étendre la note
+                </li>
+                <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0"></span>
                   <strong>Play/Stop</strong> pour contrôler la lecture
                 </li>
@@ -737,6 +925,10 @@ const PianoRollPage: React.FC = () => {
                 <li className="flex items-center gap-2">
                   <span className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></span>
                   <strong>Couleurs notes</strong> vert (faible) → rouge (forte vélocité)
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 bg-indigo-400 rounded-full flex-shrink-0"></span>
+                  <strong>Notes longues</strong> s'étendent sur plusieurs steps avec durée
                 </li>
               </ul>
             </div>
