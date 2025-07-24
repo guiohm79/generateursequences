@@ -6,6 +6,7 @@ import { SimplePattern, SimpleStep } from '../../lib/SimpleAudioEngine';
 import { midiEngine, MidiNote } from '../../lib/MidiEngine';
 import { PresetManager } from '../../lib/PresetManager';
 import { SequencerPreset } from '../../types';
+import { MidiParser } from '../../lib/MidiParser';
 
 // Configuration du piano roll - dynamique
 const STEP_OPTIONS = [8, 16, 32, 64];
@@ -380,6 +381,10 @@ const PianoRollPage: React.FC = () => {
   const [showPresetDialog, setShowPresetDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [presetName, setPresetName] = useState('');
+  
+  // État pour l'import MIDI
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [midiImportStatus, setMidiImportStatus] = useState<string>('');
   
   // Audio engine hook
   const { 
@@ -1006,8 +1011,131 @@ const PianoRollPage: React.FC = () => {
     loadPresets();
   }, []);
 
+  // === GESTION DE L'IMPORT MIDI ===
+  const handleMidiFileImport = async (file: File) => {
+    try {
+      setMidiImportStatus('Import MIDI en cours...');
+      
+      // Validation du fichier
+      const validation = MidiParser.validateMidiFile(file);
+      if (!validation.valid) {
+        setMidiImportStatus(`❌ ${validation.error}`);
+        setTimeout(() => setMidiImportStatus(''), 4000);
+        return;
+      }
+
+      // Parser le fichier MIDI
+      const result = await MidiParser.parseMidiFile(file);
+      
+      if (!result.success) {
+        setMidiImportStatus(`❌ Erreur d'import: ${result.error}`);
+        setTimeout(() => setMidiImportStatus(''), 4000);
+        return;
+      }
+
+      if (result.notes.length === 0) {
+        setMidiImportStatus('❌ Aucune note trouvée dans le fichier MIDI');
+        setTimeout(() => setMidiImportStatus(''), 4000);
+        return;
+      }
+
+      // Remplacer le pattern actuel
+      setPattern(result.notes);
+      setSelectedNotes(new Set());
+      
+      // Ajuster le nombre de steps si nécessaire
+      if (result.stepsUsed && result.stepsUsed > stepCount) {
+        const newStepCount = result.stepsUsed <= 16 ? 16 : 
+                            result.stepsUsed <= 32 ? 32 : 64;
+        setStepCount(newStepCount);
+      }
+
+      // Message de succès avec détails
+      let successMessage = `✅ Import réussi! ${result.totalNotes} notes`;
+      
+      if (result.truncated) {
+        successMessage += ` (limité à ${result.stepsUsed}/${result.originalLength} steps)`;
+      }
+      
+      if (result.warnings && result.warnings.length > 0) {
+        successMessage += ` - ${result.warnings.length} avertissement(s)`;
+        console.warn('Avertissements MIDI import:', result.warnings);
+      }
+      
+      setMidiImportStatus(successMessage);
+      setTimeout(() => setMidiImportStatus(''), 6000);
+
+    } catch (error) {
+      console.error('Erreur import MIDI:', error);
+      setMidiImportStatus(`❌ Erreur inattendue: ${error instanceof Error ? error.message : 'Inconnue'}`);
+      setTimeout(() => setMidiImportStatus(''), 4000);
+    }
+  };
+
+  // Import via sélecteur de fichier
+  const handleMidiFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      await handleMidiFileImport(file);
+    }
+    event.target.value = ''; // Reset input
+  };
+
+  // Gestion du drag & drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Seulement si on quitte vraiment la zone (pas un enfant)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const midiFile = files.find(file => 
+      file.name.toLowerCase().endsWith('.mid') || 
+      file.name.toLowerCase().endsWith('.midi')
+    );
+
+    if (!midiFile) {
+      setMidiImportStatus('❌ Glissez un fichier .mid ou .midi');
+      setTimeout(() => setMidiImportStatus(''), 3000);
+      return;
+    }
+
+    await handleMidiFileImport(midiFile);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div 
+      className={`min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white ${
+        isDragOver ? 'bg-blue-900/30' : ''
+      }`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Overlay de drag & drop */}
+      {isDragOver && (
+        <div className="fixed inset-0 bg-blue-500/20 backdrop-blur-sm flex items-center justify-center z-40 pointer-events-none">
+          <div className="bg-blue-600 text-white px-8 py-4 rounded-2xl shadow-2xl border-2 border-blue-400 border-dashed">
+            <div className="text-2xl font-bold mb-2">🎼 Déposez votre fichier MIDI ici</div>
+            <div className="text-blue-200">Formats supportés: .mid, .midi (max 64 steps)</div>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
@@ -1176,7 +1304,7 @@ const PianoRollPage: React.FC = () => {
                 </button>
 
                 <label className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white hover:shadow-xl cursor-pointer">
-                  📤 Importer
+                  📤 Importer Preset
                   <input
                     type="file"
                     accept=".json"
@@ -1184,6 +1312,35 @@ const PianoRollPage: React.FC = () => {
                     className="hidden"
                   />
                 </label>
+              </div>
+
+              {/* Import MIDI */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <label className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white hover:shadow-xl cursor-pointer">
+                  🎼 Importer MIDI
+                  <input
+                    type="file"
+                    accept=".mid,.midi"
+                    onChange={handleMidiFileSelect}
+                    className="hidden"
+                  />
+                </label>
+                
+                <div className="text-xs text-slate-400 max-w-xs text-center">
+                  Ou glissez-déposez un fichier .mid sur l'interface
+                </div>
+                
+                {midiImportStatus && (
+                  <div className={`
+                    px-3 py-2 rounded-lg text-sm font-medium max-w-md
+                    ${midiImportStatus.includes('✅') 
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                      : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    }
+                  `}>
+                    {midiImportStatus}
+                  </div>
+                )}
               </div>
               
             </div>

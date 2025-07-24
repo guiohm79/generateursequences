@@ -120,10 +120,10 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'midi-import',
-    title: 'Import MIDI',
-    description: 'Importation et lecture de fichiers .mid existants',
-    href: '/midi',
-    status: 'planned',
+    title: '🎼 Import MIDI',
+    description: '✅ IMPLÉMENTÉ - Drag & drop + sélecteur fichier, limitation 64 steps automatique',
+    href: '/piano-roll',
+    status: 'stable',
     category: 'features',
     priority: 7
   },
