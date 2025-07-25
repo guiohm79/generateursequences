@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { SequencerPreset } from '../../../types';
+import { MidiOutputPanel } from '../../../components/MidiOutputPanel';
 
 interface TransportControlsProps {
   // === TRANSPORT STATE ===
@@ -50,6 +51,11 @@ interface TransportControlsProps {
   // === MIDI ACTIONS ===
   handleExportMidi: () => Promise<void>;
   handleMidiFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  
+  // === MIDI OUTPUT ===
+  showMidiOutputDialog: boolean;
+  setShowMidiOutputDialog: (show: boolean) => void;
+  onMidiCallback?: (callback: any) => void;
   
   // === PRESET ACTIONS ===
   setShowPresetDialog: (show: boolean) => void;
@@ -114,6 +120,9 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   setNoteSpeed,
   handleExportMidi,
   handleMidiFileSelect,
+  showMidiOutputDialog,
+  setShowMidiOutputDialog,
+  onMidiCallback,
   setShowPresetDialog,
   setShowLoadDialog,
   setPresetName,
@@ -246,7 +255,7 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
       {/* Section Export MIDI & Presets */}
       <div className="mt-4 sm:mt-6 space-y-4">
         
-        {/* Export MIDI */}
+        {/* Export MIDI & MIDI Output */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
           <button
             onClick={handleExportMidi}
@@ -262,6 +271,14 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
             title={activeNotesCount === 0 ? 'Créez d\'abord des notes' : 'Exporter le pattern vers un fichier MIDI'}
           >
             🎼 Export MIDI
+          </button>
+
+          <button
+            onClick={() => setShowMidiOutputDialog(true)}
+            className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white hover:shadow-xl"
+            title="Configurer MIDI Output en temps réel vers devices externes"
+          >
+            🎛️ MIDI Out
           </button>
           
           {exportStatus && (
@@ -406,6 +423,13 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MIDI Output Panel */}
+      <MidiOutputPanel
+        isOpen={showMidiOutputDialog}
+        onClose={() => setShowMidiOutputDialog(false)}
+        onMidiCallback={onMidiCallback}
+      />
     </div>
   );
 };

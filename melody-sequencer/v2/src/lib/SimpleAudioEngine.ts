@@ -14,6 +14,11 @@ export interface SimplePattern {
   [noteName: string]: SimpleStep[];
 }
 
+export interface MidiOutputCallback {
+  onNoteOn: (note: string, velocity: number) => void;
+  onNoteOff: (note: string) => void;
+}
+
 export class SimpleAudioEngine {
   private Tone: any = null;
   private synth: any = null;
@@ -24,6 +29,7 @@ export class SimpleAudioEngine {
   private pattern: SimplePattern = {};
   private tempo = 120;
   private noteSpeed: '8n' | '16n' | '32n' = '16n'; // Vitesse de lecture
+  private midiCallback: MidiOutputCallback | null = null; // Callback pour MIDI Output
   
   /**
    * Initialisation simple et claire
@@ -139,6 +145,15 @@ export class SimpleAudioEngine {
         this.intervalId = null;
       }
       
+      // Arrêter toutes les notes MIDI actives
+      if (this.midiCallback) {
+        // Envoyer Note OFF pour toutes les notes possibles
+        const allNotes = Object.keys(this.pattern);
+        for (const note of allNotes) {
+          this.midiCallback.onNoteOff(note);
+        }
+      }
+      
       this.isPlaying = false;
       this.currentStep = 0;
       
@@ -163,6 +178,19 @@ export class SimpleAudioEngine {
         if (step && step.on) {
           // Jouer la note avec PolySynth (supporte plusieurs notes simultanées)
           this.synth.triggerAttackRelease(noteName, '8n', undefined, step.velocity);
+          
+          // Envoyer MIDI Note ON si callback configuré
+          if (this.midiCallback) {
+            this.midiCallback.onNoteOn(noteName, Math.round(step.velocity * 127));
+            
+            // Programmer le MIDI Note OFF après la durée de la note
+            const noteDuration = this.calculateNoteDuration();
+            setTimeout(() => {
+              if (this.midiCallback) {
+                this.midiCallback.onNoteOff(noteName);
+              }
+            }, noteDuration);
+          }
         }
       }
       
@@ -175,6 +203,14 @@ export class SimpleAudioEngine {
       console.error('[SimpleAudioEngine] ❌ Step playback failed:', error);
       this.stop(); // Arrêter en cas d'erreur
     }
+  }
+
+  /**
+   * Calculer la durée d'une note en millisecondes
+   */
+  private calculateNoteDuration(): number {
+    const stepInterval = this.calculateStepInterval();
+    return Math.max(100, stepInterval * 0.8); // 80% de la durée du step, min 100ms
   }
   
   /**
@@ -201,6 +237,13 @@ export class SimpleAudioEngine {
       this.stop();
       setTimeout(() => this.start(), 50);
     }
+  }
+
+  /**
+   * Configurer le callback MIDI Output
+   */
+  setMidiCallback(callback: MidiOutputCallback | null): void {
+    this.midiCallback = callback;
   }
 
   /**

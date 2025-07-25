@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { SimpleAudioEngine, SimplePattern } from '../lib/SimpleAudioEngine';
+import { SimpleAudioEngine, SimplePattern, MidiOutputCallback } from '../lib/SimpleAudioEngine';
 
 export function useSimpleAudio() {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -82,6 +82,11 @@ export function useSimpleAudio() {
     if (!engineRef.current) return;
     engineRef.current.setNoteSpeed(speed);
   }, []);
+
+  const setMidiCallback = useCallback((callback: MidiOutputCallback | null) => {
+    if (!engineRef.current) return;
+    engineRef.current.setMidiCallback(callback);
+  }, []);
   
   return {
     // État
@@ -97,6 +102,7 @@ export function useSimpleAudio() {
     stop,
     setPattern,
     setTempo,
-    setNoteSpeed
+    setNoteSpeed,
+    setMidiCallback
   };
 }

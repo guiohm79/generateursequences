@@ -92,7 +92,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
   // Transport et paramètres
   const [stepCount, setStepCount] = useState<number>(DEFAULT_STEPS);
   const [tempo, setTempo] = useState<number>(120);
-  const [noteSpeed, setNoteSpeed] = useState<'8n' | '16n' | '32n'>('16n');
   const [visibleOctaveStart, setVisibleOctaveStart] = useState<number>(3);
   const [visibleOctaveCount] = useState<number>(3);
 
@@ -102,6 +101,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [showPresetDialog, setShowPresetDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [showMidiOutputDialog, setShowMidiOutputDialog] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<SequencerPreset[]>([]);
 
@@ -110,10 +110,13 @@ const PianoRollCompleteTestPage: React.FC = () => {
     isPlaying, 
     isInitialized, 
     currentStep, 
+    noteSpeed,
     start, 
     stop, 
     setPattern: setAudioPattern, 
     setTempo: setAudioTempo,
+    setNoteSpeed,
+    setMidiCallback,
     initialize 
   } = useSimpleAudio();
 
@@ -972,6 +975,9 @@ const PianoRollCompleteTestPage: React.FC = () => {
           setNoteSpeed={setNoteSpeed}
           handleExportMidi={handleExportMidi}
           handleMidiFileSelect={handleMidiFileSelect}
+          showMidiOutputDialog={showMidiOutputDialog}
+          setShowMidiOutputDialog={setShowMidiOutputDialog}
+          onMidiCallback={setMidiCallback}
           setShowPresetDialog={setShowPresetDialog}
           setShowLoadDialog={setShowLoadDialog}
           setPresetName={setPresetName}
