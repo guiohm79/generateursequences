@@ -26,6 +26,17 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'core',
     priority: 1
   },
+
+  // === MODES PIANO ROLL ===
+  {
+    id: 'inspiration',
+    title: '🎨 Inspiration - Générateur de Séquences',
+    description: '✅ NOUVEAU - Piano Roll + moteur de génération automatique basé sur randomEngine V1',
+    href: '/inspiration',
+    status: 'stable',
+    category: 'modes',
+    priority: 1
+  },
   
 
   // === MIDI ===
