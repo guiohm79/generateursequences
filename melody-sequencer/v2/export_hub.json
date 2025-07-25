@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": 1753452926779,
+  "lastUpdated": 1753461591553,
   "items": {
     "pianoroll-base": {
       "checkboxes": [
@@ -14,35 +14,43 @@
         },
         {
           "label": "ajouter le midioutput pour controller le midiOUT en temps reel",
-          "checked": false,
+          "checked": true,
           "type": "feature",
           "id": "checkbox-1753452211976-qiv67pmtw",
           "createdAt": 1753452211976,
-          "updatedAt": 1753452211976
+          "updatedAt": 1753461582938
         },
         {
           "label": "la vitesse de lecture n'est pas respecté, elle reste en 1/16",
-          "checked": false,
+          "checked": true,
           "type": "bug",
           "id": "checkbox-1753452917207-v4lhj7pac",
           "createdAt": 1753452917207,
-          "updatedAt": 1753452917207
+          "updatedAt": 1753461586525
         }
       ],
-      "lastUpdated": 1753452917207,
+      "lastUpdated": 1753461586525,
       "status": "testing"
     },
     "inspiration": {
       "status": "testing",
-      "lastUpdated": 1753452926779,
+      "lastUpdated": 1753461591553,
       "checkboxes": [
         {
           "label": "la vitesse de lecture n'est pas respecté, elle reste en 1/16",
-          "checked": false,
+          "checked": true,
           "type": "bug",
           "id": "checkbox-1753452926779-zethic2xx",
           "createdAt": 1753452926779,
-          "updatedAt": 1753452926779
+          "updatedAt": 1753461591553
+        },
+        {
+          "label": "Ajouter la possibilite d'editer et de creer des gammes",
+          "checked": false,
+          "type": "feature",
+          "id": "checkbox-1753456809395-1b9133vju",
+          "createdAt": 1753456809395,
+          "updatedAt": 1753456809395
         }
       ]
     }

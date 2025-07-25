@@ -30,6 +30,7 @@ export class SimpleAudioEngine {
   private tempo = 120;
   private noteSpeed: '8n' | '16n' | '32n' = '16n'; // Vitesse de lecture
   private midiCallback: MidiOutputCallback | null = null; // Callback pour MIDI Output
+  private isAudioEnabled = true; // Contrôle si l'audio interne joue
   
   /**
    * Initialisation simple et claire
@@ -176,8 +177,10 @@ export class SimpleAudioEngine {
         const step = steps[this.currentStep];
         
         if (step && step.on) {
-          // Jouer la note avec PolySynth (supporte plusieurs notes simultanées)
-          this.synth.triggerAttackRelease(noteName, '8n', undefined, step.velocity);
+          // Jouer la note avec PolySynth SEULEMENT si audio interne activé
+          if (this.isAudioEnabled) {
+            this.synth.triggerAttackRelease(noteName, '8n', undefined, step.velocity);
+          }
           
           // Envoyer MIDI Note ON si callback configuré
           if (this.midiCallback) {
@@ -244,6 +247,15 @@ export class SimpleAudioEngine {
    */
   setMidiCallback(callback: MidiOutputCallback | null): void {
     this.midiCallback = callback;
+    // Désactiver l'audio interne si MIDI Output est activé
+    this.isAudioEnabled = !callback;
+  }
+
+  /**
+   * Activer/désactiver l'audio interne (indépendamment du MIDI)
+   */
+  setAudioEnabled(enabled: boolean): void {
+    this.isAudioEnabled = enabled;
   }
 
   /**
@@ -269,13 +281,15 @@ export class SimpleAudioEngine {
     currentStep: number;
     tempo: number;
     noteSpeed: '8n' | '16n' | '32n';
+    isAudioEnabled: boolean;
   } {
     return {
       isInitialized: this.isInitialized,
       isPlaying: this.isPlaying,
       currentStep: this.currentStep,
       tempo: this.tempo,
-      noteSpeed: this.noteSpeed
+      noteSpeed: this.noteSpeed,
+      isAudioEnabled: this.isAudioEnabled
     };
   }
   

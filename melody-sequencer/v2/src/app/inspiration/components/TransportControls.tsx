@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { SequencerPreset } from '../../../types';
-import { MidiOutputPanel } from '../../../components/MidiOutputPanel';
 
 interface TransportControlsProps {
   // === TRANSPORT STATE ===
@@ -56,6 +55,8 @@ interface TransportControlsProps {
   showMidiOutputDialog: boolean;
   setShowMidiOutputDialog: (show: boolean) => void;
   onMidiCallback?: (callback: any) => void;
+  isAudioEnabled?: boolean;
+  onAudioEnabledChange?: (enabled: boolean) => void;
   
   // === PRESET ACTIONS ===
   setShowPresetDialog: (show: boolean) => void;
@@ -123,6 +124,8 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   showMidiOutputDialog,
   setShowMidiOutputDialog,
   onMidiCallback,
+  isAudioEnabled,
+  onAudioEnabledChange,
   setShowPresetDialog,
   setShowLoadDialog,
   setPresetName,
@@ -280,6 +283,18 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
           >
             🎛️ MIDI Out
           </button>
+
+          <button
+            onClick={() => onAudioEnabledChange?.(!isAudioEnabled)}
+            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg ${
+              isAudioEnabled 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white' 
+                : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-gray-200'
+            } hover:shadow-xl`}
+            title={`${isAudioEnabled ? 'Désactiver' : 'Activer'} le synthé interne`}
+          >
+            {isAudioEnabled ? '🔊' : '🔇'} Audio {isAudioEnabled ? 'ON' : 'OFF'}
+          </button>
           
           {exportStatus && (
             <div className={`
@@ -424,12 +439,6 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
         </div>
       </div>
 
-      {/* MIDI Output Panel */}
-      <MidiOutputPanel
-        isOpen={showMidiOutputDialog}
-        onClose={() => setShowMidiOutputDialog(false)}
-        onMidiCallback={onMidiCallback}
-      />
     </div>
   );
 };

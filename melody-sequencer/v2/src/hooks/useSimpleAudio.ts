@@ -12,6 +12,7 @@ export function useSimpleAudio() {
   const [currentStep, setCurrentStep] = useState(0);
   const [tempo, setTempoState] = useState(120);
   const [noteSpeed, setNoteSpeedState] = useState<'8n' | '16n' | '32n'>('16n');
+  const [isAudioEnabled, setIsAudioEnabledState] = useState(true);
   
   // Référence stable vers l'engine
   const engineRef = useRef<SimpleAudioEngine | null>(null);
@@ -42,6 +43,7 @@ export function useSimpleAudio() {
         setCurrentStep(state.currentStep);
         setTempoState(state.tempo);
         setNoteSpeedState(state.noteSpeed);
+        setIsAudioEnabledState(state.isAudioEnabled);
       }
     }, 100); // 10fps suffisant
     
@@ -87,6 +89,11 @@ export function useSimpleAudio() {
     if (!engineRef.current) return;
     engineRef.current.setMidiCallback(callback);
   }, []);
+
+  const setAudioEnabled = useCallback((enabled: boolean) => {
+    if (!engineRef.current) return;
+    engineRef.current.setAudioEnabled(enabled);
+  }, []);
   
   return {
     // État
@@ -95,6 +102,7 @@ export function useSimpleAudio() {
     currentStep,
     tempo,
     noteSpeed,
+    isAudioEnabled,
     
     // Actions
     initialize,
@@ -103,6 +111,7 @@ export function useSimpleAudio() {
     setPattern,
     setTempo,
     setNoteSpeed,
-    setMidiCallback
+    setMidiCallback,
+    setAudioEnabled
   };
 }

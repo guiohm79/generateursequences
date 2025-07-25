@@ -12,9 +12,11 @@ interface MidiOutputPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onMidiCallback?: (callback: any) => void;
+  isAudioEnabled?: boolean;
+  onAudioEnabledChange?: (enabled: boolean) => void;
 }
 
-export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputPanelProps) {
+export function MidiOutputPanel({ isOpen, onClose, onMidiCallback, isAudioEnabled = true, onAudioEnabledChange }: MidiOutputPanelProps) {
   const {
     isInitialized,
     isEnabled,
@@ -51,16 +53,37 @@ export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputP
     }
   }, [isEnabled, selectedDevice, onMidiCallback, sendNoteOn, sendNoteOff]);
 
+  // Gestion de la touche Échap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-96 max-w-[90vw]">
-        <div className="flex justify-between items-center mb-4">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-96 max-w-[90vw] max-h-[90vh] overflow-y-auto relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4 sticky top-0 bg-gray-900 z-10 pb-2 border-b border-gray-700">
           <h3 className="text-lg font-semibold text-white">🎛️ MIDI Output</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-full flex-shrink-0"
+            title="Fermer"
           >
             ✕
           </button>
@@ -112,7 +135,7 @@ export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputP
                 )}
               </div>
 
-              {/* Activation */}
+              {/* Activation MIDI Output */}
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -127,6 +150,30 @@ export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputP
                 </label>
               </div>
 
+              {/* Contrôle Audio Interne */}
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="audio-enabled"
+                  checked={isAudioEnabled}
+                  onChange={(e) => onAudioEnabledChange?.(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="audio-enabled" className="text-sm text-gray-300">
+                  Synthé interne activé
+                </label>
+              </div>
+
+              {/* Information sur l'exclusion mutuelle */}
+              {isEnabled && isAudioEnabled && (
+                <div className="bg-yellow-900/30 border border-yellow-700/50 rounded p-2">
+                  <p className="text-xs text-yellow-200">
+                    ⚠️ <strong>Attention :</strong> MIDI Output ET synthé interne sont activés. 
+                    Vous entendrez les deux sources audio simultanément.
+                  </p>
+                </div>
+              )}
+
               {/* Status et contrôles */}
               {selectedDevice && (
                 <div className="bg-gray-800 rounded p-3 space-y-2">
@@ -135,9 +182,15 @@ export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputP
                     <span className="text-white">{selectedDevice.name}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Status :</span>
+                    <span className="text-gray-400">MIDI Output :</span>
                     <span className={isEnabled ? 'text-green-400' : 'text-gray-400'}>
                       {isEnabled ? '🟢 Actif' : '⭕ Inactif'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Synthé interne :</span>
+                    <span className={isAudioEnabled ? 'text-green-400' : 'text-gray-400'}>
+                      {isAudioEnabled ? '🟢 Actif' : '⭕ Inactif'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -165,11 +218,23 @@ export function MidiOutputPanel({ isOpen, onClose, onMidiCallback }: MidiOutputP
                   <li>• Connectez un device MIDI ou lancez un logiciel virtual MIDI</li>
                   <li>• Sélectionnez le device dans la liste</li>
                   <li>• Activez MIDI Output pour envoyer des notes pendant la lecture</li>
+                  <li>• Le synthé interne est automatiquement désactivé avec MIDI Output</li>
+                  <li>• Vous pouvez contrôler les deux sources indépendamment</li>
                   <li>• Les messages MIDI suivent la vitesse de lecture audio</li>
                 </ul>
               </div>
             </>
           )}
+
+          {/* Bouton fermer en bas */}
+          <div className="pt-4 border-t border-gray-700 flex justify-end">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            >
+              Fermer
+            </button>
+          </div>
         </div>
       </div>
     </div>

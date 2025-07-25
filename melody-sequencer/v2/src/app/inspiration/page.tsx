@@ -25,6 +25,7 @@ import { OctaveNavigation } from './components/OctaveNavigation';
 import { PianoKeys } from './components/PianoKeys';
 import { StepHeader } from './components/StepHeader';
 import { PianoGridComplete } from './components/PianoGridComplete';
+import { MidiOutputPanel } from '../../components/MidiOutputPanel';
 
 // Import des types locaux
 import { NoteEvent, NoteId, SelectionRectangle, ClipboardData } from './types';
@@ -135,12 +136,14 @@ const InspirationPage: React.FC = () => {
     isInitialized, 
     currentStep, 
     noteSpeed,
+    isAudioEnabled,
     start, 
     stop, 
     setPattern: setAudioPattern, 
     setTempo: setAudioTempo,
     setNoteSpeed,
     setMidiCallback,
+    setAudioEnabled,
     initialize 
   } = useSimpleAudio();
 
@@ -1089,6 +1092,8 @@ const InspirationPage: React.FC = () => {
           showMidiOutputDialog={showMidiOutputDialog}
           setShowMidiOutputDialog={setShowMidiOutputDialog}
           onMidiCallback={setMidiCallback}
+          isAudioEnabled={isAudioEnabled}
+          onAudioEnabledChange={setAudioEnabled}
           setShowPresetDialog={setShowPresetDialog}
           setShowLoadDialog={setShowLoadDialog}
           setPresetName={setPresetName}
@@ -1626,6 +1631,15 @@ const InspirationPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* MIDI Output Panel - Rendu au niveau racine pour éviter conflits z-index */}
+      <MidiOutputPanel
+        isOpen={showMidiOutputDialog}
+        onClose={() => setShowMidiOutputDialog(false)}
+        onMidiCallback={setMidiCallback}
+        isAudioEnabled={isAudioEnabled}
+        onAudioEnabledChange={setAudioEnabled}
+      />
     </div>
   );
 };
