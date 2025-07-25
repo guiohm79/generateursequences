@@ -37,9 +37,22 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
   const [newNoteText, setNewNoteText] = useState('');
   const [showAddCheckbox, setShowAddCheckbox] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
+  const [selectedCheckboxType, setSelectedCheckboxType] = useState<'test' | 'bug' | 'feature' | 'doc'>('test');
+  const [selectedNoteType, setSelectedNoteType] = useState<'info' | 'warning' | 'error' | 'idea'>('info');
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Charger les données au montage
+  // Marquer comme monté côté client
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Charger les données au montage (côté client uniquement)
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    // Recharger les données depuis localStorage côté client
+    hubDataManager.reloadFromStorage();
+    
     const savedStatus = hubDataManager.getItemStatus(item.id);
     if (savedStatus) {
       setCurrentStatus(savedStatus);
@@ -47,7 +60,7 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
     
     setCheckboxes(hubDataManager.getItemCheckboxes(item.id));
     setNotes(hubDataManager.getItemNotes(item.id));
-  }, [item.id]);
+  }, [item.id, isMounted]);
 
   // Configuration des couleurs et labels
   const statusColor = MENU_STATUS_COLORS[currentStatus];
@@ -71,13 +84,13 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
     onUpdate?.();
   };
 
-  const handleAddCheckbox = (type: 'test' | 'bug' | 'feature' | 'doc') => {
+  const handleAddCheckbox = () => {
     if (!newCheckboxText.trim()) return;
     
     const newCheckbox = hubDataManager.addCheckbox(item.id, {
       label: newCheckboxText.trim(),
       checked: false,
-      type
+      type: selectedCheckboxType
     });
     
     setCheckboxes(prev => [...prev, newCheckbox]);
@@ -92,12 +105,13 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
     onUpdate?.();
   };
 
-  const handleAddNote = (type: 'info' | 'warning' | 'error' | 'idea') => {
+  const handleAddNote = (type?: 'info' | 'warning' | 'error' | 'idea') => {
     if (!newNoteText.trim()) return;
     
+    const noteType = type || selectedNoteType;
     const newNote = hubDataManager.addNote(item.id, {
       content: newNoteText.trim(),
-      type,
+      type: noteType,
       author: 'Développeur'
     });
     
@@ -114,8 +128,8 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
   };
 
   // === STATISTIQUES ===
-  const completedCheckboxes = checkboxes.filter(cb => cb.checked).length;
-  const totalCheckboxes = checkboxes.length;
+  const completedCheckboxes = isMounted ? checkboxes.filter(cb => cb.checked).length : 0;
+  const totalCheckboxes = isMounted ? checkboxes.length : 0;
   const progressPercentage = totalCheckboxes > 0 ? (completedCheckboxes / totalCheckboxes) * 100 : 0;
 
   // === RENDER ===
@@ -123,10 +137,6 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
   const cardContent = (
     <div className={`
       bg-gray-800 rounded-lg transition-all duration-200 overflow-hidden
-      ${isDisabled 
-        ? 'opacity-60' 
-        : 'hover:bg-gray-700 hover:shadow-lg'
-      }
       ${item.status === 'new' ? 'ring-2 ring-blue-400 ring-opacity-50' : ''}
       ${isExpanded ? 'ring-2 ring-purple-400 ring-opacity-30' : ''}
     `}>
@@ -176,7 +186,7 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
         </p>
         
         {/* Barre de progression */}
-        {totalCheckboxes > 0 && (
+        {isMounted && totalCheckboxes > 0 && (
           <div className="mb-4">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Progression</span>
@@ -200,12 +210,12 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
             
             {/* Indicateurs rapides */}
             <div className="flex items-center space-x-2 text-xs">
-              {totalCheckboxes > 0 && (
+              {isMounted && totalCheckboxes > 0 && (
                 <span className="bg-blue-900 text-blue-300 px-2 py-1 rounded">
                   📋 {totalCheckboxes}
                 </span>
               )}
-              {notes.length > 0 && (
+              {isMounted && notes.length > 0 && (
                 <span className="bg-purple-900 text-purple-300 px-2 py-1 rounded">
                   📝 {notes.length}
                 </span>
@@ -226,9 +236,11 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
             </button>
             
             {!isDisabled && (
-              <span className="text-blue-400 text-sm font-medium">
-                Ouvrir →
-              </span>
+              <Link href={item.href}>
+                <button className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors">
+                  🔗 Accéder
+                </button>
+              </Link>
             )}
           </div>
         </div>
@@ -303,6 +315,28 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
             {/* Formulaire d'ajout de checkbox */}
             {showAddCheckbox && (
               <div className="bg-gray-900 p-3 rounded border border-gray-600">
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-400 mb-1">Type de tâche :</label>
+                  <div className="flex space-x-2 mb-2">
+                    {(['test', 'bug', 'feature', 'doc'] as const).map(type => (
+                      <button
+                        key={type}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedCheckboxType(type);
+                        }}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          selectedCheckboxType === type
+                            ? `${CHECKBOX_TYPE_COLORS[type]} bg-gray-700 ring-1 ring-current`
+                            : 'text-gray-400 bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        {CHECKBOX_TYPE_ICONS[type]} {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <input
                   type="text"
                   placeholder="Nouvelle tâche..."
@@ -311,7 +345,7 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
                   className="w-full bg-gray-800 text-white text-sm px-3 py-2 rounded border border-gray-600 focus:border-blue-500 focus:outline-none mb-2"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      handleAddCheckbox('test');
+                      handleAddCheckbox();
                     } else if (e.key === 'Escape') {
                       setShowAddCheckbox(false);
                       setNewCheckboxText('');
@@ -320,21 +354,21 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
                   autoFocus
                 />
                 <div className="flex justify-between">
-                  <div className="flex space-x-1">
-                    {(['test', 'bug', 'feature', 'doc'] as const).map(type => (
-                      <button
-                        key={type}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleAddCheckbox(type);
-                        }}
-                        className={`text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity ${CHECKBOX_TYPE_COLORS[type]} bg-gray-800`}
-                      >
-                        {CHECKBOX_TYPE_ICONS[type]} {type}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddCheckbox();
+                    }}
+                    disabled={!newCheckboxText.trim()}
+                    className={`text-xs px-3 py-1 rounded transition-colors ${
+                      newCheckboxText.trim()
+                        ? `${CHECKBOX_TYPE_COLORS[selectedCheckboxType]} bg-gray-700 hover:bg-gray-600`
+                        : 'text-gray-500 bg-gray-800 cursor-not-allowed'
+                    }`}
+                  >
+                    {CHECKBOX_TYPE_ICONS[selectedCheckboxType]} Ajouter {selectedCheckboxType}
+                  </button>
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -402,6 +436,28 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
             {/* Formulaire d'ajout de note */}
             {showAddNote && (
               <div className="bg-gray-900 p-3 rounded border border-gray-600">
+                <div className="mb-2">
+                  <label className="block text-xs text-gray-400 mb-1">Type de note :</label>
+                  <div className="flex space-x-2 mb-2">
+                    {(['info', 'warning', 'error', 'idea'] as const).map(type => (
+                      <button
+                        key={type}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSelectedNoteType(type);
+                        }}
+                        className={`text-xs px-2 py-1 rounded transition-colors ${
+                          selectedNoteType === type
+                            ? `${NOTE_TYPE_COLORS[type]} bg-gray-700 ring-1 ring-current`
+                            : 'text-gray-400 bg-gray-800 hover:bg-gray-700'
+                        }`}
+                      >
+                        {NOTE_TYPE_ICONS[type]} {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   placeholder="Nouvelle note..."
                   value={newNoteText}
@@ -410,7 +466,7 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
                   rows={2}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.ctrlKey) {
-                      handleAddNote('info');
+                      handleAddNote();
                     } else if (e.key === 'Escape') {
                       setShowAddNote(false);
                       setNewNoteText('');
@@ -419,25 +475,21 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
                   autoFocus
                 />
                 <div className="flex justify-between">
-                  <div className="flex space-x-1">
-                    {(['info', 'warning', 'error', 'idea'] as const).map(type => (
-                      <button
-                        key={type}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handleAddNote(type);
-                        }}
-                        className="text-xs px-2 py-1 rounded hover:opacity-80 transition-opacity bg-gray-800 border"
-                        style={{ 
-                          color: NOTE_TYPE_COLORS[type].split(' ')[0].replace('text-', ''),
-                          borderColor: NOTE_TYPE_COLORS[type].split(' ')[2].replace('border-', '')
-                        }}
-                      >
-                        {NOTE_TYPE_ICONS[type]} {type}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleAddNote();
+                    }}
+                    disabled={!newNoteText.trim()}
+                    className={`text-xs px-3 py-1 rounded transition-colors ${
+                      newNoteText.trim()
+                        ? `${NOTE_TYPE_COLORS[selectedNoteType]} bg-gray-700 hover:bg-gray-600`
+                        : 'text-gray-500 bg-gray-800 cursor-not-allowed'
+                    }`}
+                  >
+                    {NOTE_TYPE_ICONS[selectedNoteType]} Ajouter {selectedNoteType}
+                  </button>
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -470,13 +522,6 @@ export function InteractiveMenuCard({ item, onUpdate }: InteractiveMenuCardProps
     }
   }, [showStatusDropdown]);
 
-  if (isDisabled) {
-    return cardContent;
-  }
-
-  return (
-    <Link href={item.href}>
-      {cardContent}
-    </Link>
-  );
+  // Retourner directement le contenu sans wrapper Link
+  return cardContent;
 }

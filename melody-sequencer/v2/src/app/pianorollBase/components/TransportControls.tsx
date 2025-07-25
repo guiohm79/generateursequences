@@ -345,9 +345,9 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
                 : 'bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white hover:shadow-xl'
               }
             `}
-            title={activeNotesCount === 0 ? 'Aucune note à effacer' : 'Effacer toutes les notes (raccourci: C)'}
+            title={activeNotesCount === 0 ? 'Aucune note à effacer' : 'Vider la grille - Efface toutes les notes (raccourci: N)'}
           >
-            🗑️ Clear
+            🗑️ Vider Grille
           </button>
           
           <div className="text-xs text-slate-400 max-w-xs text-center">

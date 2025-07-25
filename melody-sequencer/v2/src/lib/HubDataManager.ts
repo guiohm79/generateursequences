@@ -38,6 +38,11 @@ class HubDataManager {
   // === CHARGEMENT ET SAUVEGARDE ===
   
   private loadFromStorage(): HubData {
+    // Vérifier si on est côté client
+    if (typeof window === 'undefined') {
+      return this.getDefaultData();
+    }
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -51,7 +56,10 @@ class HubDataManager {
       console.warn('Erreur chargement données Hub:', error);
     }
 
-    // Données par défaut
+    return this.getDefaultData();
+  }
+
+  private getDefaultData(): HubData {
     return {
       version: STORAGE_VERSION,
       lastUpdated: Date.now(),
@@ -65,6 +73,11 @@ class HubDataManager {
   }
 
   private saveToStorage(): void {
+    // Vérifier si on est côté client
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     try {
       this.data.lastUpdated = Date.now();
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
@@ -331,6 +344,14 @@ class HubDataManager {
   
   forceSave(): void {
     this.saveToStorage();
+  }
+
+  // === RECHARGEMENT CÔTÉ CLIENT ===
+  
+  reloadFromStorage(): void {
+    if (typeof window !== 'undefined') {
+      this.data = this.loadFromStorage();
+    }
   }
 }
 

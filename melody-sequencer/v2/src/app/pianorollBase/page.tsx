@@ -1208,19 +1208,35 @@ const PianoRollCompleteTestPage: React.FC = () => {
                         {preset.notes.length} notes
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setPattern(preset.notes);
-                        setStepCount(preset.steps);
-                        setSelectedNotes(new Set());
-                        setShowLoadDialog(false);
-                        setExportStatus(`✅ Preset "${preset.name}" chargé`);
-                        setTimeout(() => setExportStatus(''), 3000);
-                      }}
-                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-                    >
-                      Charger
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          setPattern(preset.notes);
+                          setStepCount(preset.steps);
+                          setSelectedNotes(new Set());
+                          setShowLoadDialog(false);
+                          setExportStatus(`✅ Preset "${preset.name}" chargé`);
+                          setTimeout(() => setExportStatus(''), 3000);
+                        }}
+                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                      >
+                        📁 Charger
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Supprimer définitivement le preset "${preset.name}" ?`)) {
+                            PresetManager.deletePreset(preset.id);
+                            loadPresets(); // Recharger la liste
+                            setExportStatus(`✅ Preset "${preset.name}" supprimé`);
+                            setTimeout(() => setExportStatus(''), 3000);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                        title={`Supprimer le preset "${preset.name}"`}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
