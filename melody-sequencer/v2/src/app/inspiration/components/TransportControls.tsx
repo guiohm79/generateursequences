@@ -58,6 +58,10 @@ interface TransportControlsProps {
   isAudioEnabled?: boolean;
   onAudioEnabledChange?: (enabled: boolean) => void;
   
+  // === SCALE EDITOR ===
+  showScaleEditor: boolean;
+  setShowScaleEditor: (show: boolean) => void;
+  
   // === PRESET ACTIONS ===
   setShowPresetDialog: (show: boolean) => void;
   setShowLoadDialog: (show: boolean) => void;
@@ -126,6 +130,8 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   onMidiCallback,
   isAudioEnabled,
   onAudioEnabledChange,
+  showScaleEditor,
+  setShowScaleEditor,
   setShowPresetDialog,
   setShowLoadDialog,
   setPresetName,
@@ -294,6 +300,14 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
             title={`${isAudioEnabled ? 'Désactiver' : 'Activer'} le synthé interne`}
           >
             {isAudioEnabled ? '🔊' : '🔇'} Audio {isAudioEnabled ? 'ON' : 'OFF'}
+          </button>
+
+          <button
+            onClick={() => setShowScaleEditor(true)}
+            className="px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-200 flex items-center gap-2 shadow-lg bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white hover:shadow-xl"
+            title="Créer et éditer des gammes personnalisées"
+          >
+            🎼 Gammes
           </button>
           
           {exportStatus && (

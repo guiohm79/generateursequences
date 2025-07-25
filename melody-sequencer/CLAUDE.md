@@ -32,7 +32,7 @@ melody-sequencer/
 - Add features via the extensible menu system
 - Focus on progressive enhancement over complex architecture
 
-## 🎵 Current Development Status (2025-07-25) - **GÉNÉRATEUR INSPIRATION + TOUTES FONCTIONNALITÉS**
+## 🎵 Current Development Status (2025-07-25) - **SÉQUENCEUR COMPLET + ÉDITEUR GAMMES + MIDI OUTPUT**
 
 ### V1 Status
 - ✅ **Production ready** - Fully functional sequencer
@@ -40,7 +40,7 @@ melody-sequencer/
 - 🔒 **Maintenance mode** - No new features, stability focus
 - 📚 **Complete documentation** in `v1/CLAUDE_V1.md`
 
-### V2 Status - 🎹 **SÉQUENCEUR PROFESSIONNEL COMPLET + TOUTES FONCTIONNALITÉS CORE**
+### V2 Status - 🎹 **SÉQUENCEUR PROFESSIONNEL COMPLET + ÉDITEUR GAMMES + MIDI OUTPUT + TOUTES FONCTIONNALITÉS**
 - ✅ **Piano Roll DAW-Grade** - Interface professionnelle style studio
 - ✅ **Audio Polyphonique** - SimpleAudioEngine avec PolySynth + reverb
 - ✅ **Navigation Octaves** - Scroll/boutons, gamme C1-C7 complète
@@ -62,6 +62,8 @@ melody-sequencer/
 - ✅ **Pages Test Modulaires** - 2 pages test complètes avec toutes fonctionnalités
 - ✅ **Hub Interactif Complet** - Gestion tâches, notes, statuts + export/import + corrections UX
 - ✅ **🎨 GÉNÉRATEUR INSPIRATION** - Moteur de génération basé sur randomEngine V1 + 6 ambiances + interface complète
+- ✅ **🎼 ÉDITEUR DE GAMMES COMPLET** - Création, gestion et export de gammes personnalisées + intégration générateur
+- ✅ **MIDI Output Temps Réel** - Contrôle devices externes + toggle audio interne + interface complète
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -74,10 +76,12 @@ melody-sequencer/
 7. ✅ ~~**Copier/Coller Modulaire**~~ - **TERMINÉ** - Implémenté dans pages test modulaires avec positions relatives
 8. ✅ ~~**Hub Interactif**~~ - **TERMINÉ** - Gestion tâches/notes/statuts + corrections UX + export/import
 9. ✅ ~~**🎨 Générateur Inspiration**~~ - **TERMINÉ** - Moteur randomEngine V1 adapté TypeScript + 6 ambiances + interface complète
-10. **Quantization** - Alignement automatique des notes sur la grille
-11. **Scale Helper** - Assistant gammes et accords musicaux
-12. **Multi-patterns** - Gestion de plusieurs patterns/séquences
-13. **Génération IA Avancée** - Magenta.js pour création assistée de mélodies
+10. ✅ ~~**🎼 Éditeur de Gammes**~~ - **TERMINÉ** - Création/gestion gammes personnalisées + intégration générateur + corrections UX
+11. ✅ ~~**MIDI Output Temps Réel**~~ - **TERMINÉ** - Contrôle devices externes + toggle audio interne + corrections z-index
+12. **Quantization** - Alignement automatique des notes sur la grille
+13. **Scale Helper** - Assistant gammes et accords musicaux
+14. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+15. **Génération IA Avancée** - Magenta.js pour création assistée de mélodies
 
 ## 🛠️ Quick Development Commands
 
@@ -165,6 +169,8 @@ npm run lint     # Linting (désactivé temporairement)
   ✅ Copier/Coller Modulaire avec positions relatives dans pages test
   ✅ **Hub Interactif** - Gestion tâches/notes/statuts + corrections UX + export/import
   ✅ **🎨 GÉNÉRATEUR INSPIRATION** - Moteur de génération automatique complet basé sur randomEngine V1
+  ✅ **🎼 ÉDITEUR DE GAMMES COMPLET** - Création/gestion gammes personnalisées + intégration générateur
+  ✅ **MIDI Output Temps Réel** - Contrôle devices externes + toggle audio interne + corrections UX
   
   🎯 **PAGES TEST MODULAIRES (Session 2025-07-25) :**
   1. **`/test-complete`** - Test modulaire complet avec tous composants
@@ -208,8 +214,33 @@ npm run lint     # Linting (désactivé temporairement)
   - **🎼 Algorithmes V1** : Bassline Goa/Psy, Lead avec pondération, Hypnotique évolutif
   - **🎯 Intégration parfaite** : Compatible avec tous composants modulaires + presets + undo/redo
 
+  ## 🎼 **ÉDITEUR DE GAMMES COMPLET - SYSTÈME MUSICAL AVANCÉ (Session 2025-07-25)**
+  - **🎯 Interface 3 onglets** : Créer, Gérer, Import/Export avec navigation intuitive
+  - **🎵 Création assistée** : Sélecteur visuel 12 notes + presets rapides (Majeure, Mineure, Dorien, etc.)
+  - **✅ Validation temps réel** : Vérification erreurs/avertissements + feedback immédiat
+  - **🔧 Tonique automatique** : Note 0 (C) pré-sélectionnée + toujours incluse (correction UX majeure)
+  - **💾 Persistance localStorage** : Sauvegarde automatique + limite 50 gammes
+  - **📤 Export/Import JSON** : Partage gammes entre utilisateurs + backup
+  - **🗑️ Gestion complète** : Suppression avec confirmation + mise à jour temps réel
+  - **🎨 Intégration générateur** : Gammes personnalisées dans dialog génération + sélection automatique
+  - **📖 ScaleManager.ts** : API complète validation/persistance + types TypeScript
+  - **♿ Accessibilité** : Tooltips explicatifs + navigation clavier + messages d'aide
+  - **🔄 Rafraîchissement dynamique** : Liste gammes mise à jour automatiquement après création
+  - **🎼 Gammes built-in** : 14 gammes professionnelles + possibilité ajout illimité
+  - **🌟 UX optimisée** : "💡 La tonique (C/0) est automatiquement incluse" + feedback visuel
+
+  ## 🎛️ **MIDI OUTPUT TEMPS RÉEL - CONTRÔLE HARDWARE PROFESSIONNEL**
+  - **🎹 Web MIDI API** : Détection automatique devices + connexion temps réel
+  - **🔧 Interface complète** : Sélection device + enable/disable + status display
+  - **🔇 Toggle audio interne** : Désactivation automatique synthé quand MIDI Output actif
+  - **⚠️ Corrections z-index** : Dialog au niveau racine + z-[9999] + fermeture multiple (ESC, clic, bouton)
+  - **🎵 Note mapping** : Conversion velocity + timing parfait + panic function
+  - **📱 Responsive** : Interface adaptée mobile/desktop + boutons tactiles
+  - **💡 Feedback utilisateur** : Status en temps réel + messages explicatifs
+  - **🏗️ MidiOutputEngine.ts** : Architecture modulaire + gestion erreurs complète
+
   🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
   1. **Quantization** - Alignement sur grille
-  2. **Scale Helper** - Assistant musical  
+  2. **Scale Helper** - Assistant musical avec suggestions accords
   3. **Multi-patterns** - Gestion séquences multiples
   4. **Génération IA Avancée** - Magenta.js pour création assistée de mélodies

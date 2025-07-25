@@ -13,6 +13,7 @@ import {
   generateAmbiancePattern, 
   getAvailableAmbiances, 
   getAmbianceInfo,
+  getAvailableScales,
   GenerationParams,
   AMBIANCE_PRESETS,
   NOTE_ORDER,
@@ -26,6 +27,7 @@ import { PianoKeys } from './components/PianoKeys';
 import { StepHeader } from './components/StepHeader';
 import { PianoGridComplete } from './components/PianoGridComplete';
 import { MidiOutputPanel } from '../../components/MidiOutputPanel';
+import { ScaleEditor } from '../../components/ScaleEditor';
 
 // Import des types locaux
 import { NoteEvent, NoteId, SelectionRectangle, ClipboardData } from './types';
@@ -113,11 +115,13 @@ const InspirationPage: React.FC = () => {
   const [showPresetDialog, setShowPresetDialog] = useState(false);
   const [showLoadDialog, setShowLoadDialog] = useState(false);
   const [showMidiOutputDialog, setShowMidiOutputDialog] = useState(false);
+  const [showScaleEditor, setShowScaleEditor] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<SequencerPreset[]>([]);
 
   // États pour la génération
   const [showGenerationDialog, setShowGenerationDialog] = useState(false);
+  const [availableScales, setAvailableScales] = useState<{ value: string; label: string }[]>([]);
   const [generationParams, setGenerationParams] = useState<GenerationParams>({
     root: 'C',
     scale: 'minor',
@@ -690,6 +694,16 @@ const InspirationPage: React.FC = () => {
     setTimeout(() => setExportStatus(''), 2000);
   };
 
+  // Fonction pour rafraîchir les gammes disponibles
+  const refreshAvailableScales = () => {
+    setAvailableScales(getAvailableScales());
+  };
+
+  // Charger les gammes au montage du composant
+  useEffect(() => {
+    refreshAvailableScales();
+  }, []);
+
   const handleSelectAllNotes = () => {
     const allSelected = selectAllNotes(pattern);
     setSelectedNotes(allSelected);
@@ -1094,6 +1108,8 @@ const InspirationPage: React.FC = () => {
           onMidiCallback={setMidiCallback}
           isAudioEnabled={isAudioEnabled}
           onAudioEnabledChange={setAudioEnabled}
+          showScaleEditor={showScaleEditor}
+          setShowScaleEditor={setShowScaleEditor}
           setShowPresetDialog={setShowPresetDialog}
           setShowLoadDialog={setShowLoadDialog}
           setPresetName={setPresetName}
@@ -1191,7 +1207,10 @@ const InspirationPage: React.FC = () => {
           <h2 className="text-lg font-bold mb-3 text-purple-400">🎨 Génération Inspiration</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <button
-              onClick={() => setShowGenerationDialog(true)}
+              onClick={() => {
+                refreshAvailableScales();
+                setShowGenerationDialog(true);
+              }}
               className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
             >
               🎨 Générateur avancé
@@ -1436,9 +1455,9 @@ const InspirationPage: React.FC = () => {
                     title="Sélectionner la gamme musicale"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
-                    {Object.keys(SCALES).map(scale => (
-                      <option key={scale} value={scale}>
-                        {scale.charAt(0).toUpperCase() + scale.slice(1)}
+                    {availableScales.map(scale => (
+                      <option key={scale.value} value={scale.value}>
+                        {scale.label}
                       </option>
                     ))}
                   </select>
@@ -1639,6 +1658,19 @@ const InspirationPage: React.FC = () => {
         onMidiCallback={setMidiCallback}
         isAudioEnabled={isAudioEnabled}
         onAudioEnabledChange={setAudioEnabled}
+      />
+
+      {/* Scale Editor */}
+      <ScaleEditor
+        isOpen={showScaleEditor}
+        onClose={() => setShowScaleEditor(false)}
+        onScaleCreated={(scaleId) => {
+          // Rafraîchir la liste des gammes
+          refreshAvailableScales();
+          // Optionnellement, sélectionner automatiquement la nouvelle gamme
+          setGenerationParams(prev => ({ ...prev, scale: scaleId }));
+          console.log('Nouvelle gamme créée et sélectionnée:', scaleId);
+        }}
       />
     </div>
   );

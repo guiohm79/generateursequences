@@ -5,6 +5,7 @@
  */
 
 import { NoteEvent } from '../app/inspiration/types';
+import { ScaleManager } from './ScaleManager';
 
 // Types pour le générateur
 export interface GenerationParams {
@@ -65,6 +66,19 @@ export const SCALES = {
 };
 
 // Presets d'ambiance (sélection des meilleurs de V1)
+/**
+ * Obtenir toutes les gammes disponibles avec leurs noms d'affichage
+ */
+export function getAvailableScales(): { value: string; label: string }[] {
+  const allScales = ScaleManager.getAllScales();
+  const displayNames = ScaleManager.getScaleDisplayNames();
+  
+  return Object.keys(allScales).map(scaleKey => ({
+    value: scaleKey,
+    label: displayNames[scaleKey] || scaleKey
+  }));
+}
+
 export const AMBIANCE_PRESETS: Record<string, AmbiancePreset> = {
   nostalgique: {
     name: "Nostalgique",
@@ -158,7 +172,11 @@ const clamp = (value: number, min: number, max: number): number =>
  */
 function buildScale(root: string, scaleType: string, minOct: number, maxOct: number): string[] {
   const rootIdx = NOTE_ORDER.indexOf(root);
-  const formula = SCALES[scaleType as keyof typeof SCALES] ?? SCALES.minor;
+  
+  // Récupérer toutes les gammes (built-in + personnalisées)
+  const allScales = ScaleManager.getAllScales();
+  const formula = allScales[scaleType] ?? SCALES.minor;
+  
   const notes: string[] = [];
   
   for (let oct = minOct; oct <= maxOct; oct++) {
