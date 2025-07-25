@@ -50,7 +50,7 @@ export class SimpleAudioEngine {
       // Création du synthétiseur polyphonique avec meilleur son
       this.synth = new this.Tone.PolySynth(this.Tone.Synth, {
         oscillator: {
-          type: "triangle"
+          type: "sawtooth"
         },
         envelope: {
           attack: 0.02,

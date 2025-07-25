@@ -1,0 +1,55 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": 1753452926779,
+  "items": {
+    "pianoroll-base": {
+      "checkboxes": [
+        {
+          "label": "Ajouter la possibilité de supprimer les patterns importer",
+          "checked": true,
+          "type": "feature",
+          "id": "checkbox-1753448639435-40y7ublb0",
+          "createdAt": 1753448639435,
+          "updatedAt": 1753449463170
+        },
+        {
+          "label": "ajouter le midioutput pour controller le midiOUT en temps reel",
+          "checked": false,
+          "type": "feature",
+          "id": "checkbox-1753452211976-qiv67pmtw",
+          "createdAt": 1753452211976,
+          "updatedAt": 1753452211976
+        },
+        {
+          "label": "la vitesse de lecture n'est pas respecté, elle reste en 1/16",
+          "checked": false,
+          "type": "bug",
+          "id": "checkbox-1753452917207-v4lhj7pac",
+          "createdAt": 1753452917207,
+          "updatedAt": 1753452917207
+        }
+      ],
+      "lastUpdated": 1753452917207,
+      "status": "testing"
+    },
+    "inspiration": {
+      "status": "testing",
+      "lastUpdated": 1753452926779,
+      "checkboxes": [
+        {
+          "label": "la vitesse de lecture n'est pas respecté, elle reste en 1/16",
+          "checked": false,
+          "type": "bug",
+          "id": "checkbox-1753452926779-zethic2xx",
+          "createdAt": 1753452926779,
+          "updatedAt": 1753452926779
+        }
+      ]
+    }
+  },
+  "globalNotes": [],
+  "settings": {
+    "autoSave": true,
+    "showCompletedCheckboxes": true
+  }
+}
