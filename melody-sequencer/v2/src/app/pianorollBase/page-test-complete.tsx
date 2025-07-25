@@ -624,6 +624,90 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
+  // === FONCTIONS COPIER/COLLER ===
+  const handleCopySelectedNotes = () => {
+    const selectedNotesArray = getSelectedNotes(pattern, selectedNotes);
+    if (selectedNotesArray.length === 0) return;
+    
+    const clipboardData = createClipboardData(selectedNotesArray, visibleNotes);
+    setClipboard(clipboardData);
+    setExportStatus(`📋 ${selectedNotesArray.length} note(s) copiée(s)`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handlePasteNotes = () => {
+    if (!clipboard || clipboard.notes.length === 0) return;
+    
+    // Utiliser la position de la souris si disponible, sinon le centre
+    const targetStep = mousePosition?.step ?? Math.floor(stepCount / 2);
+    const targetNote = mousePosition?.note ?? visibleNotes[Math.floor(visibleNotes.length / 2)];
+    const targetNoteIndex = visibleNotes.indexOf(targetNote);
+    
+    if (targetNoteIndex === -1) return;
+    
+    const newPattern = pasteNotesFromClipboard(
+      pattern,
+      clipboard,
+      targetStep,
+      targetNoteIndex,
+      visibleNotes,
+      stepCount
+    );
+    
+    setPattern(newPattern);
+    saveToHistory(`↲ Coller ${clipboard.notes.length} note(s)`);
+    setExportStatus(`↲ ${clipboard.notes.length} note(s) collée(s)`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handleSelectAllNotes = () => {
+    const allSelected = selectAllNotes(pattern);
+    setSelectedNotes(allSelected);
+    setExportStatus(`⚈ ${allSelected.size} note(s) sélectionnée(s)`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handleDeselectAllNotes = () => {
+    setSelectedNotes(new Set());
+    setExportStatus(`○ Désélection`);
+    setTimeout(() => setExportStatus(''), 1000);
+  };
+
+  const handleDeleteSelectedNotes = () => {
+    if (selectedNotes.size === 0) return;
+    
+    const newPattern = pattern.filter(note => {
+      const noteId = createNoteId(note.step, note.note);
+      return !selectedNotes.has(noteId);
+    });
+    
+    const deletedCount = selectedNotes.size;
+    setPattern(newPattern);
+    setSelectedNotes(new Set());
+    saveToHistory(`🗑 Supprimer ${deletedCount} note(s)`);
+    setExportStatus(`🗑 ${deletedCount} note(s) supprimée(s)`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handleMoveSelectedNotes = (stepDelta: number, noteDelta: number) => {
+    if (selectedNotes.size === 0) return;
+    
+    const result = moveSelectedNotes(
+      pattern,
+      selectedNotes,
+      stepDelta,
+      noteDelta,
+      visibleNotes,
+      stepCount
+    );
+    
+    setPattern(result.newPattern);
+    setSelectedNotes(result.newSelection);
+    
+    const direction = stepDelta > 0 ? '→' : stepDelta < 0 ? '←' : (noteDelta > 0 ? '↓' : '↑');
+    saveToHistory(`${direction} Déplacer ${selectedNotes.size} note(s)`);
+  };
+
   // === EFFECTS ===
   useEffect(() => {
     loadPresets();
@@ -721,6 +805,123 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   }, [dragState, resizeState, stepCount]);
 
+  // === RACCOURCIS CLAVIER ===
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si on est dans un input/textarea
+      if (e.target instanceof HTMLInputElement || 
+          e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      // Combinaisons avec Ctrl
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'z':
+            if (e.shiftKey && historyInfo.canRedo) {
+              e.preventDefault();
+              handleRedo();
+            } else if (!e.shiftKey && historyInfo.canUndo) {
+              e.preventDefault();
+              handleUndo();
+            }
+            break;
+            
+          case 'y':
+            if (historyInfo.canRedo) {
+              e.preventDefault();
+              handleRedo();
+            }
+            break;
+            
+          case 'a':
+            e.preventDefault();
+            handleSelectAllNotes();
+            break;
+            
+          case 'c':
+            if (selectedNotes.size > 0) {
+              e.preventDefault();
+              handleCopySelectedNotes();
+            }
+            break;
+            
+          case 'v':
+            e.preventDefault();
+            handlePasteNotes();
+            break;
+            
+          case 'n':
+            e.preventDefault();
+            handleClearPattern();
+            break;
+        }
+        return;
+      }
+      
+      // Touches simples
+      switch (e.key) {
+        case ' ': // Espace
+          e.preventDefault();
+          if (isPlaying) {
+            stop();
+          } else if (isInitialized) {
+            start();
+          }
+          break;
+          
+        case 'Escape':
+          e.preventDefault();
+          handleDeselectAllNotes();
+          break;
+          
+        case 'Delete':
+        case 'Backspace':
+          if (selectedNotes.size > 0) {
+            e.preventDefault();
+            handleDeleteSelectedNotes();
+          }
+          break;
+          
+        // Navigation avec les flèches
+        case 'ArrowUp':
+          if (selectedNotes.size > 0) {
+            e.preventDefault();
+            handleMoveSelectedNotes(0, e.shiftKey ? -12 : -1); // Octave si Shift
+          }
+          break;
+          
+        case 'ArrowDown':
+          if (selectedNotes.size > 0) {
+            e.preventDefault();
+            handleMoveSelectedNotes(0, e.shiftKey ? 12 : 1); // Octave si Shift
+          }
+          break;
+          
+        case 'ArrowLeft':
+          if (selectedNotes.size > 0) {
+            e.preventDefault();
+            handleMoveSelectedNotes(e.shiftKey ? -4 : -1, 0); // 4 steps si Shift
+          }
+          break;
+          
+        case 'ArrowRight':
+          if (selectedNotes.size > 0) {
+            e.preventDefault();
+            handleMoveSelectedNotes(e.shiftKey ? 4 : 1, 0); // 4 steps si Shift
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedNotes, clipboard, stepCount, pattern, isPlaying, isInitialized, historyInfo]);
+
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
@@ -779,6 +980,11 @@ const PianoRollCompleteTestPage: React.FC = () => {
           handleClearPattern={handleClearPattern}
           handleUndo={handleUndo}
           handleRedo={handleRedo}
+          handleCopySelectedNotes={handleCopySelectedNotes}
+          handlePasteNotes={handlePasteNotes}
+          handleSelectAllNotes={handleSelectAllNotes}
+          handleDeselectAllNotes={handleDeselectAllNotes}
+          handleDeleteSelectedNotes={handleDeleteSelectedNotes}
           stepOptions={STEP_OPTIONS}
         />
 

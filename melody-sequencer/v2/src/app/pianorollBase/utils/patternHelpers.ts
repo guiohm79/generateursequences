@@ -2,7 +2,7 @@
  * Utilitaires pour la manipulation des patterns
  */
 
-import { NoteEvent } from '../types';
+import { NoteEvent, NoteId } from '../types';
 import { SimplePattern } from '../../../lib/SimpleAudioEngine';
 
 // Trouver une note dans le pattern
@@ -129,4 +129,62 @@ export const getPatternStats = (pattern: NoteEvent[]) => {
     usedSteps: Array.from(new Set(activeNotes.map(note => note.step))).length,
     usedNotes: Array.from(new Set(activeNotes.map(note => note.note))).length
   };
+};
+
+// === FONCTIONS POUR PATTERNS OBJET (utilisées dans page-test-navigation.tsx) ===
+
+// Déplacer une note dans un pattern objet
+export const moveNoteInPattern = (
+  pattern: { [key: NoteId]: NoteEvent },
+  noteId: NoteId,
+  stepDelta: number,
+  noteDelta: number,
+  maxSteps: number,
+  allNotes: string[]
+): { newPattern: { [key: NoteId]: NoteEvent }; newNoteId: NoteId | null } => {
+  const note = pattern[noteId];
+  if (!note) return { newPattern: pattern, newNoteId: null };
+
+  const newStep = Math.max(0, Math.min(maxSteps - 1, note.step + stepDelta));
+  
+  let newNote = note.note;
+  if (noteDelta !== 0) {
+    const currentNoteIndex = allNotes.indexOf(note.note);
+    if (currentNoteIndex !== -1) {
+      const newNoteIndex = Math.max(0, Math.min(allNotes.length - 1, currentNoteIndex + noteDelta));
+      newNote = allNotes[newNoteIndex];
+    }
+  }
+
+  const newNoteId = `${newStep}-${newNote}`;
+  
+  // Si la nouvelle position est identique, ne rien faire
+  if (newNoteId === noteId) {
+    return { newPattern: pattern, newNoteId: noteId };
+  }
+
+  const newPattern = { ...pattern };
+  delete newPattern[noteId];
+  
+  newPattern[newNoteId] = {
+    ...note,
+    step: newStep,
+    note: newNote
+  };
+
+  return { newPattern, newNoteId };
+};
+
+// Valider la position d'une note
+export const validateNotePosition = (
+  step: number,
+  note: string,
+  maxSteps: number,
+  allNotes: string[]
+): boolean => {
+  return (
+    step >= 0 && 
+    step < maxSteps && 
+    allNotes.includes(note)
+  );
 };

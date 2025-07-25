@@ -8,10 +8,10 @@ export const MENU_ITEMS: MenuItem[] = [
   // === DEBUG & TESTS ===
   {
     id: 'test-modular-complete',
-    title: '🎹 Test Modulaire Complet',
-    description: 'Test de tous les composants modulaires Phase 3.3 - TransportControls + Navigation + PianoGrid',
+    title: '🎹 Test Modulaire Complet + Copier/Coller',
+    description: '✅ COMPLET - Tous composants modulaires + copier/coller intelligent + raccourcis (Session 2025-07-25)',
     href: '/test-complete',
-    status: 'testing',
+    status: 'stable',
     category: 'debug',
     priority: 0
   },
@@ -23,6 +23,15 @@ export const MENU_ITEMS: MenuItem[] = [
     status: 'testing',
     category: 'debug',
     priority: 1
+  },
+  {
+    id: 'test-navigation-keyboard',
+    title: '🎹 Test Navigation + Copier/Coller',
+    description: '✅ COMPLET - Navigation + raccourcis + copier/coller intelligent + déplacement flèches (Session 2025-07-25)',
+    href: '/pianorollBase/test-navigation',
+    status: 'stable',
+    category: 'debug',
+    priority: 0.5
   },
   {
     id: 'test-react',

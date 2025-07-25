@@ -24,7 +24,8 @@
       "Bash(rm:*)",
       "Bash(cp:*)",
       "Bash(ls:*)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(copy \"page-test-navigation.tsx\" \"test-navigation\\page.tsx\")"
     ],
     "deny": []
   }

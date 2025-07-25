@@ -47,17 +47,19 @@ melody-sequencer/
 - ✅ **Steps Variables** - Support 8/16/32/64 steps avec accents adaptatifs
 - ✅ **Éditeur Vélocité** - Couleurs vert→rouge + drag vertical temps réel
 - ✅ **Notes Longues** - Support durée + redimensionnement horizontal
-- ✅ **Sélection Multiple** - Rectangle, Ctrl+clic, copier/coller
-- ✅ **Déplacement Flèches** - Navigation précise avec clavier
+- ✅ **Sélection Multiple** - Rectangle, Ctrl+clic, copier/coller intelligent
+- ✅ **Déplacement Flèches** - Navigation précise avec clavier + Shift rapide
 - ✅ **Export MIDI Professionnel** - Module réutilisable, timing parfait
 - ✅ **Import MIDI Complet** - Drag & drop + sélecteur, limitation 64 steps automatique
 - ✅ **Système Presets** - Sauvegarde localStorage + export/import JSON
 - ✅ **Raccourcis Clavier Globaux** - 20+ raccourcis professionnels (Espace=Play, Ctrl+Z/Y, etc.)
+- ✅ **Copier/Coller Intelligent** - Positions relatives + collage position souris
 - ✅ **Undo/Redo Professionnel** - Historique 50 actions avec interface complète
 - ✅ **Vitesses de Lecture** - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)
 - ✅ **Responsive Design** - Optimisé mobile/tablette avec interactions tactiles
 - ✅ **Architecture Robuste** - Base stable et extensible
 - ✅ **MODULARISATION COMPLÈTE** - Architecture modulaire Phase 3.3 terminée avec succès
+- ✅ **Pages Test Modulaires** - 2 pages test complètes avec toutes fonctionnalités
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -67,10 +69,11 @@ melody-sequencer/
 4. ✅ ~~**MIDI Import**~~ - **TERMINÉ** - Drag & drop + limitation 64 steps
 5. ✅ ~~**Modularisation Piano Roll**~~ - **TERMINÉ** - Architecture hooks + utils modulaire
 6. ✅ ~~**Composants UI Modulaires - Phase 3.3**~~ - **TERMINÉ** - 5 composants modulaires fonctionnels + page test
-7. **Quantization** - Alignement automatique des notes sur la grille
-8. **Scale Helper** - Assistant gammes et accords musicaux
-9. **Multi-patterns** - Gestion de plusieurs patterns/séquences
-10. **Génération IA** - Magenta.js pour création assistée de mélodies
+7. ✅ ~~**Copier/Coller Modulaire**~~ - **TERMINÉ** - Implémenté dans pages test modulaires avec positions relatives
+8. **Quantization** - Alignement automatique des notes sur la grille
+9. **Scale Helper** - Assistant gammes et accords musicaux
+10. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+11. **Génération IA** - Magenta.js pour création assistée de mélodies
 
 ## 🛠️ Quick Development Commands
 
@@ -151,11 +154,18 @@ npm run lint     # Linting (désactivé temporairement)
   ✅ Undo/Redo Professionnel (50 actions)
   ✅ Vélocité couleurs + drag vertical temps réel
   ✅ Notes longues + redimensionnement horizontal
-  ✅ Sélection multiple + copier/coller + flèches
+  ✅ Sélection multiple + copier/coller intelligent + flèches
   ✅ Interface responsive mobile/desktop parfaite
   ✅ Architecture robuste SimpleAudioEngine
-  ✅ Modularisation complète (5 composants UI + 8 hooks + 4 utils + page test fonctionnelle)
+  ✅ Modularisation complète (5 composants UI + 8 hooks + 4 utils + 2 pages test complètes)
+  ✅ Copier/Coller Modulaire avec positions relatives dans pages test
   
+  🎯 **PAGES TEST MODULAIRES (Session 2025-07-25) :**
+  1. **`/test-complete`** - Test modulaire complet avec tous composants
+  2. **`/pianorollBase/test-navigation`** - Test navigation + raccourcis + copier/coller
+  3. **Fonctionnalités communes** : Copier/coller intelligent, raccourcis clavier, déplacement flèches
+  4. **Architecture TypeScript** : Props correctes, gestion erreurs, accessibilité
+
   🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
   1. **Quantization** - Alignement sur grille
   2. **Scale Helper** - Assistant musical  

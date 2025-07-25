@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSimpleAudio } from '../../hooks/useSimpleAudio';
+import { useSimpleAudio } from '../../../hooks/useSimpleAudio';
 
 // Import des nouveaux composants
-import { OctaveNavigation } from './components/OctaveNavigation';
-import { PianoKeys } from './components/PianoKeys';
-import { StepHeader } from './components/StepHeader';
+import { OctaveNavigation } from '../components/OctaveNavigation';
+import { PianoKeys } from '../components/PianoKeys';
+import { StepHeader } from '../components/StepHeader';
 
 // Import des hooks
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 // Import des types
-import { NoteEvent, NoteId } from './types';
+import { NoteEvent, NoteId } from '../types';
 
 // Import des utilitaires
 import { 
@@ -21,7 +21,7 @@ import {
   ALL_NOTES, 
   ALL_OCTAVES,
   DEFAULT_VELOCITY
-} from './utils/constants';
+} from '../utils/constants';
 
 import {
   isBlackKey,
@@ -30,12 +30,12 @@ import {
   generateNotesForOctave,
   getVelocityColorClass,
   createNoteId
-} from './utils/noteHelpers';
+} from '../utils/noteHelpers';
 
 import {
   moveNoteInPattern,
   validateNotePosition
-} from './utils/patternHelpers';
+} from '../utils/patternHelpers';
 
 const PianoRollTestNavigationPage: React.FC = () => {
   // === ÉTATS POUR LES COMPOSANTS DE NAVIGATION ===
@@ -46,7 +46,14 @@ const PianoRollTestNavigationPage: React.FC = () => {
   // === ÉTATS POUR LE PIANO ROLL ===
   const [pattern, setPattern] = useState<{ [key: NoteId]: NoteEvent }>({});
   const [selectedNotes, setSelectedNotes] = useState<Set<NoteId>>(new Set());
-  const [clipboard, setClipboard] = useState<NoteEvent[]>([]);
+  // Type pour le clipboard
+  interface ClipboardData {
+    notes: NoteEvent[];
+    relativePositions: { stepOffset: number; noteOffset: number }[];
+  }
+  
+  const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ step: number; note: string } | null>(null);
 
   // Audio engine pour le test
   const { 
@@ -147,35 +154,64 @@ const PianoRollTestNavigationPage: React.FC = () => {
   }, []);
 
   const copySelectedNotes = useCallback(() => {
+    if (selectedNotes.size === 0) return;
+    
     const selectedNotesArray = Array.from(selectedNotes)
       .map(noteId => pattern[noteId])
       .filter(Boolean);
-    setClipboard(selectedNotesArray);
-  }, [selectedNotes, pattern]);
-
-  const pasteNotes = useCallback(() => {
-    if (clipboard.length === 0) return;
     
-    // Trouver le step minimum pour calculer l'offset
-    const minStep = Math.min(...clipboard.map(note => note.step));
-    const targetStep = 0; // Position de collage par défaut
-    const stepOffset = targetStep - minStep;
+    if (selectedNotesArray.length === 0) return;
+    
+    // Calculer la position de référence (note la plus haute et step le plus à gauche)
+    const minStep = Math.min(...selectedNotesArray.map(note => note.step));
+    const minNoteIndex = Math.min(...selectedNotesArray.map(note => visibleNotes.indexOf(note.note)));
+    
+    // Créer les positions relatives par rapport à cette référence
+    const relativePositions = selectedNotesArray.map(note => ({
+      stepOffset: note.step - minStep,
+      noteOffset: visibleNotes.indexOf(note.note) - minNoteIndex
+    }));
+    
+    setClipboard({
+      notes: [...selectedNotesArray],
+      relativePositions
+    });
+  }, [selectedNotes, pattern, visibleNotes]);
+
+  const pasteNotes = useCallback((targetStep?: number, targetNote?: string) => {
+    if (!clipboard) return;
+    
+    // Utiliser la position de la souris ou une position par défaut
+    const pasteStep = targetStep ?? (mousePosition?.step ?? 0);
+    const pasteNote = targetNote ?? (mousePosition?.note ?? visibleNotes[Math.floor(visibleNotes.length / 2)]);
+    
+    const targetNoteIndex = visibleNotes.indexOf(pasteNote);
+    if (targetNoteIndex === -1) return;
     
     const newPattern = { ...pattern };
     
-    clipboard.forEach(note => {
-      const newStep = note.step + stepOffset;
-      if (newStep >= 0 && newStep < stepCount) {
-        const noteId = createNoteId(newStep, note.note);
+    clipboard.notes.forEach((originalNote, index) => {
+      const relativePos = clipboard.relativePositions[index];
+      const newStep = pasteStep + relativePos.stepOffset;
+      const newNoteIndex = targetNoteIndex + relativePos.noteOffset;
+      
+      // Vérifier que la nouvelle position est valide
+      if (newStep >= 0 && newStep < stepCount && 
+          newNoteIndex >= 0 && newNoteIndex < visibleNotes.length) {
+        
+        const newNote = visibleNotes[newNoteIndex];
+        const noteId = createNoteId(newStep, newNote);
+        
         newPattern[noteId] = {
-          ...note,
-          step: newStep
+          ...originalNote,
+          step: newStep,
+          note: newNote
         };
       }
     });
     
     setPattern(newPattern);
-  }, [clipboard, pattern, stepCount]);
+  }, [clipboard, pattern, stepCount, mousePosition, visibleNotes]);
 
   const deleteSelectedNotes = useCallback(() => {
     setPattern(prev => {
@@ -257,6 +293,9 @@ const PianoRollTestNavigationPage: React.FC = () => {
   const handleCellClick = useCallback((step: number, note: string, event: React.MouseEvent) => {
     const noteId = createNoteId(step, note);
     
+    // Mettre à jour la position de la souris pour le coller
+    setMousePosition({ step, note });
+    
     if (event.ctrlKey || event.metaKey) {
       // Ctrl+clic : ajouter/retirer de la sélection
       if (selectedNotes.has(noteId)) {
@@ -266,7 +305,7 @@ const PianoRollTestNavigationPage: React.FC = () => {
           return newSelected;
         });
       } else {
-        setSelectedNotes(prev => new Set([...prev, noteId]));
+        setSelectedNotes(prev => new Set([...Array.from(prev), noteId]));
       }
     } else if (pattern[noteId]) {
       // Clic sur une note existante : la sélectionner uniquement
@@ -278,15 +317,20 @@ const PianoRollTestNavigationPage: React.FC = () => {
     }
   }, [pattern, selectedNotes, addNote]);
 
+  // === GESTION DU SURVOL POUR LA POSITION DE LA SOURIS ===
+  const handleCellMouseEnter = useCallback((step: number, note: string) => {
+    setMousePosition({ step, note });
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            🎹 Piano Roll - Test Navigation Components
+            🎹 Piano Roll - Test Navigation + Raccourcis
           </h1>
-          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Test des composants OctaveNavigation, PianoKeys et StepHeader</p>
+          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Test complet des composants + raccourcis clavier + déplacement flèches</p>
         </div>
 
         {/* Contrôles de test */}
@@ -315,6 +359,7 @@ const PianoRollTestNavigationPage: React.FC = () => {
               <select
                 value={stepCount}
                 onChange={(e) => setStepCount(parseInt(e.target.value))}
+                aria-label="Choisir le nombre de steps"
                 className="px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
               >
                 {STEP_OPTIONS.map(steps => (
@@ -371,7 +416,7 @@ const PianoRollTestNavigationPage: React.FC = () => {
             </div>
             <div className="p-3 bg-blue-900/30 rounded-xl">
               <div className="font-semibold text-blue-300">Clipboard</div>
-              <div className="font-mono text-xl text-green-400">{clipboard.length}</div>
+              <div className="font-mono text-xl text-green-400">{clipboard?.notes.length || 0}</div>
             </div>
             <div className="p-3 bg-blue-900/30 rounded-xl">
               <div className="font-semibold text-blue-300">Audio</div>
@@ -438,6 +483,7 @@ const PianoRollTestNavigationPage: React.FC = () => {
                           <div
                             key={stepIndex}
                             onClick={(e) => handleCellClick(step, note, e)}
+                            onMouseEnter={() => handleCellMouseEnter(step, note)}
                             className={`
                               ${cellWidth} h-full border-r border-slate-600/30 cursor-pointer
                               flex items-center justify-center text-xs relative flex-shrink-0

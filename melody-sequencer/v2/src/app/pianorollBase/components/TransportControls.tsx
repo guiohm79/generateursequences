@@ -65,6 +65,13 @@ interface TransportControlsProps {
   handleUndo: () => void;
   handleRedo: () => void;
   
+  // === SELECTION ACTIONS ===
+  handleCopySelectedNotes?: () => void;
+  handlePasteNotes?: () => void;
+  handleSelectAllNotes?: () => void;
+  handleDeselectAllNotes?: () => void;
+  handleDeleteSelectedNotes?: () => void;
+  
   // === OPTIONS ===
   stepOptions: number[];
 }
@@ -115,6 +122,11 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
   handleClearPattern,
   handleUndo,
   handleRedo,
+  handleCopySelectedNotes,
+  handlePasteNotes,
+  handleSelectAllNotes,
+  handleDeselectAllNotes,
+  handleDeleteSelectedNotes,
   stepOptions
 }) => {
   return (
