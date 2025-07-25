@@ -25,7 +25,8 @@
       "Bash(cp:*)",
       "Bash(ls:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(copy \"page-test-navigation.tsx\" \"test-navigation\\page.tsx\")"
+      "Bash(copy \"page-test-navigation.tsx\" \"test-navigation\\page.tsx\")",
+      "Bash(del page-incomplete.tsx page-test-complete.tsx page-test-navigation.tsx page-test-transport.tsx)"
     ],
     "deny": []
   }

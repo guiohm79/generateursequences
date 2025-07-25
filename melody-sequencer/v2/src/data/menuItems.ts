@@ -7,31 +7,13 @@ import { MenuItem, MenuCategory } from '../types/menu';
 export const MENU_ITEMS: MenuItem[] = [
   // === DEBUG & TESTS ===
   {
-    id: 'test-modular-complete',
-    title: '🎹 Test Modulaire Complet + Copier/Coller',
-    description: '✅ COMPLET - Tous composants modulaires + copier/coller intelligent + raccourcis (Session 2025-07-25)',
-    href: '/test-complete',
-    status: 'stable',
-    category: 'debug',
-    priority: 0
-  },
-  {
     id: 'pianoroll-base',
-    title: '🧪 Piano Roll Base (Expérimentation)',
-    description: 'Version copie du Piano Roll pour refactorisation sécurisée',
+    title: '🎹 Piano Roll Base - Architecture Modulaire',
+    description: '✅ DÉVELOPPEMENT - Version modulaire avec tous composants (TransportControls + OctaveNavigation + PianoGridComplete + etc.)',
     href: '/pianorollBase',
-    status: 'testing',
+    status: 'stable',
     category: 'debug',
     priority: 1
-  },
-  {
-    id: 'test-navigation-keyboard',
-    title: '🎹 Test Navigation + Copier/Coller',
-    description: '✅ COMPLET - Navigation + raccourcis + copier/coller intelligent + déplacement flèches (Session 2025-07-25)',
-    href: '/pianorollBase/test-navigation',
-    status: 'stable',
-    category: 'debug',
-    priority: 0.5
   },
   {
     id: 'test-react',
@@ -142,7 +124,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'velocity-editor',
     title: '✅ Éditeur Vélocité',
     description: 'IMPLÉMENTÉ - Couleurs vert→rouge, drag vertical temps réel',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 1
@@ -151,7 +133,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'note-length',
     title: '✅ Notes Longues',
     description: 'IMPLÉMENTÉ - Durée variable, redimensionnement horizontal',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 2
@@ -160,7 +142,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'multi-selection',
     title: '✅ Sélection Multiple',
     description: 'IMPLÉMENTÉ - Rectangle, Ctrl+clic, copier/coller, flèches',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 3
@@ -178,7 +160,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'reading-speeds',
     title: '✅ Vitesses de Lecture',
     description: 'IMPLÉMENTÉ - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 5
@@ -187,7 +169,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'presets',
     title: '💾 Système Presets',
     description: '✅ IMPLÉMENTÉ - Sauvegarde/chargement localStorage + export/import JSON',
-    href: '/presets',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 6
@@ -196,7 +178,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'midi-import',
     title: '🎼 Import MIDI',
     description: '✅ IMPLÉMENTÉ - Drag & drop + sélecteur fichier, limitation 64 steps automatique',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 7
@@ -205,7 +187,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'undo-redo',
     title: '↶↷ Undo/Redo',
     description: '✅ IMPLÉMENTÉ - Historique 50 actions + interface complète + Ctrl+Z/Y',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 8
@@ -214,7 +196,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'keyboard-shortcuts',
     title: '⌨️ Raccourcis Clavier Globaux',
     description: '✅ IMPLÉMENTÉ - 20+ raccourcis pro (Espace=Play, Ctrl+S/O/E, navigation)',
-    href: '/piano-roll',
+    href: '/pianorollBase',
     status: 'stable',
     category: 'features',
     priority: 9
