@@ -7,13 +7,22 @@ import { MenuItem, MenuCategory } from '../types/menu';
 export const MENU_ITEMS: MenuItem[] = [
   // === DEBUG & TESTS ===
   {
+    id: 'test-modular-complete',
+    title: '🎹 Test Modulaire Complet',
+    description: 'Test de tous les composants modulaires Phase 3.3 - TransportControls + Navigation + PianoGrid',
+    href: '/test-complete',
+    status: 'testing',
+    category: 'debug',
+    priority: 0
+  },
+  {
     id: 'pianoroll-base',
     title: '🧪 Piano Roll Base (Expérimentation)',
     description: 'Version copie du Piano Roll pour refactorisation sécurisée',
     href: '/pianorollBase',
     status: 'testing',
     category: 'debug',
-    priority: 0
+    priority: 1
   },
   {
     id: 'test-react',

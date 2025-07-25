@@ -34,10 +34,10 @@ interface TransportControlsProps {
   historyInfo: {
     canUndo: boolean;
     canRedo: boolean;
+    currentIndex: number;
+    historySize: number;
     undoAction?: string;
     redoAction?: string;
-    position: number;
-    total: number;
   };
   
   // === TRANSPORT ACTIONS ===
@@ -390,7 +390,7 @@ export const TransportControls: React.FC<TransportControlsProps> = ({
           </button>
 
           <div className="px-3 py-2 bg-slate-700/50 rounded-lg border border-slate-600/50 text-xs text-slate-300">
-            Historique: {historyInfo.position + 1}/{historyInfo.total}
+            Historique: {historyInfo.currentIndex + 1}/{historyInfo.historySize}
           </div>
         </div>
       </div>
