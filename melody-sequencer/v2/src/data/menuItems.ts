@@ -39,17 +39,6 @@ export const MENU_ITEMS: MenuItem[] = [
   },
   
 
-  // === MIDI ===
-  {
-    id: 'midi-tools',
-    title: '🎼 Outils MIDI',
-    description: 'Tests et outils pour l\'export/import MIDI',
-    href: '/midi',
-    status: 'stable',
-    category: 'tools',
-    priority: 1
-  },
-
 ];
 
 export function getMenuCategories(): MenuCategory[] {

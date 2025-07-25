@@ -1407,6 +1407,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={generationParams.root}
                     onChange={(e) => setGenerationParams(prev => ({...prev, root: e.target.value}))}
+                    title="Sélectionner la note fondamentale"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
                     {NOTE_ORDER.map(note => (
@@ -1421,6 +1422,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={generationParams.scale}
                     onChange={(e) => setGenerationParams(prev => ({...prev, scale: e.target.value}))}
+                    title="Sélectionner la gamme musicale"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
                     {Object.keys(SCALES).map(scale => (
@@ -1437,6 +1439,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={generationParams.style}
                     onChange={(e) => setGenerationParams(prev => ({...prev, style: e.target.value}))}
+                    title="Sélectionner le style musical"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
                     <option value="goa">Goa (Variations subtiles)</option>
@@ -1452,6 +1455,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={generationParams.part}
                     onChange={(e) => setGenerationParams(prev => ({...prev, part: e.target.value}))}
+                    title="Sélectionner le type de pattern"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
                     <option value="bassline">Bassline (Rythme bas)</option>
@@ -1468,6 +1472,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={generationParams.mood}
                     onChange={(e) => setGenerationParams(prev => ({...prev, mood: e.target.value}))}
+                    title="Sélectionner l'ambiance du pattern"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                   >
                     <option value="default">Par défaut</option>
@@ -1484,6 +1489,7 @@ const InspirationPage: React.FC = () => {
                     <select
                       value={generationParams.minOct}
                       onChange={(e) => setGenerationParams(prev => ({...prev, minOct: parseInt(e.target.value)}))}
+                      title="Sélectionner l'octave minimum"
                       className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                     >
                       {[1,2,3,4,5].map(oct => (
@@ -1496,6 +1502,7 @@ const InspirationPage: React.FC = () => {
                     <select
                       value={generationParams.maxOct}
                       onChange={(e) => setGenerationParams(prev => ({...prev, maxOct: parseInt(e.target.value)}))}
+                      title="Sélectionner l'octave maximum"
                       className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-purple-500 focus:outline-none"
                     >
                       {[3,4,5,6,7].map(oct => (
@@ -1531,6 +1538,7 @@ const InspirationPage: React.FC = () => {
                   <select
                     value={selectedAmbiance}
                     onChange={(e) => setSelectedAmbiance(e.target.value)}
+                    title="Choisir une ambiance prédéfinie"
                     className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-pink-500 focus:outline-none mb-4"
                   >
                     {getAvailableAmbiances().map(ambiance => {
