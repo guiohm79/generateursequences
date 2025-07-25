@@ -15,33 +15,6 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'debug',
     priority: 1
   },
-  {
-    id: 'test-react',
-    title: 'Test Base React',
-    description: 'Vérifier que React/Next.js fonctionne correctement',
-    href: '/debug/test',
-    status: 'stable',
-    category: 'debug',
-    priority: 1
-  },
-  {
-    id: 'test-tone',
-    title: 'Test Tone.js',
-    description: 'Vérifier que Tone.js peut être chargé et utilisé sans plantage',
-    href: '/debug/test-tone',
-    status: 'stable',
-    category: 'debug',
-    priority: 2
-  },
-  {
-    id: 'test-audio',
-    title: 'Test Audio Simple',
-    description: 'Version ultra-simple et robuste de l\'audio engine',
-    href: '/debug/test-simple-audio',
-    status: 'stable',
-    category: 'debug',
-    priority: 3
-  },
 
   // === CORE FEATURES ===
   {
@@ -54,211 +27,18 @@ export const MENU_ITEMS: MenuItem[] = [
     priority: 1
   },
   
-  // === MODES PIANO ROLL ===
-  {
-    id: 'mode-edition',
-    title: '🎹 Mode Édition',
-    description: 'Piano Roll classique avec toutes les fonctionnalités',
-    href: '/modes/edition',
-    status: 'stable',
-    category: 'modes',
-    priority: 1
-  },
-  {
-    id: 'mode-test',
-    title: '🧪 Mode Test',
-    description: 'Zone d\'expérimentation pour la refactorisation Piano Roll',
-    href: '/modes/test',
-    status: 'testing',
-    category: 'modes',
-    priority: 2
-  },
-  {
-    id: 'mode-inspiration',
-    title: '✨ Mode Inspiration',
-    description: 'Assistant IA pour génération de mélodies (Magenta.js)',
-    href: '/modes/inspiration',
-    status: 'planned',
-    category: 'modes',
-    priority: 3
-  },
-  {
-    id: 'mode-arrangement',
-    title: '🎼 Mode Arrangement',
-    description: 'Gestion multi-patterns et structure de composition',
-    href: '/modes/arrangement',
-    status: 'planned',
-    category: 'modes',
-    priority: 4
-  },
-  {
-    id: 'mode-scales',
-    title: '🎵 Mode Gammes',
-    description: 'Assistant gammes et accords musicaux',
-    href: '/modes/scales',
-    status: 'planned',
-    category: 'modes',
-    priority: 5
-  },
-  {
-    id: 'sequencer-main',
-    title: 'Séquenceur Principal',
-    description: 'Interface principale du séquenceur basée sur l\'architecture simple',
-    href: '/sequencer',
-    status: 'planned',
-    category: 'core',
-    priority: 2
-  },
-  {
-    id: 'transport',
-    title: 'Contrôles Transport',
-    description: 'Play/Stop/Tempo/Speed avec la nouvelle architecture',
-    href: '/transport',
-    status: 'planned',
-    category: 'core',
-    priority: 3
-  },
 
-  // === FEATURES AVANCÉES ===
+  // === MIDI ===
   {
-    id: 'velocity-editor',
-    title: '✅ Éditeur Vélocité',
-    description: 'IMPLÉMENTÉ - Couleurs vert→rouge, drag vertical temps réel',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 1
-  },
-  {
-    id: 'note-length',
-    title: '✅ Notes Longues',
-    description: 'IMPLÉMENTÉ - Durée variable, redimensionnement horizontal',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 2
-  },
-  {
-    id: 'multi-selection',
-    title: '✅ Sélection Multiple',
-    description: 'IMPLÉMENTÉ - Rectangle, Ctrl+clic, copier/coller, flèches',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 3
-  },
-  {
-    id: 'midi-export',
-    title: '✅ Export/Import MIDI',
-    description: 'IMPLÉMENTÉ - Export .mid professionnel, timing parfait, module réutilisable',
+    id: 'midi-tools',
+    title: '🎼 Outils MIDI',
+    description: 'Tests et outils pour l\'export/import MIDI',
     href: '/midi',
     status: 'stable',
-    category: 'features',
-    priority: 4
-  },
-  {
-    id: 'reading-speeds',
-    title: '✅ Vitesses de Lecture',
-    description: 'IMPLÉMENTÉ - 1/8, 1/16, 1/32 (audio seulement, MIDI toujours cohérent)',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 5
-  },
-  {
-    id: 'presets',
-    title: '💾 Système Presets',
-    description: '✅ IMPLÉMENTÉ - Sauvegarde/chargement localStorage + export/import JSON',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 6
-  },
-  {
-    id: 'midi-import',
-    title: '🎼 Import MIDI',
-    description: '✅ IMPLÉMENTÉ - Drag & drop + sélecteur fichier, limitation 64 steps automatique',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 7
-  },
-  {
-    id: 'undo-redo',
-    title: '↶↷ Undo/Redo',
-    description: '✅ IMPLÉMENTÉ - Historique 50 actions + interface complète + Ctrl+Z/Y',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 8
-  },
-  {
-    id: 'keyboard-shortcuts',
-    title: '⌨️ Raccourcis Clavier Globaux',
-    description: '✅ IMPLÉMENTÉ - 20+ raccourcis pro (Espace=Play, Ctrl+S/O/E, navigation)',
-    href: '/pianorollBase',
-    status: 'stable',
-    category: 'features',
-    priority: 9
-  },
-  {
-    id: 'quantization',
-    title: 'Quantization',
-    description: 'Alignement automatique des notes sur la grille',
-    href: '/quantization',
-    status: 'planned',
-    category: 'features',
-    priority: 9
-  },
-  {
-    id: 'scale-helper',
-    title: 'Assistant Gammes',
-    description: 'Helper pour gammes et accords musicaux',
-    href: '/scale-helper',
-    status: 'planned',
-    category: 'features',
-    priority: 10
-  },
-
-  // === OUTILS ===
-  {
-    id: 'pattern-analyzer',
-    title: 'Analyseur de Patterns',
-    description: 'Analyser et visualiser les patterns musicaux',
-    href: '/pattern-analyzer',
-    status: 'planned',
     category: 'tools',
     priority: 1
   },
-  {
-    id: 'performance-monitor',
-    title: 'Moniteur Performance',
-    description: 'Surveiller les performances audio et CPU',
-    href: '/performance',
-    status: 'planned',
-    category: 'tools',
-    priority: 2
-  },
 
-  // === EXPÉRIMENTAL ===
-  {
-    id: 'ai-generation',
-    title: 'Génération IA',
-    description: 'Génération de patterns avec Magenta.js ou autres IA',
-    href: '/ai-generation',
-    status: 'planned',
-    category: 'experimental',
-    priority: 1
-  },
-  {
-    id: 'collaborative',
-    title: 'Mode Collaboratif',
-    description: 'Édition collaborative en temps réel',
-    href: '/collaborative',
-    status: 'planned',
-    category: 'experimental',
-    priority: 2
-  }
 ];
 
 export function getMenuCategories(): MenuCategory[] {
