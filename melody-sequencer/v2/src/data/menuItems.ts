@@ -37,6 +37,15 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'modes',
     priority: 1
   },
+  {
+    id: 'inspiration-ia',
+    title: '🤖 Inspiration IA - Magenta.js',
+    description: '🧪 EXPÉRIMENTAL - Tests d\'intégration de Magenta.js pour génération musicale IA',
+    href: '/inspirationIA',
+    status: 'new',
+    category: 'experimental',
+    priority: 1
+  },
   
 
 ];

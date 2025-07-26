@@ -26,7 +26,9 @@
       "Bash(ls:*)",
       "mcp__ide__getDiagnostics",
       "Bash(copy \"page-test-navigation.tsx\" \"test-navigation\\page.tsx\")",
-      "Bash(del page-incomplete.tsx page-test-complete.tsx page-test-navigation.tsx page-test-transport.tsx)"
+      "Bash(del page-incomplete.tsx page-test-complete.tsx page-test-navigation.tsx page-test-transport.tsx)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:magenta.github.io)"
     ],
     "deny": []
   }
