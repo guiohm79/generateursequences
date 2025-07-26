@@ -1067,7 +1067,39 @@ const InspirationPage: React.FC = () => {
 
         {/* Test Magenta.js Component */}
         <div className="mb-6">
-          <MagentaTest />
+          <MagentaTest 
+            stepCount={stepCount}
+            tempo={tempo}
+            noteSpeed={noteSpeed}
+            onNotesGenerated={(aiNotes) => {
+              // Ajouter les notes IA au pattern existant
+              setPattern(prev => {
+                const newPattern = [...prev];
+                let addedCount = 0;
+                
+                aiNotes.forEach(aiNote => {
+                  // Vérifier qu'il n'y a pas déjà une note à cette position
+                  const exists = newPattern.some(n => n.step === aiNote.step && n.note === aiNote.note);
+                  if (!exists) {
+                    newPattern.push(aiNote);
+                    addedCount++;
+                  }
+                });
+                
+                // Sauvegarder dans l'historique
+                setTimeout(() => saveToHistory(`🤖 IA: ${addedCount} notes ajoutées`), 0);
+                
+                // Feedback utilisateur
+                setExportStatus(`🤖 ${addedCount} notes IA ajoutées au piano roll !`);
+                setTimeout(() => setExportStatus(''), 3000);
+                
+                return newPattern;
+              });
+              
+              // Désélectionner tout
+              setSelectedNotes(new Set());
+            }}
+          />
         </div>
 
         {/* COMPOSANT TRANSPORT CONTROLS */}
