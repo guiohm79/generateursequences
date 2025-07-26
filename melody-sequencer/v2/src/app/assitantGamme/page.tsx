@@ -42,6 +42,9 @@ import {
   DEFAULT_VELOCITY
 } from './utils/constants';
 
+// Import du hook pour aperçu audio
+import { useChordPreview } from './hooks/useChordPreview';
+
 import {
   isBlackKey,
   getNoteDisplayName,
@@ -143,8 +146,20 @@ const PianoRollCompleteTestPage: React.FC = () => {
     setNoteSpeed,
     setMidiCallback,
     setAudioEnabled,
-    initialize 
+    initialize,
+    playNote,
+    stopNote,
+    stopAll: stopAllNotes 
   } = useSimpleAudio();
+
+  // Hook pour aperçu audio des accords
+  const chordPreview = useChordPreview({
+    initialize,
+    playNote,
+    stopNote,
+    stopAll: stopAllNotes,
+    isInitialized
+  });
 
   // Undo/Redo manager
   const [undoRedoManager] = useState(() => new UndoRedoManager());
@@ -1187,8 +1202,9 @@ const PianoRollCompleteTestPage: React.FC = () => {
                   chordHistory={chordHistory}
                   onChordSelect={handleChordSelect}
                   onChordPreview={(chord) => {
-                    // Preview audio optionnel
                     console.log('Preview chord:', chord.name);
+                    setExportStatus(`🔊 Aperçu: ${chord.name}`);
+                    setTimeout(() => setExportStatus(''), 1500);
                   }}
                   onChordInsert={(chord, step) => {
                     const chordEvents: NoteEvent[] = chord.notes.map((note, index) => ({
@@ -1201,6 +1217,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
                     setPattern(prev => [...prev, ...chordEvents]);
                     saveToHistory(`Accord ${chord.name} inséré`);
                   }}
+                  audioEngine={chordPreview}
                   showExtensions={true}
                   showVoiceLeading={false}
                   maxSuggestions={12}

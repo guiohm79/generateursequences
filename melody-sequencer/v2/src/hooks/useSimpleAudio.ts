@@ -94,6 +94,21 @@ export function useSimpleAudio() {
     if (!engineRef.current) return;
     engineRef.current.setAudioEnabled(enabled);
   }, []);
+
+  const playNote = useCallback((noteName: string, velocity: number = 0.7, duration: string = '8n') => {
+    if (!engineRef.current) return;
+    engineRef.current.playNote(noteName, velocity, duration);
+  }, []);
+
+  const stopNote = useCallback((noteName: string) => {
+    if (!engineRef.current) return;
+    engineRef.current.stopNote(noteName);
+  }, []);
+
+  const stopAllNotes = useCallback(() => {
+    if (!engineRef.current) return;
+    engineRef.current.stopAllNotes();
+  }, []);
   
   return {
     // État
@@ -112,6 +127,11 @@ export function useSimpleAudio() {
     setTempo,
     setNoteSpeed,
     setMidiCallback,
-    setAudioEnabled
+    setAudioEnabled,
+    
+    // Nouvelles méthodes pour aperçu audio
+    playNote,
+    stopNote,
+    stopAllNotes
   };
 }

@@ -273,6 +273,51 @@ export class SimpleAudioEngine {
   }
   
   /**
+   * Jouer une note individuelle (pour aperçu)
+   */
+  playNote(noteName: string, velocity: number = 0.7, duration: string = '8n'): void {
+    if (!this.isInitialized || !this.synth || !this.isAudioEnabled) {
+      return;
+    }
+    
+    try {
+      this.synth.triggerAttackRelease(noteName, duration, undefined, velocity);
+    } catch (error) {
+      console.warn('[SimpleAudioEngine] Error playing note:', error);
+    }
+  }
+  
+  /**
+   * Arrêter une note individuelle
+   */
+  stopNote(noteName: string): void {
+    if (!this.isInitialized || !this.synth) {
+      return;
+    }
+    
+    try {
+      this.synth.triggerRelease(noteName);
+    } catch (error) {
+      console.warn('[SimpleAudioEngine] Error stopping note:', error);
+    }
+  }
+  
+  /**
+   * Arrêter toutes les notes
+   */
+  stopAllNotes(): void {
+    if (!this.isInitialized || !this.synth) {
+      return;
+    }
+    
+    try {
+      this.synth.releaseAll();
+    } catch (error) {
+      console.warn('[SimpleAudioEngine] Error stopping all notes:', error);
+    }
+  }
+
+  /**
    * Obtenir l'état actuel
    */
   getState(): {

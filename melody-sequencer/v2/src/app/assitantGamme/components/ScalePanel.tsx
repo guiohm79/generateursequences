@@ -261,20 +261,52 @@ export const ScalePanel: React.FC<ScalePanelProps> = ({
       <div className="bg-slate-800/50 rounded-lg p-4 mb-6">
         <h3 className="text-emerald-300 font-medium mb-3">Notes de la gamme</h3>
         <div className="flex flex-wrap gap-2 mb-3">
-          {scaleNotes.map((note, index) => (
-            <div
-              key={note}
-              className="px-3 py-1 bg-emerald-600/30 text-emerald-200 rounded-lg text-sm font-medium"
-            >
-              {note}
-              {showAdvanced && (
+          {scaleNotes.map((note, index) => {
+            const chromaticNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const noteNumber = chromaticNotes.indexOf(note);
+            return (
+              <div
+                key={note}
+                className="px-3 py-1 bg-emerald-600/30 text-emerald-200 rounded-lg text-sm font-medium"
+              >
+                {note}
                 <span className="ml-1 text-emerald-400 text-xs">
-                  ({scaleDegrees[index]?.romanNumeral})
+                  ({noteNumber})
                 </span>
-              )}
-            </div>
-          ))}
+                {showAdvanced && (
+                  <span className="ml-1 text-emerald-300 text-xs">
+                    {scaleDegrees[index]?.romanNumeral}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
+        
+        {/* Référence chromatique complète */}
+        {showAdvanced && (
+          <div className="mb-3">
+            <h4 className="text-emerald-400 text-sm font-medium mb-2">📊 Référence chromatique</h4>
+            <div className="grid grid-cols-6 md:grid-cols-12 gap-1 text-xs">
+              {['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'].map((note, index) => {
+                const isInScale = scaleNotes.includes(note);
+                return (
+                  <div
+                    key={note}
+                    className={`px-2 py-1 rounded text-center font-mono ${
+                      isInScale 
+                        ? 'bg-emerald-600/50 text-emerald-200' 
+                        : 'bg-slate-600/50 text-slate-400'
+                    }`}
+                  >
+                    {note}
+                    <div className="text-xs opacity-75">{index}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         
         {showAdvanced && (
           <div className="text-xs text-slate-400">

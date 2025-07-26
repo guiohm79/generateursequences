@@ -27,6 +27,12 @@ export interface ChordGridProps {
   onChordPreview?: (chord: ExtendedChord) => void;
   onChordInsert?: (chord: ExtendedChord, step: number) => void;
   
+  // Audio preview
+  audioEngine?: {
+    playChord: (notes: string[], duration?: number) => void;
+    stopAll: () => void;
+  };
+  
   // Options d'affichage
   showExtensions?: boolean;
   showVoiceLeading?: boolean;
@@ -50,6 +56,7 @@ export const ChordGrid: React.FC<ChordGridProps> = ({
   onChordSelect,
   onChordPreview,
   onChordInsert,
+  audioEngine,
   showExtensions = true,
   showVoiceLeading = false,
   maxSuggestions = 12,
@@ -143,6 +150,22 @@ export const ChordGrid: React.FC<ChordGridProps> = ({
   const handleChordHover = (chord: ExtendedChord | null) => {
     setHoveredChord(chord);
     if (chord && onChordPreview) {
+      onChordPreview(chord);
+    }
+  };
+
+  const handleChordPreview = (chord: ExtendedChord) => {
+    if (audioEngine) {
+      // Créer les notes avec octave pour l'aperçu
+      const chordNotes = chord.notes.map(note => note + '4');
+      audioEngine.playChord(chordNotes, 1000); // 1 seconde
+    }
+    
+    // Feedback visuel
+    setHoveredChord(chord);
+    
+    // Callback personnalisé
+    if (onChordPreview) {
       onChordPreview(chord);
     }
   };
@@ -301,18 +324,26 @@ export const ChordGrid: React.FC<ChordGridProps> = ({
 
             {/* Notes de l'accord */}
             <div className="flex flex-wrap gap-1 mb-3">
-              {chord.notes.map((note, noteIndex) => (
-                <span
-                  key={noteIndex}
-                  className={`px-2 py-1 text-xs rounded ${
-                    noteIndex === 0 
-                      ? 'bg-emerald-600 text-white' 
-                      : 'bg-slate-600 text-slate-300'
-                  }`}
-                >
-                  {note}
-                </span>
-              ))}
+              {chord.notes.map((note, noteIndex) => {
+                const chromaticNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const noteNumber = chromaticNotes.indexOf(note);
+                return (
+                  <span
+                    key={noteIndex}
+                    className={`px-2 py-1 text-xs rounded ${
+                      noteIndex === 0 
+                        ? 'bg-emerald-600 text-white' 
+                        : 'bg-slate-600 text-slate-300'
+                    }`}
+                    title={`${note} = ${noteNumber}`}
+                  >
+                    {note}
+                    <span className="ml-1 opacity-75">
+                      {noteNumber}
+                    </span>
+                  </span>
+                );
+              })}
             </div>
 
             {/* Extensions et qualité */}
@@ -357,9 +388,10 @@ export const ChordGrid: React.FC<ChordGridProps> = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleChordHover(chord);
+                    handleChordPreview(chord);
                   }}
                   className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                  title={`Aperçu audio de ${chord.name}`}
                 >
                   🔊
                 </button>
