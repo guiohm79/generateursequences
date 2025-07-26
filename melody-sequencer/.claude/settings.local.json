@@ -28,7 +28,12 @@
       "Bash(copy \"page-test-navigation.tsx\" \"test-navigation\\page.tsx\")",
       "Bash(del page-incomplete.tsx page-test-complete.tsx page-test-navigation.tsx page-test-transport.tsx)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:magenta.github.io)"
+      "WebFetch(domain:magenta.github.io)",
+      "Bash(timeout 30 npm run dev)",
+      "Bash(timeout 15 curl -s http://localhost:3000/midiInput)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 10 curl -s http://localhost:3000/midiInput)",
+      "Bash(timeout 5 curl -I http://localhost:3000/midiInput)"
     ],
     "deny": []
   }

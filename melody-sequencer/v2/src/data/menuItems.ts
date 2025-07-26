@@ -55,6 +55,15 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'experimental',
     priority: 1
   },
+  {
+    id: 'midi-input',
+    title: '🎹 MIDI Input - Contrôle Clavier Maître',
+    description: '✅ NOUVEAU - Contrôlez le piano roll avec votre clavier MIDI (recording + playthrough temps réel)',
+    href: '/midiInput',
+    status: 'stable',
+    category: 'features',
+    priority: 1
+  },
   
 
 ];

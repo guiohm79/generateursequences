@@ -65,6 +65,7 @@ melody-sequencer/
 - ✅ **🎼 ÉDITEUR DE GAMMES COMPLET** - Création, gestion et export de gammes personnalisées + intégration générateur
 - ✅ **MIDI Output Temps Réel** - Contrôle devices externes + toggle audio interne + interface complète
 - ✅ **🤖 GÉNÉRATION IA MAGENTA.JS** - Intégration complète avec contraintes musicales (Phase 1-3 terminées)
+- ✅ **🎹 MIDI INPUT TEMPS RÉEL** - Contrôle piano roll via clavier maître + recording + playthrough + diagnostic complet
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -80,8 +81,9 @@ melody-sequencer/
 10. ✅ ~~**🎼 Éditeur de Gammes**~~ - **TERMINÉ** - Création/gestion gammes personnalisées + intégration générateur + corrections UX
 11. ✅ ~~**MIDI Output Temps Réel**~~ - **TERMINÉ** - Contrôle devices externes + toggle audio interne + corrections z-index
 12. ✅ ~~**🤖 Génération IA Magenta.js**~~ - **TERMINÉ** - Phase 1-3 complètes avec contraintes musicales
-13. **Quantization** - Alignement automatique des notes sur la grille
-14. **Scale Helper** - Assistant gammes et accords musicaux
+13. ✅ ~~**🎹 MIDI Input Temps Réel**~~ - **TERMINÉ** - Contrôle clavier maître + recording + playthrough
+14. **Quantization** - Alignement automatique des notes sur la grille
+15. **Assistant de Gammes** - Assistant gammes et accords musicaux (NOTA: assitantGamme existe déjà)
 15. **Multi-patterns** - Gestion de plusieurs patterns/séquences
 16. **Génération IA Avancée** - Modèles Magenta supplémentaires (MelodyRNN, PerformanceRNN)
 
@@ -353,8 +355,48 @@ npm run lint     # Linting (désactivé temporairement)
   - **Créativité** : Utiliser comme source d'inspiration, pas de remplacement
   - **Édition** : Toujours ajuster manuellement les résultats selon vos besoins
 
+  ## 🎹 **MIDI INPUT TEMPS RÉEL - SYSTÈME COMPLET (Session 2025-07-26)**
+  
+  ### **🎯 Architecture MIDI Input :**
+  - **`MidiInputEngine.ts`** - Moteur Web MIDI API complet avec Web MIDI API native
+  - **`useMidiInput.ts`** - Hook React avec polling d'état (même pattern que MIDI Output)
+  - **`MidiInputPanel.tsx`** - Interface configuration avancée avec contrôles séparés
+  - **Page `/midiInput`** - Piano Roll simplifié + diagnostic complet
+  
+  ### **🎵 Fonctionnalités opérationnelles :**
+  - **🎹 Détection automatique** - Scan devices MIDI connectés en temps réel
+  - **🔊 Playthrough audio** - Feedback via SimpleAudioEngine (`playNote/stopNote`)
+  - **🎥 Recording intelligent** - Capture timing précis vers piano roll avec quantization
+  - **⚙️ Configuration avancée** - Canal MIDI, transposition octave, scaling vélocité
+  - **📊 Status temps réel** - Affichage connexions + notes actives + diagnostic
+  
+  ### **🔧 Configuration MIDI Input :**
+  - **Canal MIDI** : Tous canaux ou canal spécifique (1-16)
+  - **Transposition** : -3 à +3 octaves avec mapping intelligent
+  - **Scaling vélocité** : 0.1x à 2.0x pour ajustement dynamique
+  - **Mode recording** : Timing quantization automatique sur grille
+  - **Playthrough** : Toggle indépendant pour monitoring
+  
+  ### **🚀 Interface utilisateur :**
+  - **Boutons diagnostic** : Test Audio, Init Audio, status détaillé
+  - **Piano roll simplifié** : Grille cliquable avec affichage notes temps réel  
+  - **Status dashboard** : Audio Engine, MIDI connections, séquenceur
+  - **Debug complet** : Logs console pour troubleshooting
+  
+  ### **⚠️ PROBLÈME IDENTIFIÉ - Playthrough s'arrête après fermeture dialog :**
+  - **Symptôme** : Audio fonctionne dans dialog configuration mais s'arrête après fermeture
+  - **Cause probable** : Callbacks MIDI perdus à la fermeture du MidiInputPanel
+  - **Solution nécessaire** : Maintenir callbacks persistants dans page principale
+  - **Status** : 90% fonctionnel, nécessite fix callback persistence
+  
+  ### **🎛️ Pages et intégration :**
+  - **Page principale** : `/midiInput` avec piano roll + contrôles MIDI
+  - **Menu système** : Entrée "🎹 MIDI Input" dans Features Avancées
+  - **Architecture cohérente** : Same pattern que MIDI Output pour maintenance
+  - **Logs détaillés** : Console debugging pour diagnostic problèmes
+  
   🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
-  1. **Quantization** - Alignement sur grille
-  2. **Scale Helper** - Assistant musical avec suggestions accords
+  1. **Fix callback persistence** - Maintenir playthrough après fermeture dialog
+  2. **Quantization** - Alignement automatique sur grille
   3. **Multi-patterns** - Gestion séquences multiples
   4. **Modèles IA supplémentaires** - MelodyRNN, PerformanceRNN, DrumsRNN
