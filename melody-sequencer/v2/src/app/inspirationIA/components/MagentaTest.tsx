@@ -8,7 +8,15 @@ import {
   MagentaNote,
   MagentaSequence
 } from '../utils/magentaConverter';
+import { 
+  applyMusicalConstraints,
+  createConstraintsFromParams,
+  applyConstraintPreset,
+  CONSTRAINT_PRESETS,
+  AIConstraints
+} from '../utils/aiConstraints';
 import { NoteEvent } from '../types';
+import { GenerationParams, getAvailableScales, NOTE_ORDER } from '../../../lib/InspirationEngine';
 
 interface MagentaModel {
   initialize(): Promise<void>;
@@ -31,7 +39,9 @@ interface MagentaTestState {
   error: string | null;
   generatedNotes: MagentaNote[];
   convertedNotes: NoteEvent[];
+  constrainedNotes: NoteEvent[];
   status: string;
+  constraintsEnabled: boolean;
 }
 
 const MagentaTest: React.FC<MagentaTestProps> = ({ 
@@ -46,10 +56,25 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
     error: null,
     generatedNotes: [],
     convertedNotes: [],
-    status: 'Prêt à tester Magenta.js'
+    constrainedNotes: [],
+    status: 'Prêt à tester Magenta.js',
+    constraintsEnabled: true
   });
 
   const [model, setModel] = useState<MagentaModel | null>(null);
+  
+  // États pour les contraintes musicales
+  const [constraints, setConstraints] = useState<AIConstraints>({
+    root: 'C',
+    scale: 'minor',
+    style: 'psy',
+    octaveRange: { min: 2, max: 4 },
+    velocityProfile: 'default',
+    quantization: 'strict'
+  });
+  
+  const [selectedPreset, setSelectedPreset] = useState<string>('psyTrance');
+  const [availableScales, setAvailableScales] = useState<{ value: string; label: string }[]>([]);
 
   // Test d'importation de Magenta.js
   const testMagentaImport = async () => {
@@ -193,17 +218,38 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
           const convertedNotes = convertMagentaSequenceToNoteEvents(generatedSequence, conversionOptions);
           console.log('🎵 Notes converties:', convertedNotes);
           
+          // Appliquer les contraintes musicales si activées
+          let finalNotes = convertedNotes;
+          let constraintResult = null;
+          
+          if (state.constraintsEnabled && convertedNotes.length > 0) {
+            setState(prev => ({ 
+              ...prev, 
+              status: 'Application des contraintes musicales...' 
+            }));
+            
+            constraintResult = applyMusicalConstraints(convertedNotes, constraints);
+            finalNotes = constraintResult.constrainedNotes;
+            
+            console.log('🎯 Contraintes appliquées:', constraintResult);
+          }
+          
+          const statusMessage = state.constraintsEnabled 
+            ? `Génération réussie ! ${generatedSequence.notes.length} IA → ${convertedNotes.length} converties → ${finalNotes.length} contraintes ✅`
+            : `Génération réussie ! ${generatedSequence.notes.length} notes IA → ${convertedNotes.length} notes converties ✅`;
+          
           setState(prev => ({ 
             ...prev, 
             isLoading: false,
             generatedNotes: generatedSequence.notes,
             convertedNotes,
-            status: `Génération réussie ! ${generatedSequence.notes.length} notes IA → ${convertedNotes.length} notes converties ✅` 
+            constrainedNotes: finalNotes,
+            status: statusMessage
           }));
           
-          // Envoyer les notes converties au piano roll
-          if (convertedNotes.length > 0) {
-            onNotesGenerated(convertedNotes);
+          // Envoyer les notes finales au piano roll
+          if (finalNotes.length > 0) {
+            onNotesGenerated(finalNotes);
           }
         } else {
           setState(prev => ({ 
@@ -225,6 +271,11 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
     }
   };
 
+  // Charger les gammes disponibles
+  useEffect(() => {
+    setAvailableScales(getAvailableScales());
+  }, []);
+
   // Auto-test au montage
   useEffect(() => {
     // Test automatique de l'importation au montage
@@ -233,7 +284,7 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
 
   return (
     <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 backdrop-blur-sm rounded-2xl border border-purple-600/50">
-      <h2 className="text-2xl font-bold mb-4 text-purple-300">🤖 Test Magenta.js - Phase 1</h2>
+      <h2 className="text-2xl font-bold mb-4 text-purple-300">🤖 Test Magenta.js - Phase 3 : Contraintes Musicales</h2>
       
       {/* Status */}
       <div className="mb-6 p-3 bg-slate-800/50 rounded-lg">
@@ -251,6 +302,147 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
           <div className="text-red-200 text-sm mt-1">{state.error}</div>
         </div>
       )}
+
+      {/* Contraintes musicales */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-600/50 rounded-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-indigo-300">🎯 Contraintes Musicales - Phase 3</h3>
+          <label className="flex items-center space-x-2">
+            <span className="text-sm text-indigo-300">Activer contraintes :</span>
+            <input
+              type="checkbox"
+              checked={state.constraintsEnabled}
+              onChange={(e) => setState(prev => ({ ...prev, constraintsEnabled: e.target.checked }))}
+              className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+            />
+          </label>
+        </div>
+
+        {state.constraintsEnabled && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Preset rapide */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Preset Style</label>
+              <select
+                value={selectedPreset}
+                onChange={(e) => {
+                  setSelectedPreset(e.target.value);
+                  const preset = CONSTRAINT_PRESETS[e.target.value];
+                  if (preset) {
+                    setConstraints(prev => ({ ...prev, ...preset }));
+                  }
+                }}
+                className="w-full px-3 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+              >
+                {Object.keys(CONSTRAINT_PRESETS).map(presetName => (
+                  <option key={presetName} value={presetName}>
+                    {presetName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Note fondamentale */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Note fondamentale</label>
+              <select
+                value={constraints.root}
+                onChange={(e) => setConstraints(prev => ({ ...prev, root: e.target.value }))}
+                className="w-full px-3 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+              >
+                {NOTE_ORDER.map(note => (
+                  <option key={note} value={note}>{note}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Gamme */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Gamme</label>
+              <select
+                value={constraints.scale}
+                onChange={(e) => setConstraints(prev => ({ ...prev, scale: e.target.value }))}
+                className="w-full px-3 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+              >
+                {availableScales.map(scale => (
+                  <option key={scale.value} value={scale.value}>{scale.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Range d'octaves */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Octave Min-Max</label>
+              <div className="flex space-x-2">
+                <select
+                  value={constraints.octaveRange.min}
+                  onChange={(e) => setConstraints(prev => ({ 
+                    ...prev, 
+                    octaveRange: { ...prev.octaveRange, min: parseInt(e.target.value) }
+                  }))}
+                  className="w-full px-2 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+                >
+                  {[1,2,3,4,5].map(oct => (
+                    <option key={oct} value={oct}>{oct}</option>
+                  ))}
+                </select>
+                <select
+                  value={constraints.octaveRange.max}
+                  onChange={(e) => setConstraints(prev => ({ 
+                    ...prev, 
+                    octaveRange: { ...prev.octaveRange, max: parseInt(e.target.value) }
+                  }))}
+                  className="w-full px-2 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+                >
+                  {[3,4,5,6,7].map(oct => (
+                    <option key={oct} value={oct}>{oct}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Profil vélocité */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Profil Vélocité</label>
+              <select
+                value={constraints.velocityProfile}
+                onChange={(e) => setConstraints(prev => ({ 
+                  ...prev, 
+                  velocityProfile: e.target.value as AIConstraints['velocityProfile']
+                }))}
+                className="w-full px-3 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+              >
+                <option value="default">Par défaut</option>
+                <option value="dark">Sombre (-30)</option>
+                <option value="uplifting">Énergique (+15)</option>
+                <option value="dense">Dense (+20)</option>
+              </select>
+            </div>
+
+            {/* Style */}
+            <div>
+              <label className="block text-sm font-medium text-indigo-300 mb-2">Style Musical</label>
+              <select
+                value={constraints.style}
+                onChange={(e) => setConstraints(prev => ({ ...prev, style: e.target.value }))}
+                className="w-full px-3 py-2 bg-indigo-800 text-white rounded-lg border border-indigo-600 focus:border-indigo-400 focus:outline-none text-sm"
+              >
+                <option value="goa">Goa (Variations subtiles)</option>
+                <option value="psy">Psy (Accents contretemps)</option>
+                <option value="prog">Prog (Build-ups)</option>
+                <option value="deep">Deep (Douceur)</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-xs text-indigo-400">
+          {state.constraintsEnabled 
+            ? `✅ Les notes IA seront contraintes à la gamme ${constraints.root} ${constraints.scale} (octaves ${constraints.octaveRange.min}-${constraints.octaveRange.max})`
+            : '⚠️ Contraintes désactivées - Notes IA brutes utilisées'
+          }
+        </div>
+      </div>
 
       {/* Boutons de test */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -293,37 +485,54 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
 
       {/* Résultats de génération */}
       {state.generatedNotes.length > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           {/* Notes IA brutes */}
           <div className="p-4 bg-green-900/30 border border-green-600/50 rounded-lg">
-            <h3 className="text-lg font-semibold text-green-300 mb-3">🤖 Notes brutes de l'IA :</h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {state.generatedNotes.slice(0, 8).map((note, index) => (
-                <div key={index} className="text-sm text-green-200 font-mono">
-                  Pitch={note.pitch}, Start={note.startTime.toFixed(2)}s, 
-                  Duration={((note.endTime - note.startTime)).toFixed(2)}s
-                  {note.velocity && `, Vel=${note.velocity.toFixed(2)}`}
+            <h3 className="text-lg font-semibold text-green-300 mb-3">🤖 Notes IA brutes :</h3>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {state.generatedNotes.slice(0, 6).map((note, index) => (
+                <div key={index} className="text-xs text-green-200 font-mono">
+                  P={note.pitch}, T={note.startTime.toFixed(1)}s
+                  {note.velocity && `, V=${note.velocity.toFixed(2)}`}
                 </div>
               ))}
-              {state.generatedNotes.length > 8 && (
-                <div className="text-sm text-green-400">... et {state.generatedNotes.length - 8} autres</div>
+              {state.generatedNotes.length > 6 && (
+                <div className="text-xs text-green-400">... +{state.generatedNotes.length - 6}</div>
               )}
             </div>
           </div>
 
           {/* Notes converties */}
-          {state.convertedNotes.length > 0 && (
-            <div className="p-4 bg-blue-900/30 border border-blue-600/50 rounded-lg">
-              <h3 className="text-lg font-semibold text-blue-300 mb-3">🎹 Notes converties pour le piano roll :</h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {state.convertedNotes.map((note, index) => (
-                  <div key={index} className="text-sm text-blue-200 font-mono">
-                    Step {note.step}: {note.note}, Vel={note.velocity}, Dur={note.duration}
+          <div className="p-4 bg-blue-900/30 border border-blue-600/50 rounded-lg">
+            <h3 className="text-lg font-semibold text-blue-300 mb-3">🎹 Notes converties :</h3>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {state.convertedNotes.slice(0, 6).map((note, index) => (
+                <div key={index} className="text-xs text-blue-200 font-mono">
+                  S{note.step}: {note.note}, V={note.velocity}
+                </div>
+              ))}
+              {state.convertedNotes.length > 6 && (
+                <div className="text-xs text-blue-400">... +{state.convertedNotes.length - 6}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Notes contraintes */}
+          {state.constraintsEnabled && state.constrainedNotes.length > 0 && (
+            <div className="p-4 bg-indigo-900/30 border border-indigo-600/50 rounded-lg">
+              <h3 className="text-lg font-semibold text-indigo-300 mb-3">🎯 Notes contraintes :</h3>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {state.constrainedNotes.slice(0, 6).map((note, index) => (
+                  <div key={index} className="text-xs text-indigo-200 font-mono">
+                    S{note.step}: {note.note}, V={note.velocity}
                   </div>
                 ))}
+                {state.constrainedNotes.length > 6 && (
+                  <div className="text-xs text-indigo-400">... +{state.constrainedNotes.length - 6}</div>
+                )}
               </div>
-              <div className="mt-3 text-xs text-blue-400">
-                ✅ {state.convertedNotes.length} notes prêtes pour le piano roll (Tempo: {tempo} BPM, Steps: {stepCount})
+              <div className="mt-2 text-xs text-indigo-400">
+                🎯 {constraints.root} {constraints.scale} (Oct {constraints.octaveRange.min}-{constraints.octaveRange.max})
               </div>
             </div>
           )}
@@ -332,16 +541,16 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
 
       {/* Instructions */}
       <div className="mt-6 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-        <h4 className="text-sm font-medium text-slate-300 mb-2">📋 Instructions Phase 2 :</h4>
+        <h4 className="text-sm font-medium text-slate-300 mb-2">📋 Instructions Phase 3 :</h4>
         <ul className="text-xs text-slate-400 space-y-1">
           <li>1. Le test d'import s'exécute automatiquement ✅</li>
           <li>2. Cliquez "Init Modèle" pour initialiser MusicVAE</li>
-          <li>3. Cliquez "Générer et Ajouter" pour créer et injecter des notes IA</li>
-          <li>4. Les notes apparaissent automatiquement dans le piano roll !</li>
-          <li>5. Vous pouvez les éditer, jouer et exporter normalement</li>
+          <li>3. Configurez les contraintes musicales (gamme, style, octaves)</li>
+          <li>4. Cliquez "Générer et Ajouter" pour créer des notes IA contraintes</li>
+          <li>5. Les notes respectent automatiquement vos paramètres musicaux !</li>
         </ul>
-        <div className="mt-3 text-xs text-emerald-400 bg-emerald-900/20 p-2 rounded">
-          ✨ <strong>Workflow optimisé</strong> : Une seule action génère et ajoute les notes IA !
+        <div className="mt-3 text-xs text-indigo-400 bg-indigo-900/20 p-2 rounded">
+          🎯 <strong>Nouveauté Phase 3</strong> : L'IA respecte vos choix musicaux (gammes, styles, octaves) !
         </div>
       </div>
     </div>
