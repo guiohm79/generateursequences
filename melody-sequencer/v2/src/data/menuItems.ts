@@ -38,6 +38,15 @@ export const MENU_ITEMS: MenuItem[] = [
     priority: 1
   },
   {
+    id: 'assistant-gamme',
+    title: '🎼 Assistant de Gammes - Scale Helper',
+    description: '🚧 EN DÉVELOPPEMENT - Assistant musical intelligent avec suggestions d\'accords et théorie intégrée',
+    href: '/assitantGamme',
+    status: 'development',
+    category: 'features',
+    priority: 1
+  },
+  {
     id: 'inspiration-ia',
     title: '🤖 Inspiration IA - Magenta.js',
     description: '✅ PHASE 3 TERMINÉE - Génération IA avec contraintes musicales (gammes, styles, octaves)',
