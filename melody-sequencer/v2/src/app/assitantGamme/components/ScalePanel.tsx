@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { ScaleHelper, Scale } from '../lib/ScaleHelper';
 import { ChordSuggestions } from '../lib/ChordSuggestions';
 import { MusicalTheory, MusicalAnalysis } from '../lib/MusicalTheory';
+import { ColoringMode } from '../utils/scaleColoring';
 
 export interface NoteEvent {
   step: number;
@@ -37,6 +38,10 @@ export interface ScalePanelProps {
   chordMode: boolean;
   onChordModeChange: (enabled: boolean) => void;
   
+  // Mode de coloration
+  coloringMode?: ColoringMode;
+  onColoringModeChange?: (mode: ColoringMode) => void;
+  
   // Callbacks pour les actions
   onNoteCorrection?: (originalNote: string, correctedNote: string) => void;
   onChordInsert?: (chord: string[], step: number) => void;
@@ -53,6 +58,8 @@ export const ScalePanel: React.FC<ScalePanelProps> = ({
   onSnapToScaleChange,
   chordMode = false,
   onChordModeChange,
+  coloringMode = 'standard',
+  onColoringModeChange,
   onNoteCorrection,
   onChordInsert,
   isMinimized = false,
@@ -345,6 +352,24 @@ export const ScalePanel: React.FC<ScalePanelProps> = ({
               {showAdvanced && <span className="text-xs text-slate-500 block">Placer des accords complets d'un clic</span>}
             </span>
           </label>
+
+          {/* Mode de coloration */}
+          <div className="space-y-2">
+            <label className="block text-slate-300 text-sm font-medium">
+              Coloration Piano Roll
+              {showAdvanced && <span className="text-xs text-slate-500 block">Mode d'affichage des couleurs de la grille</span>}
+            </label>
+            <select
+              value={coloringMode}
+              onChange={(e) => onColoringModeChange?.(e.target.value as ColoringMode)}
+              className="w-full px-3 py-2 bg-slate-800 text-white rounded-lg border border-emerald-600/50 focus:border-emerald-500 focus:outline-none text-sm"
+              title="Choisir le mode de coloration du piano roll"
+            >
+              <option value="standard">🎹 Standard (Piano classique)</option>
+              <option value="scale">🎨 Gamme (Notes de la gamme)</option>
+              <option value="degrees">🎼 Degrés (Fonctions harmoniques)</option>
+            </select>
+          </div>
         </div>
 
         <div className="space-y-3">

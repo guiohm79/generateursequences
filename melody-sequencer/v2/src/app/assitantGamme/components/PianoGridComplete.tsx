@@ -3,6 +3,7 @@
 import React from 'react';
 import { NoteEvent, NoteId, SelectionRectangle } from '../types';
 import { isBlackKey, getVelocityColorClass } from '../utils/noteHelpers';
+import { scaleColoringHelper, ColoringMode } from '../utils/scaleColoring';
 
 interface PianoGridCompleteProps {
   // === PATTERN DATA ===
@@ -11,6 +12,9 @@ interface PianoGridCompleteProps {
   stepCount: number;
   accentSteps: number[];
   cellWidth: string;
+  
+  // === SCALE COLORING ===
+  coloringMode?: ColoringMode;
   
   // === PLAYBACK STATE ===
   currentStep: number;
@@ -71,6 +75,7 @@ export const PianoGridComplete: React.FC<PianoGridCompleteProps> = ({
   stepCount,
   accentSteps,
   cellWidth,
+  coloringMode = 'standard',
   
   // Playback state
   currentStep,
@@ -111,13 +116,33 @@ export const PianoGridComplete: React.FC<PianoGridCompleteProps> = ({
     >
       {visibleNotes.map((note, noteIndex) => {
         const isBlack = isBlackKey(note);
+        
+        // Obtenir les informations de couleur pour cette rangée de note
+        const colorInfo = scaleColoringHelper.getNoteColorInfo(note);
+        
+        // Couleur de fond de la rangée selon le mode
+        let rowBgColor = '';
+        if (coloringMode === 'standard') {
+          rowBgColor = isBlack ? 'bg-slate-900/30' : 'bg-slate-800/30';
+        } else {
+          // Mode gamme : teinter légèrement le fond selon la note
+          if (colorInfo.isInScale) {
+            if (colorInfo.isTonic) {
+              rowBgColor = 'bg-emerald-900/20';
+            } else if (colorInfo.isDominant) {
+              rowBgColor = 'bg-blue-900/20';
+            } else {
+              rowBgColor = 'bg-emerald-900/10';
+            }
+          } else {
+            rowBgColor = 'bg-slate-900/20'; // Notes hors gamme plus neutres
+          }
+        }
+        
         return (
           <div
             key={note}
-            className={`
-              h-10 sm:h-8 border-b border-slate-600/30 flex
-              ${isBlack ? 'bg-slate-900/30' : 'bg-slate-800/30'}
-            `}
+            className={`h-10 sm:h-8 border-b border-slate-600/30 flex ${rowBgColor}`}
           >
             {Array.from({ length: stepCount }, (_, stepIndex) => {
               const step = stepIndex + 1;
@@ -132,6 +157,44 @@ export const PianoGridComplete: React.FC<PianoGridCompleteProps> = ({
               const showDragFeedback = isDraggingThis || isDraggingThisLongNote;
               const isSelected = hasNote && noteInfo.noteEvent && isNoteSelected(noteInfo.noteEvent.step, note);
               
+              // Couleurs de cellule selon le mode
+              let cellBgClasses = '';
+              let hoverClasses = '';
+              
+              if (coloringMode === 'standard') {
+                // Mode standard : couleurs classiques
+                if (isAccentStep) {
+                  cellBgClasses = 'bg-slate-950/60 border-r-2 border-amber-500/50';
+                  hoverClasses = 'hover:bg-slate-900/80 active:bg-slate-800/90';
+                } else {
+                  cellBgClasses = isBlack ? 'bg-slate-900/40' : 'bg-slate-800/40';
+                  hoverClasses = isBlack ? 'hover:bg-slate-800/70 active:bg-slate-700/80' : 'hover:bg-slate-700/70 active:bg-slate-600/80';
+                }
+              } else {
+                // Mode gamme : couleurs intelligentes
+                if (colorInfo.isInScale) {
+                  if (colorInfo.isTonic) {
+                    cellBgClasses = 'bg-emerald-800/30';
+                    hoverClasses = 'hover:bg-emerald-700/50 active:bg-emerald-600/60';
+                  } else if (colorInfo.isDominant) {
+                    cellBgClasses = 'bg-blue-800/30';
+                    hoverClasses = 'hover:bg-blue-700/50 active:bg-blue-600/60';
+                  } else {
+                    cellBgClasses = 'bg-emerald-800/20';
+                    hoverClasses = 'hover:bg-emerald-700/40 active:bg-emerald-600/50';
+                  }
+                } else {
+                  // Notes hors gamme : plus discrètes
+                  cellBgClasses = 'bg-slate-900/30';
+                  hoverClasses = 'hover:bg-slate-800/50 active:bg-slate-700/60';
+                }
+                
+                // Accents toujours visibles même en mode gamme
+                if (isAccentStep) {
+                  cellBgClasses += ' border-r-2 border-amber-500/50';
+                }
+              }
+              
               return (
                 <div
                   key={stepIndex}
@@ -139,14 +202,8 @@ export const PianoGridComplete: React.FC<PianoGridCompleteProps> = ({
                     ${cellWidth} h-full border-r border-slate-600/30 cursor-pointer
                     flex items-center justify-center text-xs relative flex-shrink-0
                     transition-all duration-200 touch-manipulation
+                    ${cellBgClasses} ${hoverClasses}
                     ${stepIndex === currentStep && isPlaying ? 'ring-2 ring-yellow-400 ring-opacity-60' : ''}
-                    ${isAccentStep 
-                      ? 'bg-slate-950/60 hover:bg-slate-900/80 active:bg-slate-800/90 border-r-2 border-amber-500/50' 
-                      : (isBlack 
-                        ? 'bg-slate-900/40 hover:bg-slate-800/70 active:bg-slate-700/80' 
-                        : 'bg-slate-800/40 hover:bg-slate-700/70 active:bg-slate-600/80'
-                      )
-                    }
                     ${showDragFeedback ? 'ring-2 ring-blue-400 cursor-ns-resize' : ''}
                     ${noteInfo.isMiddle ? 'border-r-0' : ''}
                     ${isSelected ? 'ring-2 ring-yellow-400 ring-opacity-80' : ''}

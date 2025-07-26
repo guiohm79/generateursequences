@@ -21,6 +21,7 @@ import { MidiOutputPanel } from '../../components/MidiOutputPanel';
 import { ScalePanel } from './components/ScalePanel';
 import { ChordGrid } from './components/ChordGrid';
 import { TheoryDisplay } from './components/TheoryDisplay';
+import { HelpDialog } from './components/HelpDialog';
 
 // Import de la logique musicale
 import { ScaleHelper } from './lib/ScaleHelper';
@@ -44,6 +45,9 @@ import {
 
 // Import du hook pour aperçu audio
 import { useChordPreview } from './hooks/useChordPreview';
+
+// Import du système de coloration
+import { scaleColoringHelper, ColoringMode } from './utils/scaleColoring';
 
 import {
   isBlackKey,
@@ -126,6 +130,8 @@ const PianoRollCompleteTestPage: React.FC = () => {
   const [showChordGrid, setShowChordGrid] = useState<boolean>(true);
   const [showTheoryDisplay, setShowTheoryDisplay] = useState<boolean>(true);
   const [chordHistory, setChordHistory] = useState<ExtendedChord[]>([]);
+  const [coloringMode, setColoringMode] = useState<ColoringMode>('standard');
+  const [showHelpDialog, setShowHelpDialog] = useState<boolean>(false);
 
   // Systèmes musicaux
   const [scaleHelper] = useState(() => new ScaleHelper('major', 'C'));
@@ -795,6 +801,11 @@ const PianoRollCompleteTestPage: React.FC = () => {
     initialize();
   }, [initialize]);
 
+  // Configurer le système de coloration quand la gamme ou le mode change
+  useEffect(() => {
+    scaleColoringHelper.configure(scaleHelper, coloringMode);
+  }, [scaleHelper, coloringMode]);
+
   useEffect(() => {
     if (pattern.length === 0) {
       undoRedoManager.saveState([], stepCount, 'État initial');
@@ -1007,10 +1018,24 @@ const PianoRollCompleteTestPage: React.FC = () => {
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-            🎼 Assistant de Gammes - Scale Helper
-          </h1>
-          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Assistant musical intelligent avec suggestions d'accords et théorie intégrée</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
+                🎼 Assistant de Gammes - Scale Helper
+              </h1>
+              <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Assistant musical intelligent avec suggestions d'accords et théorie intégrée</p>
+            </div>
+            
+            {/* Bouton d'aide */}
+            <button
+              onClick={() => setShowHelpDialog(true)}
+              className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 text-sm font-medium shadow-lg"
+              title="Ouvrir le guide d'utilisation du Scale Helper"
+            >
+              <span className="text-lg">📚</span>
+              <span className="hidden sm:inline">Guide</span>
+            </button>
+          </div>
         </div>
 
         {/* COMPOSANT TRANSPORT CONTROLS */}
@@ -1104,7 +1129,10 @@ const PianoRollCompleteTestPage: React.FC = () => {
             <div className="flex">
               
               {/* COMPOSANT PIANO KEYS */}
-              <PianoKeys visibleNotes={visibleNotes} />
+              <PianoKeys 
+                visibleNotes={visibleNotes} 
+                coloringMode={coloringMode}
+              />
 
               {/* COMPOSANT PIANO GRID COMPLETE */}
               <PianoGridComplete
@@ -1114,6 +1142,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
                 stepCount={stepCount}
                 accentSteps={accentSteps}
                 cellWidth={cellWidth}
+                coloringMode={coloringMode}
                 
                 // Playback state
                 currentStep={currentStep}
@@ -1187,6 +1216,8 @@ const PianoRollCompleteTestPage: React.FC = () => {
             onSnapToScaleChange={setSnapToScale}
             chordMode={chordMode}
             onChordModeChange={setChordMode}
+            coloringMode={coloringMode}
+            onColoringModeChange={setColoringMode}
             onNoteCorrection={handleNoteCorrection}
             onChordInsert={handleChordInsert}
             isMinimized={scaleHelperMinimized}
@@ -1437,6 +1468,12 @@ const PianoRollCompleteTestPage: React.FC = () => {
         onMidiCallback={setMidiCallback}
         isAudioEnabled={isAudioEnabled}
         onAudioEnabledChange={setAudioEnabled}
+      />
+
+      {/* Help Dialog - Guide d'utilisation */}
+      <HelpDialog
+        isOpen={showHelpDialog}
+        onClose={() => setShowHelpDialog(false)}
       />
     </div>
   );
