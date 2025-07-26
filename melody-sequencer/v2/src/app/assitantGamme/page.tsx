@@ -17,6 +17,16 @@ import { StepHeader } from './components/StepHeader';
 import { PianoGridComplete } from './components/PianoGridComplete';
 import { MidiOutputPanel } from '../../components/MidiOutputPanel';
 
+// Import des composants Scale Helper
+import { ScalePanel } from './components/ScalePanel';
+import { ChordGrid } from './components/ChordGrid';
+import { TheoryDisplay } from './components/TheoryDisplay';
+
+// Import de la logique musicale
+import { ScaleHelper } from './lib/ScaleHelper';
+import { ChordSuggestions, ExtendedChord } from './lib/ChordSuggestions';
+import { MusicalTheory } from './lib/MusicalTheory';
+
 // Import des types locaux
 import { NoteEvent, NoteId, SelectionRectangle, ClipboardData } from './types';
 
@@ -105,6 +115,19 @@ const PianoRollCompleteTestPage: React.FC = () => {
   const [showMidiOutputDialog, setShowMidiOutputDialog] = useState(false);
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<SequencerPreset[]>([]);
+
+  // États Scale Helper
+  const [snapToScale, setSnapToScale] = useState<boolean>(false);
+  const [chordMode, setChordMode] = useState<boolean>(false);
+  const [scaleHelperMinimized, setScaleHelperMinimized] = useState<boolean>(false);
+  const [showChordGrid, setShowChordGrid] = useState<boolean>(true);
+  const [showTheoryDisplay, setShowTheoryDisplay] = useState<boolean>(true);
+  const [chordHistory, setChordHistory] = useState<ExtendedChord[]>([]);
+
+  // Systèmes musicaux
+  const [scaleHelper] = useState(() => new ScaleHelper('major', 'C'));
+  const [chordSuggestions] = useState(() => new ChordSuggestions(scaleHelper));
+  const [musicalTheory] = useState(() => new MusicalTheory(scaleHelper));
 
   // Audio engine
   const { 
@@ -630,6 +653,42 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
+  // === FONCTIONS SCALE HELPER ===
+  const handlePatternChange = (newPattern: NoteEvent[]) => {
+    setPattern(newPattern);
+    saveToHistory('Pattern modifié par Scale Helper');
+  };
+
+  const handleNoteCorrection = (originalNote: string, correctedNote: string) => {
+    setExportStatus(`🔧 ${originalNote} → ${correctedNote}`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handleChordInsert = (chordNotes: string[], step: number) => {
+    setExportStatus(`🎹 Accord inséré: ${chordNotes.join('-')}`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
+  const handleChordSelect = (chord: ExtendedChord) => {
+    // Ajouter l'accord à l'historique
+    setChordHistory(prev => [...prev, chord].slice(-10)); // Garder les 10 derniers
+    
+    // Créer les événements de notes pour l'accord
+    const targetStep = mousePosition?.step ?? 0;
+    const chordEvents: NoteEvent[] = chord.notes.map((note, index) => ({
+      step: targetStep,
+      note: note + '4', // Octave par défaut
+      velocity: 100 - (index * 5), // Vélocités légèrement décroissantes
+      duration: 2, // Notes moyennes pour les accords
+      isActive: true
+    }));
+    
+    setPattern(prev => [...prev, ...chordEvents]);
+    saveToHistory(`Accord ${chord.name} ajouté`);
+    setExportStatus(`🎹 ${chord.name} ajouté`);
+    setTimeout(() => setExportStatus(''), 2000);
+  };
+
   // === FONCTIONS COPIER/COLLER ===
   const handleCopySelectedNotes = () => {
     const selectedNotesArray = getSelectedNotes(pattern, selectedNotes);
@@ -1075,65 +1134,150 @@ const PianoRollCompleteTestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Zone Assistant de Gammes */}
-        <div className="mt-6 p-4 bg-gradient-to-r from-emerald-800/50 to-teal-700/50 backdrop-blur-sm rounded-2xl border border-emerald-600/50">
-          <h2 className="text-lg font-bold mb-3 text-emerald-400">🎼 Assistant de Gammes - Scale Helper</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <button
-              onClick={() => {
-                // Accord C majeur (C-E-G)
-                const cMajorChord: NoteEvent[] = [
-                  { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 4 },
-                  { step: 0, note: 'E4', velocity: 100, isActive: true, duration: 4 },
-                  { step: 0, note: 'G4', velocity: 100, isActive: true, duration: 4 },
-                ];
-                setPattern(cMajorChord);
-                saveToHistory('Accord C majeur créé');
-              }}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
-            >
-              🎹 Accord C Majeur
-            </button>
-            
-            <button
-              onClick={() => {
-                // Gamme C majeur - C D E F G A B C
-                const cMajorScale: NoteEvent[] = [
-                  { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 2, note: 'D4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 4, note: 'E4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 6, note: 'F4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 8, note: 'G4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 10, note: 'A4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 12, note: 'B4', velocity: 100, isActive: true, duration: 1 },
-                  { step: 14, note: 'C5', velocity: 100, isActive: true, duration: 1 },
-                ];
-                setPattern(cMajorScale);
-                saveToHistory('Gamme C majeur créée');
-              }}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              🎵 Gamme C Majeur
-            </button>
+        {/* Scale Helper - Assistant de Gammes */}
+        <div className="mt-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-emerald-400">🎼 Scale Helper - Assistant Musical</h2>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setScaleHelperMinimized(!scaleHelperMinimized)}
+                className="px-3 py-1 bg-emerald-600/50 hover:bg-emerald-600 text-emerald-300 rounded-lg transition-colors text-sm"
+              >
+                {scaleHelperMinimized ? '🔼 Développer' : '🔽 Réduire'}
+              </button>
+              <button
+                onClick={() => setShowChordGrid(!showChordGrid)}
+                className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                  showChordGrid ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                }`}
+              >
+                🎹 Accords
+              </button>
+              <button
+                onClick={() => setShowTheoryDisplay(!showTheoryDisplay)}
+                className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                  showTheoryDisplay ? 'bg-purple-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
+                }`}
+              >
+                📊 Analyse
+              </button>
+            </div>
+          </div>
 
-            <button
-              onClick={() => {
-                setPattern([]);
-                setSelectedNotes(new Set());
-                saveToHistory('Pattern vidé');
-              }}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-            >
-              🗑️ Vider pattern
-            </button>
-          </div>
-          
-          <div className="text-sm text-emerald-300 space-y-1">
-            <p>• <strong>Assistant musical</strong> : Base piano roll pour intégrer les fonctionnalités Scale Helper</p>
-            <p>• <strong>Prochaines fonctionnalités</strong> : Snap-to-scale, suggestions d'accords, affichage des degrés</p>
-            <p>• <strong>Théorie musicale</strong> : Analyse harmonique automatique et aide à la composition</p>
-            <p>• <strong>Base stable</strong> : Architecture modulaire prête pour l'extension Scale Helper</p>
-          </div>
+          {/* Scale Panel - Contrôles principaux */}
+          <ScalePanel
+            pattern={pattern}
+            onPatternChange={handlePatternChange}
+            snapToScale={snapToScale}
+            onSnapToScaleChange={setSnapToScale}
+            chordMode={chordMode}
+            onChordModeChange={setChordMode}
+            onNoteCorrection={handleNoteCorrection}
+            onChordInsert={handleChordInsert}
+            isMinimized={scaleHelperMinimized}
+          />
+
+          {/* Layout flexible pour les composants additionnels */}
+          {!scaleHelperMinimized && (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {/* Grille d'accords */}
+              {showChordGrid && (
+                <ChordGrid
+                  scaleHelper={scaleHelper}
+                  chordHistory={chordHistory}
+                  onChordSelect={handleChordSelect}
+                  onChordPreview={(chord) => {
+                    // Preview audio optionnel
+                    console.log('Preview chord:', chord.name);
+                  }}
+                  onChordInsert={(chord, step) => {
+                    const chordEvents: NoteEvent[] = chord.notes.map((note, index) => ({
+                      step,
+                      note: note + '4',
+                      velocity: 100 - (index * 5),
+                      duration: 2,
+                      isActive: true
+                    }));
+                    setPattern(prev => [...prev, ...chordEvents]);
+                    saveToHistory(`Accord ${chord.name} inséré`);
+                  }}
+                  showExtensions={true}
+                  showVoiceLeading={false}
+                  maxSuggestions={12}
+                  compactMode={false}
+                />
+              )}
+
+              {/* Affichage théorique */}
+              {showTheoryDisplay && (
+                <TheoryDisplay
+                  pattern={pattern}
+                  scaleHelper={scaleHelper}
+                  musicalTheory={musicalTheory}
+                  showHarmony={true}
+                  showMelody={true}
+                  showPedagogy={true}
+                  showVisualization={false}
+                  displayMode="full"
+                />
+              )}
+            </div>
+          )}
+
+          {/* Boutons de test rapide */}
+          {!scaleHelperMinimized && (
+            <div className="bg-slate-800/50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-slate-300 mb-3">🧪 Tests rapides</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <button
+                  onClick={() => {
+                    const cMajorChord: NoteEvent[] = [
+                      { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 4 },
+                      { step: 0, note: 'E4', velocity: 85, isActive: true, duration: 4 },
+                      { step: 0, note: 'G4', velocity: 90, isActive: true, duration: 4 },
+                    ];
+                    setPattern(cMajorChord);
+                    saveToHistory('Test: Accord C majeur');
+                  }}
+                  className="px-3 py-2 bg-emerald-600/70 hover:bg-emerald-600 text-white rounded-lg transition-colors text-sm"
+                >
+                  🎹 Accord C Maj
+                </button>
+                
+                <button
+                  onClick={() => {
+                    const cMajorScale: NoteEvent[] = [
+                      { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 1 },
+                      { step: 2, note: 'D4', velocity: 95, isActive: true, duration: 1 },
+                      { step: 4, note: 'E4', velocity: 90, isActive: true, duration: 1 },
+                      { step: 6, note: 'F4', velocity: 95, isActive: true, duration: 1 },
+                      { step: 8, note: 'G4', velocity: 100, isActive: true, duration: 1 },
+                      { step: 10, note: 'A4', velocity: 95, isActive: true, duration: 1 },
+                      { step: 12, note: 'B4', velocity: 90, isActive: true, duration: 1 },
+                      { step: 14, note: 'C5', velocity: 100, isActive: true, duration: 1 },
+                    ];
+                    setPattern(cMajorScale);
+                    saveToHistory('Test: Gamme C majeur');
+                  }}
+                  className="px-3 py-2 bg-blue-600/70 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
+                >
+                  🎵 Gamme C Maj
+                </button>
+
+                <button
+                  onClick={() => {
+                    setPattern([]);
+                    setSelectedNotes(new Set());
+                    setChordHistory([]);
+                    saveToHistory('Test: Pattern vidé');
+                  }}
+                  className="px-3 py-2 bg-red-600/70 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
+                >
+                  🗑️ Reset
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pattern Info */}
