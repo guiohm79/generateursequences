@@ -357,6 +357,15 @@ npm run lint     # Linting (désactivé temporairement)
 
   ## 🎹 **MIDI INPUT TEMPS RÉEL - SYSTÈME COMPLET (Session 2025-07-26)**
   
+  ### **🚀 DÉPLOIEMENT ASSISTANTGAMME (Session 2025-07-27)** 
+  - **✅ Architecture copiée** : de `/pianorollBaseSettings` vers `/assitantGamme`
+  - **✅ MIDI Input hooks** : `useMidiInputForMode` + `useMidiConfig` + `useMidiConfigLoader`
+  - **✅ Callbacks temps réel** : `onNoteRecorded` avec position boucle calculée
+  - **✅ Interface utilisateur** : Barre status MIDI identique avec ARM/REC/STOP
+  - **✅ Workflow opérationnel** : ARM → REC+lecture → notes ajoutées temps réel → STOP
+  - **✅ Test réussi** : Build compilation OK + serveur démarré port 3001
+  - **🎼 Fonctionnalité unique** : MIDI Recording avec assistant gammes et coloration scale
+  
   ### **🎯 Architecture MIDI Input :**
   - **`MidiInputEngine.ts`** - Moteur Web MIDI API complet avec Web MIDI API native
   - **`useMidiInput.ts`** - Hook React avec polling d'état (même pattern que MIDI Output)
