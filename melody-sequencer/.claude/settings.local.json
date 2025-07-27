@@ -34,7 +34,8 @@
       "Bash(npx tsc:*)",
       "Bash(timeout 10 curl -s http://localhost:3000/midiInput)",
       "Bash(timeout 5 curl -I http://localhost:3000/midiInput)",
-      "WebFetch(domain:codepen.io)"
+      "WebFetch(domain:codepen.io)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

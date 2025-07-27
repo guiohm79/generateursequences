@@ -500,17 +500,121 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
-  // === FONCTIONS DE SÉLECTION (simplifiées pour le test) ===
+  // === FONCTIONS DE SÉLECTION MULTIPLE PAR RECTANGLE ===
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStartPos, setSelectionStartPos] = useState<{ x: number; y: number } | null>(null);
+
   const handleGridMouseDown = (e: React.MouseEvent) => {
-    console.log('Grid mouse down');
+    // Ignorer si on est déjà en train de drag ou resize
+    if (dragState?.isDragging || resizeState?.isResizing) return;
+    
+    // Seulement pour les clics gauches et sans Ctrl (Ctrl est pour la sélection individuelle)
+    if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
+    
+    // Vérifier que le clic est sur une zone vide, pas sur une note
+    const target = e.target as HTMLElement;
+    if (target.closest('.grid-cell-empty') || target === e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      console.log('🖱️ Début sélection rectangle à:', { x, y });
+      
+      setIsSelecting(true);
+      setSelectionStartPos({ x, y });
+      setSelectionRect({
+        startX: x,
+        startY: y,
+        endX: x,
+        endY: y,
+        isSelecting: true
+      });
+      
+      // Désélectionner toutes les notes si on commence une nouvelle sélection
+      if (!e.shiftKey) {
+        setSelectedNotes(new Set());
+      }
+      
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handleGridMouseMove = (e: React.MouseEvent) => {
-    console.log('Grid mouse move');
+    if (!isSelecting || !selectionStartPos || !selectionRect) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setSelectionRect(prev => prev ? {
+      ...prev,
+      endX: x,
+      endY: y
+    } : null);
+    
+    // Debug - voir le rectangle en temps réel
+    console.log('🖱️ Sélection en cours:', {
+      startX: selectionRect.startX,
+      startY: selectionRect.startY,
+      endX: x,
+      endY: y,
+      width: Math.abs(x - selectionRect.startX),
+      height: Math.abs(y - selectionRect.startY)
+    });
   };
 
   const handleGridMouseUp = (e: React.MouseEvent) => {
-    console.log('Grid mouse up');
+    if (!isSelecting || !selectionRect) return;
+    
+    setIsSelecting(false);
+    setSelectionStartPos(null);
+    
+    // Calculer les notes dans le rectangle de sélection
+    const left = Math.min(selectionRect.startX, selectionRect.endX);
+    const right = Math.max(selectionRect.startX, selectionRect.endX);
+    const top = Math.min(selectionRect.startY, selectionRect.endY);
+    const bottom = Math.max(selectionRect.startY, selectionRect.endY);
+    
+    // Dimensions approximatives des cellules
+    const cellWidthPx = stepCount <= 16 ? 56 : stepCount <= 32 ? 40 : 32;
+    const cellHeightPx = 32;
+    
+    // Trouver les notes dans le rectangle
+    const selectedIds = new Set<string>();
+    const newSelection = e.shiftKey ? new Set(selectedNotes) : new Set<string>();
+    
+    pattern.forEach(note => {
+      if (!note.isActive) return;
+      
+      const noteIndex = visibleNotes.indexOf(note.note);
+      if (noteIndex === -1) return;
+      
+      const noteX = note.step * cellWidthPx;
+      const noteY = noteIndex * cellHeightPx;
+      
+      // Vérifier si la note est dans le rectangle
+      if (noteX >= left && noteX + cellWidthPx <= right &&
+          noteY >= top && noteY + cellHeightPx <= bottom) {
+        const noteId = createNoteId(note.step, note.note);
+        selectedIds.add(noteId);
+        newSelection.add(noteId);
+      }
+    });
+    
+    setSelectedNotes(newSelection);
+    setSelectionRect(null);
+    
+    console.log('🖱️ Fin sélection rectangle:', {
+      selectedCount: selectedIds.size,
+      rectangle: { left, right, top, bottom },
+      cellDimensions: { cellWidthPx, cellHeightPx }
+    });
+    
+    if (selectedIds.size > 0) {
+      setExportStatus(`⚈ ${selectedIds.size} note(s) sélectionnée(s) par rectangle`);
+      setTimeout(() => setExportStatus(''), 2000);
+    }
   };
 
   // === FONCTIONS TRANSPORT ===
@@ -836,7 +940,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
     setPattern(prev => prev.filter(note => note.step < stepCount));
   }, [stepCount]);
 
-  // Gestion globale des événements pour le drag (souris + tactile)
+  // Gestion globale des événements pour le drag (souris + tactile) + sélection
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (dragState?.isDragging) {
@@ -854,6 +958,12 @@ const PianoRollCompleteTestPage: React.FC = () => {
         const newDuration = Math.max(1, Math.min(stepCount - resizeState.step, resizeState.startDuration + stepDelta));
         
         setResizeState(prev => prev ? { ...prev, currentDuration: newDuration } : null);
+      }
+
+      // Gestion du rectangle de sélection global
+      if (isSelecting && selectionRect) {
+        // Note: Pour la sélection globale, on garde la logique dans handleGridMouseMove
+        // car on a besoin de la position relative au conteneur de grille
       }
     };
     
@@ -893,9 +1003,16 @@ const PianoRollCompleteTestPage: React.FC = () => {
         saveToHistory(`Durée ${resizeState.note} ajustée à ${resizeState.currentDuration}`);
         setResizeState(null);
       }
+
+      // Terminer la sélection si elle est en cours
+      if (isSelecting) {
+        setIsSelecting(false);
+        setSelectionStartPos(null);
+        setSelectionRect(null);
+      }
     };
     
-    if (dragState?.isDragging || resizeState?.isResizing) {
+    if (dragState?.isDragging || resizeState?.isResizing || isSelecting) {
       document.addEventListener('mousemove', handleGlobalMouseMove);
       document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
       document.addEventListener('mouseup', handleGlobalEnd);
@@ -908,7 +1025,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
         document.removeEventListener('touchend', handleGlobalEnd);
       };
     }
-  }, [dragState, resizeState, stepCount]);
+  }, [dragState, resizeState, stepCount, isSelecting, selectionRect]);
 
   // === RACCOURCIS CLAVIER ===
   useEffect(() => {
@@ -1273,7 +1390,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
         {/* Zone de test */}
         <div className="mt-6 p-4 bg-gradient-to-r from-green-800/50 to-green-700/50 backdrop-blur-sm rounded-2xl border border-green-600/50">
           <h2 className="text-lg font-bold mb-3 text-green-400">✅ Test Modulaire Complet + MIDI Recording en Temps Réel</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <button
               onClick={() => {
                 const testNote: NoteEvent = {
@@ -1316,16 +1433,48 @@ const PianoRollCompleteTestPage: React.FC = () => {
             >
               🗑️ Vider pattern
             </button>
+            
+            <button
+              onClick={() => {
+                const testNotes: NoteEvent[] = [
+                  { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 1 },
+                  { step: 2, note: 'E4', velocity: 80, isActive: true, duration: 1 },
+                  { step: 4, note: 'G4', velocity: 90, isActive: true, duration: 1 },
+                  { step: 6, note: 'C5', velocity: 85, isActive: true, duration: 1 },
+                  { step: 8, note: 'D4', velocity: 95, isActive: true, duration: 1 },
+                  { step: 10, note: 'F4', velocity: 75, isActive: true, duration: 1 },
+                ];
+                setPattern(testNotes);
+                saveToHistory('Pattern test sélection créé');
+              }}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              🖱️ Pattern test sélection
+            </button>
           </div>
           
           <div className="text-sm text-green-300 space-y-1">
             <p>• <strong>Composants modulaires</strong> : TransportControls + OctaveNavigation + StepHeader + PianoKeys + PianoGridComplete</p>
-            <p>• <strong>Interactions</strong> : Click pour ajouter/supprimer notes, Ctrl+click pour sélection</p>
+            <p>• <strong>Interactions</strong> : Click pour ajouter/supprimer notes, Ctrl+click pour sélection individuelle</p>
+            <p>• <strong>🖱️ Sélection multiple</strong> : Glisser-déposer pour rectangle de sélection, Shift+glisser pour ajouter</p>
             <p>• <strong>Audio</strong> : Play/Stop, tempo, vitesses (l'initialisation se fera dans l'intégration finale)</p>
             <p>• <strong>Export/Import</strong> : MIDI + Presets + Undo/Redo complets</p>
             <p>• <strong>🎹 MIDI Recording temps réel</strong> : ARM → REC → les notes jouées s'ajoutent en boucle → STOP</p>
           </div>
           
+          {/* Instructions sélection multiple */}
+          <div className="mt-4 p-3 bg-purple-900/30 rounded-lg border border-purple-500/30">
+            <h3 className="text-purple-300 font-semibold mb-2">🖱️ Instructions Sélection Multiple :</h3>
+            <ol className="text-xs text-purple-200 space-y-1 list-decimal list-inside">
+              <li><strong>Rectangle de sélection</strong> : Clic gauche + glisser sur zone vide pour dessiner un rectangle</li>
+              <li><strong>Sélection additive</strong> : Shift + glisser pour ajouter à la sélection existante</li>
+              <li><strong>Sélection individuelle</strong> : Ctrl + clic sur une note pour l'ajouter/retirer de la sélection</li>
+              <li><strong>Désélection</strong> : Clic sur zone vide (sans glisser) ou Echap pour tout désélectionner</li>
+              <li><strong>Actions sur sélection</strong> : Copier (Ctrl+C), Coller (Ctrl+V), Supprimer (Delete), Déplacer (flèches)</li>
+              <li><strong>Sélectionner tout</strong> : Ctrl+A pour sélectionner toutes les notes du pattern</li>
+            </ol>
+          </div>
+
           {/* Instructions MIDI Recording */}
           <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
             <h3 className="text-blue-300 font-semibold mb-2">🎹 Instructions MIDI Recording en Temps Réel :</h3>
