@@ -511,9 +511,11 @@ const PianoRollCompleteTestPage: React.FC = () => {
     // Seulement pour les clics gauches et sans Ctrl (Ctrl est pour la sélection individuelle)
     if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
     
-    // Vérifier que le clic est sur une zone vide, pas sur une note
+    // Empêcher la sélection seulement si on clique directement sur une note active
     const target = e.target as HTMLElement;
-    if (target.closest('.grid-cell-empty') || target === e.currentTarget) {
+    const isOnActiveNote = target.closest('[class*="bg-green-"], [class*="bg-red-"], [class*="bg-orange-"], [class*="bg-yellow-"]');
+    
+    if (!isOnActiveNote) {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
@@ -593,9 +595,14 @@ const PianoRollCompleteTestPage: React.FC = () => {
       const noteX = note.step * cellWidthPx;
       const noteY = noteIndex * cellHeightPx;
       
-      // Vérifier si la note est dans le rectangle
-      if (noteX >= left && noteX + cellWidthPx <= right &&
-          noteY >= top && noteY + cellHeightPx <= bottom) {
+      // Vérifier si la note chevauche avec le rectangle (intersection)
+      // La note est sélectionnée si elle touche le rectangle, même partiellement
+      const noteRight = noteX + cellWidthPx;
+      const noteBottom = noteY + cellHeightPx;
+      
+      const hasIntersection = !(noteRight < left || noteX > right || noteBottom < top || noteY > bottom);
+      
+      if (hasIntersection) {
         const noteId = createNoteId(note.step, note.note);
         selectedIds.add(noteId);
         newSelection.add(noteId);

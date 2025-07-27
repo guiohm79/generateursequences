@@ -511,14 +511,18 @@ const PianoRollCompleteTestPage: React.FC = () => {
     // Seulement pour les clics gauches et sans Ctrl (Ctrl est pour la sélection individuelle)
     if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
     
-    // Vérifier que le clic est sur une zone vide, pas sur une note
+    // Empêcher la sélection seulement si on clique directement sur une note active
     const target = e.target as HTMLElement;
-    if (target.closest('.grid-cell-empty') || target === e.currentTarget) {
-      const rect = e.currentTarget.getBoundingClientRect();
+    const isOnActiveNote = target.closest('[class*="bg-green-"], [class*="bg-red-"], [class*="bg-orange-"], [class*="bg-yellow-"]');
+    
+    if (!isOnActiveNote) {
+      // Utiliser getBoundingClientRect sur l'élément qui contient toute la grille
+      const gridContainer = e.currentTarget;
+      const rect = gridContainer.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
       
-      console.log('🖱️ Début sélection rectangle à:', { x, y });
+      console.log('🖱️ Début sélection rectangle à:', { x, y, target: target.className });
       
       setIsSelecting(true);
       setSelectionStartPos({ x, y });
@@ -552,16 +556,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
       endX: x,
       endY: y
     } : null);
-    
-    // Debug - voir le rectangle en temps réel
-    console.log('🖱️ Sélection en cours:', {
-      startX: selectionRect.startX,
-      startY: selectionRect.startY,
-      endX: x,
-      endY: y,
-      width: Math.abs(x - selectionRect.startX),
-      height: Math.abs(y - selectionRect.startY)
-    });
   };
 
   const handleGridMouseUp = (e: React.MouseEvent) => {
@@ -581,7 +575,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
     const cellHeightPx = 32;
     
     // Trouver les notes dans le rectangle
-    const selectedIds = new Set<string>();
     const newSelection = e.shiftKey ? new Set(selectedNotes) : new Set<string>();
     
     pattern.forEach(note => {
@@ -593,28 +586,22 @@ const PianoRollCompleteTestPage: React.FC = () => {
       const noteX = note.step * cellWidthPx;
       const noteY = noteIndex * cellHeightPx;
       
-      // Vérifier si la note est dans le rectangle
-      if (noteX >= left && noteX + cellWidthPx <= right &&
-          noteY >= top && noteY + cellHeightPx <= bottom) {
-        const noteId = createNoteId(note.step, note.note);
-        selectedIds.add(noteId);
-        newSelection.add(noteId);
+      // Vérifier si la note chevauche avec le rectangle (intersection)
+      // La note est sélectionnée si elle touche le rectangle, même partiellement
+      const noteRight = noteX + cellWidthPx;
+      const noteBottom = noteY + cellHeightPx;
+      
+      const hasIntersection = !(noteRight < left || noteX > right || noteBottom < top || noteY > bottom);
+      
+      if (hasIntersection) {
+        newSelection.add(createNoteId(note.step, note.note));
       }
     });
     
     setSelectedNotes(newSelection);
     setSelectionRect(null);
     
-    console.log('🖱️ Fin sélection rectangle:', {
-      selectedCount: selectedIds.size,
-      rectangle: { left, right, top, bottom },
-      cellDimensions: { cellWidthPx, cellHeightPx }
-    });
-    
-    if (selectedIds.size > 0) {
-      setExportStatus(`⚈ ${selectedIds.size} note(s) sélectionnée(s) par rectangle`);
-      setTimeout(() => setExportStatus(''), 2000);
-    }
+    console.log(`🎵 ${newSelection.size} notes sélectionnées dans le rectangle`);
   };
 
   // === FONCTIONS TRANSPORT ===
