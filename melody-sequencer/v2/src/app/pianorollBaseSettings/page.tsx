@@ -16,17 +16,9 @@ import { PianoKeys } from './components/PianoKeys';
 import { StepHeader } from './components/StepHeader';
 import { PianoGridComplete } from './components/PianoGridComplete';
 import { MidiOutputPanel } from '../../components/MidiOutputPanel';
-
-// Import des composants Scale Helper
-import { ScalePanel } from './components/ScalePanel';
-import { ChordGrid } from './components/ChordGrid';
-import { TheoryDisplay } from './components/TheoryDisplay';
-import { HelpDialog } from './components/HelpDialog';
-
-// Import de la logique musicale
-import { ScaleHelper } from './lib/ScaleHelper';
-import { ChordSuggestions, ExtendedChord } from './lib/ChordSuggestions';
-import { MusicalTheory } from './lib/MusicalTheory';
+import { MidiStatusBar } from '../../components/MidiStatusBar';
+import { useMidiInputForMode, useMidiConfig } from '../../contexts/MidiConfigContext';
+import { useMidiConfigLoader } from '../../hooks/useMidiConfigLoader';
 
 // Import des types locaux
 import { NoteEvent, NoteId, SelectionRectangle, ClipboardData } from './types';
@@ -42,12 +34,6 @@ import {
   PIANO_WIDTH,
   DEFAULT_VELOCITY
 } from './utils/constants';
-
-// Import du hook pour aperçu audio
-import { useChordPreview } from './hooks/useChordPreview';
-
-// Import du système de coloration
-import { scaleColoringHelper, ColoringMode } from './utils/scaleColoring';
 
 import {
   isBlackKey,
@@ -123,21 +109,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
   const [presetName, setPresetName] = useState('');
   const [presets, setPresets] = useState<SequencerPreset[]>([]);
 
-  // États Scale Helper
-  const [snapToScale, setSnapToScale] = useState<boolean>(false);
-  const [chordMode, setChordMode] = useState<boolean>(false);
-  const [scaleHelperMinimized, setScaleHelperMinimized] = useState<boolean>(false);
-  const [showChordGrid, setShowChordGrid] = useState<boolean>(true);
-  const [showTheoryDisplay, setShowTheoryDisplay] = useState<boolean>(true);
-  const [chordHistory, setChordHistory] = useState<ExtendedChord[]>([]);
-  const [coloringMode, setColoringMode] = useState<ColoringMode>('standard');
-  const [showHelpDialog, setShowHelpDialog] = useState<boolean>(false);
-
-  // Systèmes musicaux
-  const [scaleHelper] = useState(() => new ScaleHelper('major', 'C'));
-  const [chordSuggestions] = useState(() => new ChordSuggestions(scaleHelper));
-  const [musicalTheory] = useState(() => new MusicalTheory(scaleHelper));
-
   // Audio engine
   const { 
     isPlaying, 
@@ -152,20 +123,24 @@ const PianoRollCompleteTestPage: React.FC = () => {
     setNoteSpeed,
     setMidiCallback,
     setAudioEnabled,
-    initialize,
-    playNote,
-    stopNote,
-    stopAllNotes 
+    initialize 
   } = useSimpleAudio();
 
-  // Hook pour aperçu audio des accords
-  const chordPreview = useChordPreview({
-    initialize: async () => { await initialize(); },
-    playNote,
-    stopNote,
-    stopAll: stopAllNotes,
-    isInitialized
-  });
+  // MIDI Input simplifié
+  const midiInput = useMidiInputForMode();
+  
+  // Contexte global pour accéder aux fonctions de configuration
+  const { midiInput: globalMidiInput } = useMidiConfig();
+  
+  // Chargeur de configuration MIDI
+  const { reloadConfig } = useMidiConfigLoader();
+
+  // Debug MIDI state (réduit pour production)
+  useEffect(() => {
+    if (midiInput.isConnected) {
+      console.log('[pianorollBaseSettings] ✅ MIDI connecté:', midiInput.deviceName);
+    }
+  }, [midiInput.isConnected, midiInput.deviceName]);
 
   // Undo/Redo manager
   const [undoRedoManager] = useState(() => new UndoRedoManager());
@@ -497,6 +472,50 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
+  // Gestion du recording MIDI
+  const handleMidiRecordingStop = () => {
+    if (midiInput.isRecording) {
+      const recordedNotes = midiInput.stopRecording();
+      if (recordedNotes && recordedNotes.length > 0) {
+        // Convertir les notes MIDI en NoteEvents
+        const noteEvents = midiInput.convertToNoteEvents(stepCount, tempo);
+        
+        if (noteEvents.length > 0) {
+          saveToHistory('MIDI Recording');
+          
+          // Ajouter les notes enregistrées au pattern existant
+          const newPattern = [...pattern];
+          noteEvents.forEach((recordedNote: any) => {
+            // Vérifier qu'il n'y a pas déjà une note au même endroit
+            const existingIndex = newPattern.findIndex(
+              n => n.step === recordedNote.step && n.note === recordedNote.note && n.isActive
+            );
+
+            const noteEvent: NoteEvent = {
+              step: recordedNote.step,
+              note: recordedNote.note,
+              velocity: recordedNote.velocity,
+              duration: recordedNote.duration || 1,
+              isActive: true
+            };
+
+            if (existingIndex >= 0) {
+              // Remplacer la note existante
+              newPattern[existingIndex] = noteEvent;
+            } else {
+              // Ajouter la nouvelle note
+              newPattern.push(noteEvent);
+            }
+          });
+
+          setPattern(newPattern);
+          setExportStatus(`✅ ${noteEvents.length} notes MIDI ajoutées`);
+          setTimeout(() => setExportStatus(''), 3000);
+        }
+      }
+    }
+  };
+
   const convertToMidiNotes = (): MidiNote[] => {
     return pattern.filter(note => note.isActive).map(note => ({
       step: note.step,
@@ -674,42 +693,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
-  // === FONCTIONS SCALE HELPER ===
-  const handlePatternChange = (newPattern: NoteEvent[]) => {
-    setPattern(newPattern);
-    saveToHistory('Pattern modifié par Scale Helper');
-  };
-
-  const handleNoteCorrection = (originalNote: string, correctedNote: string) => {
-    setExportStatus(`🔧 ${originalNote} → ${correctedNote}`);
-    setTimeout(() => setExportStatus(''), 2000);
-  };
-
-  const handleChordInsert = (chordNotes: string[], step: number) => {
-    setExportStatus(`🎹 Accord inséré: ${chordNotes.join('-')}`);
-    setTimeout(() => setExportStatus(''), 2000);
-  };
-
-  const handleChordSelect = (chord: ExtendedChord) => {
-    // Ajouter l'accord à l'historique
-    setChordHistory(prev => [...prev, chord].slice(-10)); // Garder les 10 derniers
-    
-    // Créer les événements de notes pour l'accord
-    const targetStep = mousePosition?.step ?? 0;
-    const chordEvents: NoteEvent[] = chord.notes.map((note, index) => ({
-      step: targetStep,
-      note: note + '4', // Octave par défaut
-      velocity: 100 - (index * 5), // Vélocités légèrement décroissantes
-      duration: 2, // Notes moyennes pour les accords
-      isActive: true
-    }));
-    
-    setPattern(prev => [...prev, ...chordEvents]);
-    saveToHistory(`Accord ${chord.name} ajouté`);
-    setExportStatus(`🎹 ${chord.name} ajouté`);
-    setTimeout(() => setExportStatus(''), 2000);
-  };
-
   // === FONCTIONS COPIER/COLLER ===
   const handleCopySelectedNotes = () => {
     const selectedNotesArray = getSelectedNotes(pattern, selectedNotes);
@@ -800,11 +783,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
     // Initialiser l'audio engine automatiquement
     initialize();
   }, [initialize]);
-
-  // Configurer le système de coloration quand la gamme ou le mode change
-  useEffect(() => {
-    scaleColoringHelper.configure(scaleHelper, coloringMode);
-  }, [scaleHelper, coloringMode]);
 
   useEffect(() => {
     if (pattern.length === 0) {
@@ -1018,23 +996,104 @@ const PianoRollCompleteTestPage: React.FC = () => {
       <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-6">
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-                🎼 Assistant de Gammes - Scale Helper
-              </h1>
-              <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Assistant musical intelligent avec suggestions d'accords et théorie intégrée</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            🎹 Piano Roll - Test Modulaire Complet
+          </h1>
+          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Test de tous les composants modulaires ensemble</p>
+        </div>
+
+        {/* Barre de status MIDI avec recording personnalisé */}
+        <div className="bg-gray-900 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-between">
+            {/* Status MIDI */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  midiInput.isConnected ? 'bg-green-500' : 'bg-gray-500'
+                }`} />
+                <span className="text-gray-300">MIDI Input:</span>
+                <span className={midiInput.isConnected ? 'text-green-400' : 'text-gray-400'}>
+                  {midiInput.isConnected ? midiInput.deviceName : 'Déconnecté'}
+                </span>
+              </div>
+
+              {midiInput.isConnected && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300">Playthrough:</span>
+                    <span className={midiInput.playthroughEnabled ? 'text-green-400' : 'text-gray-400'}>
+                      {midiInput.playthroughEnabled ? '🔊' : '🔇'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300">Recording:</span>
+                    <span className={midiInput.recordEnabled ? 'text-orange-400' : 'text-gray-400'}>
+                      {midiInput.recordEnabled ? (midiInput.isRecording ? '🔴' : '⚪') : '⭕'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300">Notes:</span>
+                    <span className="text-white font-mono">
+                      {midiInput.activeNotesCount}
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-            
-            {/* Bouton d'aide */}
-            <button
-              onClick={() => setShowHelpDialog(true)}
-              className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 text-sm font-medium shadow-lg"
-              title="Ouvrir le guide d'utilisation du Scale Helper"
-            >
-              <span className="text-lg">📚</span>
-              <span className="hidden sm:inline">Guide</span>
-            </button>
+
+            {/* Contrôles */}
+            <div className="flex items-center gap-2">
+              {/* Toggle Recording - TOUJOURS visible quand MIDI connecté */}
+              {midiInput.isConnected && (
+                <button
+                  onClick={() => {
+                    globalMidiInput.setRecordEnabled(!midiInput.recordEnabled);
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    midiInput.recordEnabled
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : 'bg-gray-600 hover:bg-gray-700 text-gray-300'
+                  }`}
+                  title={`${midiInput.recordEnabled ? 'Désactiver' : 'Activer'} l'enregistrement MIDI`}
+                >
+                  {midiInput.recordEnabled ? '⏺️ ARM' : '⭕ ARM'}
+                </button>
+              )}
+
+              {/* Bouton Record/Stop - visible seulement si ARM activé */}
+              {midiInput.isConnected && midiInput.recordEnabled && (
+                <button
+                  onClick={midiInput.isRecording ? handleMidiRecordingStop : midiInput.startRecording}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    midiInput.isRecording
+                      ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                >
+                  {midiInput.isRecording ? '⏹️ Stop' : '⏺️ Rec'}
+                </button>
+              )}
+
+              {/* Panic */}
+              {midiInput.isConnected && (
+                <button
+                  onClick={midiInput.panic}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition-colors"
+                >
+                  🛑 panic
+                </button>
+              )}
+
+              {/* Config */}
+              <button
+                onClick={() => window.open('/configuration', '_blank')}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+              >
+                ⚙️ Config
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1129,10 +1188,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
             <div className="flex">
               
               {/* COMPOSANT PIANO KEYS */}
-              <PianoKeys 
-                visibleNotes={visibleNotes} 
-                coloringMode={coloringMode}
-              />
+              <PianoKeys visibleNotes={visibleNotes} />
 
               {/* COMPOSANT PIANO GRID COMPLETE */}
               <PianoGridComplete
@@ -1142,7 +1198,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
                 stepCount={stepCount}
                 accentSteps={accentSteps}
                 cellWidth={cellWidth}
-                coloringMode={coloringMode}
                 
                 // Playback state
                 currentStep={currentStep}
@@ -1178,154 +1233,60 @@ const PianoRollCompleteTestPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Scale Helper - Assistant de Gammes */}
-        <div className="mt-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-emerald-400">🎼 Scale Helper - Assistant Musical</h2>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setScaleHelperMinimized(!scaleHelperMinimized)}
-                className="px-3 py-1 bg-emerald-600/50 hover:bg-emerald-600 text-emerald-300 rounded-lg transition-colors text-sm"
-              >
-                {scaleHelperMinimized ? '🔼 Développer' : '🔽 Réduire'}
-              </button>
-              <button
-                onClick={() => setShowChordGrid(!showChordGrid)}
-                className={`px-3 py-1 rounded-lg transition-colors text-sm ${
-                  showChordGrid ? 'bg-blue-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                }`}
-              >
-                🎹 Accords
-              </button>
-              <button
-                onClick={() => setShowTheoryDisplay(!showTheoryDisplay)}
-                className={`px-3 py-1 rounded-lg transition-colors text-sm ${
-                  showTheoryDisplay ? 'bg-purple-600 text-white' : 'bg-slate-600 text-slate-300 hover:bg-slate-500'
-                }`}
-              >
-                📊 Analyse
-              </button>
-            </div>
+        {/* Zone de test */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-green-800/50 to-green-700/50 backdrop-blur-sm rounded-2xl border border-green-600/50">
+          <h2 className="text-lg font-bold mb-3 text-green-400">✅ Test Modulaire Complet</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <button
+              onClick={() => {
+                const testNote: NoteEvent = {
+                  step: 0,
+                  note: 'C4',
+                  velocity: 100,
+                  isActive: true,
+                  duration: 1
+                };
+                setPattern([testNote]);
+                saveToHistory('Test note ajoutée');
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              🎵 Ajouter note test
+            </button>
+            
+            <button
+              onClick={() => {
+                const testNotes: NoteEvent[] = [
+                  { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 2 },
+                  { step: 4, note: 'E4', velocity: 80, isActive: true, duration: 1 },
+                  { step: 8, note: 'G4', velocity: 90, isActive: true, duration: 3 },
+                ];
+                setPattern(testNotes);
+                saveToHistory('Pattern avec notes longues créé');
+              }}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              🎼 Pattern avec notes longues
+            </button>
+
+            <button
+              onClick={() => {
+                setPattern([]);
+                setSelectedNotes(new Set());
+                saveToHistory('Pattern vidé');
+              }}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+            >
+              🗑️ Vider pattern
+            </button>
           </div>
-
-          {/* Scale Panel - Contrôles principaux */}
-          <ScalePanel
-            pattern={pattern}
-            onPatternChange={handlePatternChange}
-            snapToScale={snapToScale}
-            onSnapToScaleChange={setSnapToScale}
-            chordMode={chordMode}
-            onChordModeChange={setChordMode}
-            coloringMode={coloringMode}
-            onColoringModeChange={setColoringMode}
-            onNoteCorrection={handleNoteCorrection}
-            onChordInsert={handleChordInsert}
-            isMinimized={scaleHelperMinimized}
-          />
-
-          {/* Layout flexible pour les composants additionnels */}
-          {!scaleHelperMinimized && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {/* Grille d'accords */}
-              {showChordGrid && (
-                <ChordGrid
-                  scaleHelper={scaleHelper}
-                  chordHistory={chordHistory}
-                  onChordSelect={handleChordSelect}
-                  onChordPreview={(chord) => {
-                    console.log('Preview chord:', chord.name);
-                    setExportStatus(`🔊 Aperçu: ${chord.name}`);
-                    setTimeout(() => setExportStatus(''), 1500);
-                  }}
-                  onChordInsert={(chord, step) => {
-                    const chordEvents: NoteEvent[] = chord.notes.map((note, index) => ({
-                      step,
-                      note: note + '4',
-                      velocity: 100 - (index * 5),
-                      duration: 2,
-                      isActive: true
-                    }));
-                    setPattern(prev => [...prev, ...chordEvents]);
-                    saveToHistory(`Accord ${chord.name} inséré`);
-                  }}
-                  audioEngine={chordPreview}
-                  showExtensions={true}
-                  showVoiceLeading={false}
-                  maxSuggestions={12}
-                  compactMode={false}
-                />
-              )}
-
-              {/* Affichage théorique */}
-              {showTheoryDisplay && (
-                <TheoryDisplay
-                  pattern={pattern}
-                  scaleHelper={scaleHelper}
-                  musicalTheory={musicalTheory}
-                  showHarmony={true}
-                  showMelody={true}
-                  showPedagogy={true}
-                  showVisualization={false}
-                  displayMode="full"
-                />
-              )}
-            </div>
-          )}
-
-          {/* Boutons de test rapide */}
-          {!scaleHelperMinimized && (
-            <div className="bg-slate-800/50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-slate-300 mb-3">🧪 Tests rapides</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <button
-                  onClick={() => {
-                    const cMajorChord: NoteEvent[] = [
-                      { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 4 },
-                      { step: 0, note: 'E4', velocity: 85, isActive: true, duration: 4 },
-                      { step: 0, note: 'G4', velocity: 90, isActive: true, duration: 4 },
-                    ];
-                    setPattern(cMajorChord);
-                    saveToHistory('Test: Accord C majeur');
-                  }}
-                  className="px-3 py-2 bg-emerald-600/70 hover:bg-emerald-600 text-white rounded-lg transition-colors text-sm"
-                >
-                  🎹 Accord C Maj
-                </button>
-                
-                <button
-                  onClick={() => {
-                    const cMajorScale: NoteEvent[] = [
-                      { step: 0, note: 'C4', velocity: 100, isActive: true, duration: 1 },
-                      { step: 2, note: 'D4', velocity: 95, isActive: true, duration: 1 },
-                      { step: 4, note: 'E4', velocity: 90, isActive: true, duration: 1 },
-                      { step: 6, note: 'F4', velocity: 95, isActive: true, duration: 1 },
-                      { step: 8, note: 'G4', velocity: 100, isActive: true, duration: 1 },
-                      { step: 10, note: 'A4', velocity: 95, isActive: true, duration: 1 },
-                      { step: 12, note: 'B4', velocity: 90, isActive: true, duration: 1 },
-                      { step: 14, note: 'C5', velocity: 100, isActive: true, duration: 1 },
-                    ];
-                    setPattern(cMajorScale);
-                    saveToHistory('Test: Gamme C majeur');
-                  }}
-                  className="px-3 py-2 bg-blue-600/70 hover:bg-blue-600 text-white rounded-lg transition-colors text-sm"
-                >
-                  🎵 Gamme C Maj
-                </button>
-
-                <button
-                  onClick={() => {
-                    setPattern([]);
-                    setSelectedNotes(new Set());
-                    setChordHistory([]);
-                    saveToHistory('Test: Pattern vidé');
-                  }}
-                  className="px-3 py-2 bg-red-600/70 hover:bg-red-600 text-white rounded-lg transition-colors text-sm"
-                >
-                  🗑️ Reset
-                </button>
-              </div>
-            </div>
-          )}
+          
+          <div className="text-sm text-green-300 space-y-1">
+            <p>• <strong>Composants modulaires</strong> : TransportControls + OctaveNavigation + StepHeader + PianoKeys + PianoGridComplete</p>
+            <p>• <strong>Interactions</strong> : Click pour ajouter/supprimer notes, Ctrl+click pour sélection</p>
+            <p>• <strong>Audio</strong> : Play/Stop, tempo, vitesses (l'initialisation se fera dans l'intégration finale)</p>
+            <p>• <strong>Export/Import</strong> : MIDI + Presets + Undo/Redo complets</p>
+          </div>
         </div>
 
         {/* Pattern Info */}
@@ -1468,12 +1429,6 @@ const PianoRollCompleteTestPage: React.FC = () => {
         onMidiCallback={setMidiCallback}
         isAudioEnabled={isAudioEnabled}
         onAudioEnabledChange={setAudioEnabled}
-      />
-
-      {/* Help Dialog - Guide d'utilisation */}
-      <HelpDialog
-        isOpen={showHelpDialog}
-        onClose={() => setShowHelpDialog(false)}
       />
     </div>
   );

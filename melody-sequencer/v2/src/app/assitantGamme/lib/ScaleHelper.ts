@@ -179,7 +179,7 @@ export class ScaleHelper {
    * Obtenir l'index d'une note dans le cercle chromatique
    */
   private getNoteIndex(note: string): number {
-    return CHROMATIC_NOTES.indexOf(note);
+    return CHROMATIC_NOTES.indexOf(note as any);
   }
 
   /**
@@ -412,7 +412,7 @@ export class ScaleHelper {
    * Convertir une note en format MIDI number
    */
   static noteToMidiNumber(note: string, octave: number): number {
-    const noteIndex = CHROMATIC_NOTES.indexOf(note);
+    const noteIndex = CHROMATIC_NOTES.indexOf(note as any);
     if (noteIndex === -1) return 60; // C4 par défaut
     return (octave + 1) * 12 + noteIndex;
   }

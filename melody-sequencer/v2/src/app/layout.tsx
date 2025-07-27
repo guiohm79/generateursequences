@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { MidiConfigProvider } from '../contexts/MidiConfigContext';
 
 export const metadata: Metadata = {
   title: 'Melody Sequencer V2',
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <MidiConfigProvider>
+          {children}
+        </MidiConfigProvider>
       </body>
     </html>
   );

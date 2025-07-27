@@ -40,6 +40,7 @@ export class MidiInputEngine {
   private recordedNotes: RecordedNote[] = [];
   private activeNotes = new Set<string>(); // Notes actuellement pressées
   private recordStartTime: number = 0;
+  private isCurrentlyRecording: boolean = false; // État séparé pour l'enregistrement
 
   // Callbacks pour intégration externe
   private onNoteRecorded?: (note: RecordedNote) => void;
@@ -114,7 +115,6 @@ export class MidiInputEngine {
       this.handleMidiMessage(event);
     };
 
-    console.log('[MidiInputEngine] Device selected:', this.selectedDevice.name);
     return true;
   }
 
@@ -123,7 +123,6 @@ export class MidiInputEngine {
    */
   setConfig(newConfig: Partial<MidiInputConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    console.log('[MidiInputEngine] Config updated:', this.config);
   }
 
   /**
@@ -132,16 +131,14 @@ export class MidiInputEngine {
   startRecording(): void {
     this.recordedNotes = [];
     this.recordStartTime = performance.now();
-    this.config.recordEnabled = true;
-    console.log('[MidiInputEngine] ✅ Recording started');
+    this.isCurrentlyRecording = true;
   }
 
   /**
    * Arrêter l'enregistrement
    */
   stopRecording(): RecordedNote[] {
-    this.config.recordEnabled = false;
-    console.log('[MidiInputEngine] ⏹️ Recording stopped, notes:', this.recordedNotes.length);
+    this.isCurrentlyRecording = false;
     return [...this.recordedNotes];
   }
 
@@ -149,7 +146,8 @@ export class MidiInputEngine {
    * Gérer les messages MIDI entrants
    */
   private handleMidiMessage(event: MIDIMessageEvent): void {
-    const [status, note, velocity] = event.data;
+    if (!event.data || event.data.length < 3) return;
+    const [status, note, velocity] = Array.from(event.data);
     
     // Extraire le type de message et le canal
     const messageType = status & 0xF0;
@@ -190,8 +188,8 @@ export class MidiInputEngine {
       this.onPlaythrough(transposedNote, scaledVelocity, true);
     }
 
-    // Enregistrement si activé
-    if (this.config.recordEnabled) {
+    // Enregistrement si activé ET en cours
+    if (this.config.recordEnabled && this.isCurrentlyRecording) {
       const recordedNote: RecordedNote = {
         note: transposedNote,
         velocity: scaledVelocity,
@@ -205,7 +203,6 @@ export class MidiInputEngine {
       }
     }
 
-    console.log(`[MidiInputEngine] NOTE ON: ${transposedNote} vel:${scaledVelocity}`);
   }
 
   /**
@@ -223,7 +220,6 @@ export class MidiInputEngine {
       this.onPlaythrough(transposedNote, 0, false);
     }
 
-    console.log(`[MidiInputEngine] NOTE OFF: ${transposedNote}`);
   }
 
   /**
@@ -291,7 +287,7 @@ export class MidiInputEngine {
 
       noteEvents.push({
         step,
-        note: noteIndex,
+        note: recordedNote.note, // Utilise directement la note string (ex: "C4")
         velocity: recordedNote.velocity,
         duration: 1, // Durée par défaut
         isActive: true
@@ -331,7 +327,7 @@ export class MidiInputEngine {
       config: { ...this.config },
       activeNotesCount: this.activeNotes.size,
       recordedNotesCount: this.recordedNotes.length,
-      isRecording: this.config.recordEnabled
+      isRecording: this.isCurrentlyRecording
     };
   }
 
@@ -340,7 +336,6 @@ export class MidiInputEngine {
    */
   panic(): void {
     this.activeNotes.clear();
-    console.log('[MidiInputEngine] Panic - all active notes cleared');
   }
 
   /**
@@ -354,6 +349,5 @@ export class MidiInputEngine {
     this.midiAccess = null;
     this.recordedNotes = [];
     this.activeNotes.clear();
-    console.log('[MidiInputEngine] Disposed');
   }
 }

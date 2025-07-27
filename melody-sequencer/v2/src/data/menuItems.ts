@@ -15,6 +15,15 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'debug',
     priority: 1
   },
+  {
+    id: 'pianoroll-base-settings',
+    title: '🎹 Piano Roll + MIDI Config Test',
+    description: '🧪 TEST - Mode test pour l\'intégration MIDI Input simplifiée avec configuration centralisée',
+    href: '/pianorollBaseSettings',
+    status: 'testing',
+    category: 'debug',
+    priority: 2
+  },
 
   // === CORE FEATURES ===
   {
@@ -55,16 +64,17 @@ export const MENU_ITEMS: MenuItem[] = [
     category: 'experimental',
     priority: 1
   },
+  
+  // === CONFIGURATION ===
   {
-    id: 'midi-input',
-    title: '🎹 MIDI Input - Contrôle Clavier Maître',
-    description: '✅ NOUVEAU - Contrôlez le piano roll avec votre clavier MIDI (recording + playthrough temps réel)',
-    href: '/midiInput',
+    id: 'configuration',
+    title: '🔧 Configuration Globale',
+    description: '⚙️ NOUVEAU - Paramètres centralisés MIDI IN/OUT, audio, thèmes, settings globaux',
+    href: '/configuration',
     status: 'stable',
-    category: 'features',
+    category: 'tools',
     priority: 1
   },
-  
 
 ];
 

@@ -11,12 +11,9 @@ import { MidiInputDevice } from '../lib/MidiInputEngine';
 interface MidiInputPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onMidiCallback?: (callback: any) => void;
-  onNotesRecorded?: (notes: any[]) => void;
-  onConnectionChange?: (connected: boolean) => void;
 }
 
-export function MidiInputPanel({ isOpen, onClose, onMidiCallback, onNotesRecorded, onConnectionChange }: MidiInputPanelProps) {
+export function MidiInputPanel({ isOpen, onClose }: MidiInputPanelProps) {
   const {
     isInitialized,
     selectedDevice,
@@ -50,31 +47,8 @@ export function MidiInputPanel({ isOpen, onClose, onMidiCallback, onNotesRecorde
     }
   }, [isInitialized, initialize]);
 
-  // Configurer les callbacks pour le playthrough et l'enregistrement
-  useEffect(() => {
-    setCallbacks({
-      onNoteRecorded: (note) => {
-        console.log('[MidiInputPanel] Note recorded:', note);
-      },
-      onPlaythrough: (note, velocity, isNoteOn) => {
-        console.log('[MidiInputPanel] Playthrough:', note, velocity, isNoteOn);
-        // Appeler le callback parent pour le playthrough audio
-        if (onMidiCallback) {
-          if (isNoteOn) {
-            onMidiCallback.onNoteOn?.(note, velocity);
-          } else {
-            onMidiCallback.onNoteOff?.(note);
-          }
-        }
-      }
-    });
-  }, [setCallbacks, onMidiCallback]);
-
-  // Notifier la connexion au parent
-  useEffect(() => {
-    const isConnected = !!(selectedDevice && config.playthroughEnabled);
-    onConnectionChange?.(isConnected);
-  }, [selectedDevice, config.playthroughEnabled, onConnectionChange]);
+  // ⚠️ CALLBACKS SUPPRIMÉS - Maintenant gérés dans la page principale
+  // Cela résout le problème de persistance après fermeture du dialog
 
   // Gestion de la touche Échap
   useEffect(() => {
@@ -96,11 +70,8 @@ export function MidiInputPanel({ isOpen, onClose, onMidiCallback, onNotesRecorde
 
   const handleStopRecording = () => {
     const recordedNotes = stopRecording();
-    if (onNotesRecorded) {
-      // Convertir en NoteEvents pour le piano roll
-      const noteEvents = convertToNoteEvents(64, 120); // Assume 64 steps, 120 BPM
-      onNotesRecorded(noteEvents);
-    }
+    console.log('[MidiInputPanel] Recording stopped, notes:', recordedNotes.length);
+    // Les notes sont maintenant gérées directement dans la page principale
   };
 
   if (!isOpen) return null;
@@ -173,68 +144,103 @@ export function MidiInputPanel({ isOpen, onClose, onMidiCallback, onNotesRecorde
 
               {selectedDevice && (
                 <>
-                  {/* Contrôles principaux */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="playthrough-enabled"
-                        checked={config.playthroughEnabled}
-                        onChange={(e) => setPlaythroughEnabled(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="playthrough-enabled" className="text-sm text-gray-300">
-                        🔊 Playthrough audio (entendre ce qu'on joue)
-                      </label>
+                  {/* Contrôles principaux style arpeggiateur */}
+                  <div className="bg-gray-800 rounded-lg p-4 space-y-4">
+                    <h4 className="text-sm font-semibold text-white border-b border-gray-700 pb-2">
+                      🎛️ Contrôles Audio & Enregistrement
+                    </h4>
+                    
+                    {/* Playthrough avec indicateur */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-300">🔊 Playthrough</label>
+                        <div className={`w-2 h-2 rounded-full ${
+                          config.playthroughEnabled ? 'bg-green-500 animate-pulse' : 'bg-gray-600'
+                        }`} />
+                      </div>
+                      <button
+                        onClick={() => setPlaythroughEnabled(!config.playthroughEnabled)}
+                        className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                          config.playthroughEnabled 
+                            ? 'bg-green-600 hover:bg-green-700 text-white' 
+                            : 'bg-gray-600 hover:bg-gray-700 text-gray-300'
+                        }`}
+                      >
+                        {config.playthroughEnabled ? 'ON' : 'OFF'}
+                      </button>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        id="record-enabled"
-                        checked={config.recordEnabled}
-                        onChange={(e) => setRecordEnabled(e.target.checked)}
-                        className="w-4 h-4"
-                      />
-                      <label htmlFor="record-enabled" className="text-sm text-gray-300">
-                        🎥 Enregistrement vers piano roll
-                      </label>
+                    {/* Recording avec indicateur */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-300">🎥 Recording</label>
+                        <div className={`w-2 h-2 rounded-full ${
+                          config.recordEnabled ? 'bg-red-500 animate-pulse' : 'bg-gray-600'
+                        }`} />
+                      </div>
+                      <button
+                        onClick={() => setRecordEnabled(!config.recordEnabled)}
+                        className={`px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                          config.recordEnabled 
+                            ? 'bg-red-600 hover:bg-red-700 text-white' 
+                            : 'bg-gray-600 hover:bg-gray-700 text-gray-300'
+                        }`}
+                      >
+                        {config.recordEnabled ? 'ARMED' : 'OFF'}
+                      </button>
+                    </div>
+
+                    {/* Status actuel */}
+                    <div className="flex justify-between text-xs text-gray-400 pt-2 border-t border-gray-700">
+                      <span>Notes actives: {activeNotesCount}</span>
+                      <span>Notes enreg: {recordedNotesCount}</span>
                     </div>
                   </div>
 
                   {/* Contrôles d'enregistrement */}
                   {config.recordEnabled && (
-                    <div className="bg-gray-800 rounded p-3 space-y-3">
+                    <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-300">Enregistrement :</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-red-300 font-medium">🎥 Recording Session</span>
+                          {isRecording && (
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                          )}
+                        </div>
                         <div className="flex gap-2">
                           {!isRecording ? (
                             <button
                               onClick={handleStartRecording}
-                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-colors font-medium flex items-center gap-1"
                             >
-                              ⏺️ Démarrer
+                              ⏺️ REC
                             </button>
                           ) : (
                             <button
                               onClick={handleStopRecording}
-                              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded transition-colors"
+                              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors font-medium flex items-center gap-1 animate-pulse"
                             >
-                              ⏹️ Arrêter
+                              ⏹️ STOP
                             </button>
                           )}
                         </div>
                       </div>
                       
-                      <div className="flex justify-between text-xs text-gray-400">
-                        <span>Notes enregistrées :</span>
-                        <span>{recordedNotesCount}</span>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="text-center">
+                          <div className="text-lg font-mono text-white">{recordedNotesCount}</div>
+                          <div className="text-xs text-gray-400">Notes captured</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-lg font-mono text-white">{activeNotesCount}</div>
+                          <div className="text-xs text-gray-400">Notes playing</div>
+                        </div>
                       </div>
                       
                       {isRecording && (
-                        <div className="text-xs text-red-400 flex items-center gap-1">
+                        <div className="text-xs text-red-300 flex items-center justify-center gap-2 py-2 bg-red-800/30 rounded">
                           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                          Enregistrement en cours...
+                          Recording to Piano Roll...
                         </div>
                       )}
                     </div>
@@ -250,54 +256,75 @@ export function MidiInputPanel({ isOpen, onClose, onMidiCallback, onNotesRecorde
                     </button>
                     
                     {showAdvanced && (
-                      <div className="mt-3 space-y-3 bg-gray-800 rounded p-3">
+                      <div className="mt-3 bg-gray-800 rounded-lg p-4 space-y-4">
+                        <h4 className="text-sm font-semibold text-white border-b border-gray-700 pb-2">
+                          ⚙️ Configuration MIDI
+                        </h4>
+
                         {/* Canal MIDI */}
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">
-                            Canal MIDI (-1 = tous) :
+                        <div className="space-y-2">
+                          <label className="flex items-center justify-between text-sm text-gray-300">
+                            <span>Canal MIDI</span>
+                            <span className="text-xs text-gray-400">
+                              {config.channel === -1 ? 'Tous canaux' : `Canal ${config.channel + 1}`}
+                            </span>
                           </label>
                           <select
                             value={config.channel}
                             onChange={(e) => setChannel(parseInt(e.target.value))}
-                            className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm"
+                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm hover:border-gray-500 transition-colors"
                           >
-                            <option value={-1}>Tous les canaux</option>
+                            <option value={-1}>🌐 Tous les canaux</option>
                             {Array.from({ length: 16 }, (_, i) => (
-                              <option key={i} value={i}>Canal {i + 1}</option>
+                              <option key={i} value={i}>📺 Canal {i + 1}</option>
                             ))}
                           </select>
                         </div>
 
                         {/* Transposition d'octave */}
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">
-                            Transposition d'octave : {config.octaveTranspose > 0 ? '+' : ''}{config.octaveTranspose}
+                        <div className="space-y-2">
+                          <label className="flex items-center justify-between text-sm text-gray-300">
+                            <span>Transposition octave</span>
+                            <span className="text-xs text-gray-400 font-mono">
+                              {config.octaveTranspose > 0 ? '+' : ''}{config.octaveTranspose}
+                            </span>
                           </label>
-                          <input
-                            type="range"
-                            min={-3}
-                            max={3}
-                            step={1}
-                            value={config.octaveTranspose}
-                            onChange={(e) => setOctaveTranspose(parseInt(e.target.value))}
-                            className="w-full"
-                          />
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">-3</span>
+                            <input
+                              type="range"
+                              min={-3}
+                              max={3}
+                              step={1}
+                              value={config.octaveTranspose}
+                              onChange={(e) => setOctaveTranspose(parseInt(e.target.value))}
+                              className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            />
+                            <span className="text-xs text-gray-500">+3</span>
+                          </div>
                         </div>
 
                         {/* Scaling de vélocité */}
-                        <div>
-                          <label className="block text-xs text-gray-400 mb-1">
-                            Multiplicateur de vélocité : {config.velocityScale.toFixed(1)}x
+                        <div className="space-y-2">
+                          <label className="flex items-center justify-between text-sm text-gray-300">
+                            <span>Vélocité scale</span>
+                            <span className="text-xs text-gray-400 font-mono">
+                              {config.velocityScale.toFixed(1)}x
+                            </span>
                           </label>
-                          <input
-                            type="range"
-                            min={0.1}
-                            max={2.0}
-                            step={0.1}
-                            value={config.velocityScale}
-                            onChange={(e) => setVelocityScale(parseFloat(e.target.value))}
-                            className="w-full"
-                          />
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">0.1</span>
+                            <input
+                              type="range"
+                              min={0.1}
+                              max={2.0}
+                              step={0.1}
+                              value={config.velocityScale}
+                              onChange={(e) => setVelocityScale(parseFloat(e.target.value))}
+                              className="flex-1 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                            />
+                            <span className="text-xs text-gray-500">2.0</span>
+                          </div>
                         </div>
                       </div>
                     )}

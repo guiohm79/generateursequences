@@ -22,19 +22,23 @@ export function useMidiInput() {
 
   // Référence stable vers l'engine
   const engineRef = useRef<MidiInputEngine | null>(null);
+  
+  // Référence persistante pour les callbacks
+  const callbacksRef = useRef<{
+    onNoteRecorded?: (note: RecordedNote) => void;
+    onPlaythrough?: (note: string, velocity: number, isNoteOn: boolean) => void;
+  }>({});
 
   // Créer l'engine une seule fois
   useEffect(() => {
     if (!engineRef.current) {
       engineRef.current = new MidiInputEngine();
-      console.log('[useMidiInput] Engine created');
     }
 
     return () => {
       if (engineRef.current) {
         engineRef.current.dispose();
         engineRef.current = null;
-        console.log('[useMidiInput] Engine disposed');
       }
     };
   }, []);
@@ -44,8 +48,14 @@ export function useMidiInput() {
     const interval = setInterval(() => {
       if (engineRef.current) {
         const state = engineRef.current.getState();
+        
+        // Éviter les re-renders infinis en ne mettant à jour que si vraiment différent
+        if (state.selectedDevice?.id !== selectedDevice?.id) {
+          setSelectedDevice(state.selectedDevice);
+        }
+        
         setIsInitialized(state.isInitialized);
-        setSelectedDevice(state.selectedDevice);
+        
         setAvailableDevices(state.availableDevices);
         setConfig(state.config);
         setActiveNotesCount(state.activeNotesCount);
@@ -64,12 +74,26 @@ export function useMidiInput() {
 
   const selectDevice = useCallback((deviceId: string) => {
     if (!engineRef.current) return false;
-    return engineRef.current.selectDevice(deviceId);
+    
+    const success = engineRef.current.selectDevice(deviceId);
+    
+    // Réappliquer les callbacks après sélection du device
+    if (success && callbacksRef.current) {
+      engineRef.current.setCallbacks(callbacksRef.current);
+    }
+    
+    return success;
   }, []);
 
   const updateConfig = useCallback((newConfig: Partial<MidiInputConfig>) => {
     if (!engineRef.current) return;
+    
     engineRef.current.setConfig(newConfig);
+    
+    // Si le playthrough est activé et qu'on a des callbacks, les réappliquer
+    if (newConfig.playthroughEnabled && callbacksRef.current) {
+      engineRef.current.setCallbacks(callbacksRef.current);
+    }
   }, []);
 
   const startRecording = useCallback(() => {
@@ -91,8 +115,13 @@ export function useMidiInput() {
     onNoteRecorded?: (note: RecordedNote) => void;
     onPlaythrough?: (note: string, velocity: number, isNoteOn: boolean) => void;
   }) => {
-    if (!engineRef.current) return;
-    engineRef.current.setCallbacks(callbacks);
+    // Stocker les callbacks dans la référence persistante
+    callbacksRef.current = callbacks;
+    
+    // Appliquer immédiatement à l'engine actuel
+    if (engineRef.current) {
+      engineRef.current.setCallbacks(callbacks);
+    }
   }, []);
 
   const panic = useCallback(() => {

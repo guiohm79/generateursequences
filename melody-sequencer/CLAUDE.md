@@ -360,8 +360,8 @@ npm run lint     # Linting (désactivé temporairement)
   ### **🎯 Architecture MIDI Input :**
   - **`MidiInputEngine.ts`** - Moteur Web MIDI API complet avec Web MIDI API native
   - **`useMidiInput.ts`** - Hook React avec polling d'état (même pattern que MIDI Output)
-  - **`MidiInputPanel.tsx`** - Interface configuration avancée avec contrôles séparés
-  - **Page `/midiInput`** - Piano Roll simplifié + diagnostic complet
+  - **`MidiConfigContext.tsx`** - Contexte React global pour état MIDI partagé
+  - **Configuration centralisée** - Page `/configuration` pour tous paramètres MIDI
   
   ### **🎵 Fonctionnalités opérationnelles :**
   - **🎹 Détection automatique** - Scan devices MIDI connectés en temps réel
@@ -383,20 +383,46 @@ npm run lint     # Linting (désactivé temporairement)
   - **Status dashboard** : Audio Engine, MIDI connections, séquenceur
   - **Debug complet** : Logs console pour troubleshooting
   
-  ### **⚠️ PROBLÈME IDENTIFIÉ - Playthrough s'arrête après fermeture dialog :**
-  - **Symptôme** : Audio fonctionne dans dialog configuration mais s'arrête après fermeture
-  - **Cause probable** : Callbacks MIDI perdus à la fermeture du MidiInputPanel
-  - **Solution nécessaire** : Maintenir callbacks persistants dans page principale
-  - **Status** : 90% fonctionnel, nécessite fix callback persistence
+  ### **✅ PROBLÈME RÉSOLU - Playthrough audio fonctionnel :**
+  - **Solution implémentée** : Callbacks MIDI persistants au niveau page principale
+  - **Fix appliqué** : Auto-sélection device + callbacks dans useEffect page
+  - **Status** : 100% fonctionnel, playthrough audio permanent
   
   ### **🎛️ Pages et intégration :**
-  - **Page principale** : `/midiInput` avec piano roll + contrôles MIDI
-  - **Menu système** : Entrée "🎹 MIDI Input" dans Features Avancées
-  - **Architecture cohérente** : Same pattern que MIDI Output pour maintenance
-  - **Logs détaillés** : Console debugging pour diagnostic problèmes
+  - **Configuration centralisée** : `/configuration` - paramètres MIDI IN/OUT globaux
+  - **Intégration modes** : Tous modes piano roll utilisent `useMidiInputForMode()`
+  - **Test avancé** : `/pianorollBaseSettings` - mode test avec MIDI intégré
+  - **Persistance** : `MidiConfigStorage` - localStorage pour settings permanents
   
+  ## 🔧 **CONFIGURATION CENTRALISÉE - SYSTÈME UNIFIÉ (Session 2025-07-27)**
+  
+  ### **🎯 Nouveau système de configuration globale :**
+  - **Page `/configuration`** - Interface unique pour tous paramètres MIDI/Audio
+  - **React Context** - `MidiConfigContext` pour état partagé en temps réel
+  - **Persistance localStorage** - `MidiConfigStorage` pour settings permanents
+  - **Hook simplifié** - `useMidiInputForMode()` pour intégration facile modes
+  
+  ### **🏗️ Architecture centralisée :**
+  - **Élimination duplication** - Plus de panels MIDI dans chaque mode
+  - **Configuration unique** - Device MIDI sélectionné une fois, utilisé partout
+  - **Sauvegarde automatique** - Paramètres persistent entre sessions
+  - **Interface claire** - Boutons explicites avec feedback visuel
+  
+  ### **🎛️ Workflow utilisateur optimisé :**
+  1. **Configuration** : `/configuration` → sélectionner devices MIDI IN/OUT
+  2. **Mode piano roll** : ARM → REC → Recording → Stop (boutons séparés)
+  3. **Persistance** : Paramètres sauvegardés automatiquement
+  4. **Cross-session** : Settings chargés automatiquement au démarrage
+  
+  ### **🔄 Corrections techniques majeures :**
+  - **ARM ≠ Recording** : Séparation `recordEnabled` vs `isCurrentlyRecording`
+  - **État cohérent** : `MidiInputEngine` avec flags séparés
+  - **Timing optimisé** : Chargement config en 2s au lieu d'attente longue
+  - **Simplification UX** : Recording géré par interface principale, pas config
+  - **Page obsolète supprimée** : `/midiInput` remplacée par système centralisé
+
   🎯 **PROCHAINES ÉTAPES (Features Avancées) :**
-  1. **Fix callback persistence** - Maintenir playthrough après fermeture dialog
-  2. **Quantization** - Alignement automatique sur grille
-  3. **Multi-patterns** - Gestion séquences multiples
-  4. **Modèles IA supplémentaires** - MelodyRNN, PerformanceRNN, DrumsRNN
+  1. **Quantization** - Alignement automatique des notes sur la grille
+  2. **Assistant de Gammes** - Assistant gammes et accords musicaux (NOTA: assitantGamme existe déjà)
+  3. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+  4. **Génération IA Avancée** - Modèles Magenta supplémentaires (MelodyRNN, PerformanceRNN)

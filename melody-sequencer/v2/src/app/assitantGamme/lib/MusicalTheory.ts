@@ -108,7 +108,7 @@ export class MusicalTheory {
     }
 
     const noteNames = notes.map(n => ScaleHelper.extractNoteName(n.note));
-    const uniqueNotes = [...new Set(noteNames)];
+    const uniqueNotes = Array.from(new Set(noteNames));
 
     // Détecter la tonalité la plus probable
     const keyAnalysis = this.detectKey(uniqueNotes);
@@ -287,7 +287,7 @@ export class MusicalTheory {
    * Identifier un accord à partir de notes
    */
   private identifyChord(noteNames: string[]): ChordSuggestion | null {
-    const uniqueNotes = [...new Set(noteNames)];
+    const uniqueNotes = Array.from(new Set(noteNames));
     if (uniqueNotes.length < 2) return null;
 
     // Essayer de matcher avec les accords de la gamme courante
@@ -369,8 +369,8 @@ export class MusicalTheory {
       const segment1Notes = segments[i].map(n => ScaleHelper.extractNoteName(n.note));
       const segment2Notes = segments[i + 1].map(n => ScaleHelper.extractNoteName(n.note));
 
-      const key1 = this.detectKey([...new Set(segment1Notes)]);
-      const key2 = this.detectKey([...new Set(segment2Notes)]);
+      const key1 = this.detectKey(Array.from(new Set(segment1Notes)));
+      const key2 = this.detectKey(Array.from(new Set(segment2Notes)));
 
       if (key1.key !== key2.key && key1.confidence > 70 && key2.confidence > 70) {
         modulations.push({
