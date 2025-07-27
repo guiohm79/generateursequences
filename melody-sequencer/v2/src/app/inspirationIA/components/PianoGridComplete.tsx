@@ -231,13 +231,18 @@ export const PianoGridComplete: React.FC<PianoGridCompleteProps> = ({
       {/* Rectangle de sélection */}
       {selectionRect?.isSelecting && (
         <div 
-          className="absolute border-2 border-yellow-400 bg-yellow-400/10 pointer-events-none z-20"
+          className="absolute border-2 border-yellow-400 bg-yellow-400/20 pointer-events-none z-30 rounded-sm shadow-lg"
           style={{
-            transform: `translate(${Math.min(selectionRect.startX, selectionRect.endX)}px, ${Math.min(selectionRect.startY, selectionRect.endY)}px)`,
+            left: `${Math.min(selectionRect.startX, selectionRect.endX)}px`,
+            top: `${Math.min(selectionRect.startY, selectionRect.endY)}px`,
             width: `${Math.abs(selectionRect.endX - selectionRect.startX)}px`,
             height: `${Math.abs(selectionRect.endY - selectionRect.startY)}px`,
+            boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.3)',
           }}
-        />
+        >
+          {/* Bordure intérieure pour plus de visibilité */}
+          <div className="absolute inset-0 border border-yellow-300/50 rounded-sm" />
+        </div>
       )}
     </div>
   );

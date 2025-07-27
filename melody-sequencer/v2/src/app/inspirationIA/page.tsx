@@ -458,17 +458,121 @@ const InspirationPage: React.FC = () => {
     }
   };
 
-  // === FONCTIONS DE SÉLECTION (simplifiées pour le test) ===
+  // === FONCTIONS DE SÉLECTION MULTIPLE PAR RECTANGLE ===
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStartPos, setSelectionStartPos] = useState<{ x: number; y: number } | null>(null);
+
   const handleGridMouseDown = (e: React.MouseEvent) => {
-    console.log('Grid mouse down');
+    // Ignorer si on est déjà en train de drag ou resize
+    if (dragState?.isDragging || resizeState?.isResizing) return;
+    
+    // Seulement pour les clics gauches et sans Ctrl (Ctrl est pour la sélection individuelle)
+    if (e.button !== 0 || e.ctrlKey || e.metaKey) return;
+    
+    // Vérifier que le clic est sur une zone vide, pas sur une note
+    const target = e.target as HTMLElement;
+    if (target.closest('.grid-cell-empty') || target === e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      console.log('🖱️ Début sélection rectangle à:', { x, y });
+      
+      setIsSelecting(true);
+      setSelectionStartPos({ x, y });
+      setSelectionRect({
+        startX: x,
+        startY: y,
+        endX: x,
+        endY: y,
+        isSelecting: true
+      });
+      
+      // Désélectionner toutes les notes si on commence une nouvelle sélection
+      if (!e.shiftKey) {
+        setSelectedNotes(new Set());
+      }
+      
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handleGridMouseMove = (e: React.MouseEvent) => {
-    console.log('Grid mouse move');
+    if (!isSelecting || !selectionStartPos || !selectionRect) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setSelectionRect(prev => prev ? {
+      ...prev,
+      endX: x,
+      endY: y
+    } : null);
+    
+    // Debug - voir le rectangle en temps réel
+    console.log('🖱️ Sélection en cours:', {
+      startX: selectionRect.startX,
+      startY: selectionRect.startY,
+      endX: x,
+      endY: y,
+      width: Math.abs(x - selectionRect.startX),
+      height: Math.abs(y - selectionRect.startY)
+    });
   };
 
   const handleGridMouseUp = (e: React.MouseEvent) => {
-    console.log('Grid mouse up');
+    if (!isSelecting || !selectionRect) return;
+    
+    setIsSelecting(false);
+    setSelectionStartPos(null);
+    
+    // Calculer les notes dans le rectangle de sélection
+    const left = Math.min(selectionRect.startX, selectionRect.endX);
+    const right = Math.max(selectionRect.startX, selectionRect.endX);
+    const top = Math.min(selectionRect.startY, selectionRect.endY);
+    const bottom = Math.max(selectionRect.startY, selectionRect.endY);
+    
+    // Dimensions approximatives des cellules
+    const cellWidthPx = stepCount <= 16 ? 56 : stepCount <= 32 ? 40 : 32;
+    const cellHeightPx = 32;
+    
+    // Trouver les notes dans le rectangle
+    const selectedIds = new Set<string>();
+    const newSelection = e.shiftKey ? new Set(selectedNotes) : new Set<string>();
+    
+    pattern.forEach(note => {
+      if (!note.isActive) return;
+      
+      const noteIndex = visibleNotes.indexOf(note.note);
+      if (noteIndex === -1) return;
+      
+      const noteX = note.step * cellWidthPx;
+      const noteY = noteIndex * cellHeightPx;
+      
+      // Vérifier si la note est dans le rectangle
+      if (noteX >= left && noteX + cellWidthPx <= right &&
+          noteY >= top && noteY + cellHeightPx <= bottom) {
+        const noteId = createNoteId(note.step, note.note);
+        selectedIds.add(noteId);
+        newSelection.add(noteId);
+      }
+    });
+    
+    setSelectedNotes(newSelection);
+    setSelectionRect(null);
+    
+    console.log('🖱️ Fin sélection rectangle:', {
+      selectedCount: selectedIds.size,
+      rectangle: { left, right, top, bottom },
+      cellDimensions: { cellWidthPx, cellHeightPx }
+    });
+    
+    if (selectedIds.size > 0) {
+      setExportStatus(`⚈ ${selectedIds.size} note(s) sélectionnée(s) par rectangle`);
+      setTimeout(() => setExportStatus(''), 2000);
+    }
   };
 
   // === FONCTIONS TRANSPORT ===
@@ -863,7 +967,7 @@ const InspirationPage: React.FC = () => {
     setPattern(prev => prev.filter(note => note.step < stepCount));
   }, [stepCount]);
 
-  // Gestion globale des événements pour le drag (souris + tactile)
+  // Gestion globale des événements pour le drag (souris + tactile) + sélection
   useEffect(() => {
     const handleGlobalMouseMove = (e: MouseEvent) => {
       if (dragState?.isDragging) {
@@ -881,6 +985,12 @@ const InspirationPage: React.FC = () => {
         const newDuration = Math.max(1, Math.min(stepCount - resizeState.step, resizeState.startDuration + stepDelta));
         
         setResizeState(prev => prev ? { ...prev, currentDuration: newDuration } : null);
+      }
+
+      // Gestion du rectangle de sélection global
+      if (isSelecting && selectionRect) {
+        // Note: Pour la sélection globale, on garde la logique dans handleGridMouseMove
+        // car on a besoin de la position relative au conteneur de grille
       }
     };
     
@@ -920,9 +1030,16 @@ const InspirationPage: React.FC = () => {
         saveToHistory(`Durée ${resizeState.note} ajustée à ${resizeState.currentDuration}`);
         setResizeState(null);
       }
+
+      // Terminer la sélection si elle est en cours
+      if (isSelecting) {
+        setIsSelecting(false);
+        setSelectionStartPos(null);
+        setSelectionRect(null);
+      }
     };
     
-    if (dragState?.isDragging || resizeState?.isResizing) {
+    if (dragState?.isDragging || resizeState?.isResizing || isSelecting) {
       document.addEventListener('mousemove', handleGlobalMouseMove);
       document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
       document.addEventListener('mouseup', handleGlobalEnd);
@@ -935,7 +1052,7 @@ const InspirationPage: React.FC = () => {
         document.removeEventListener('touchend', handleGlobalEnd);
       };
     }
-  }, [dragState, resizeState, stepCount]);
+  }, [dragState, resizeState, stepCount, isSelecting, selectionRect]);
 
   // === RACCOURCIS CLAVIER ===
   useEffect(() => {
