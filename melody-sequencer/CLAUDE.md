@@ -366,6 +366,14 @@ npm run lint     # Linting (désactivé temporairement)
   - **✅ Test réussi** : Build compilation OK + serveur démarré port 3001
   - **🎼 Fonctionnalité unique** : MIDI Recording avec assistant gammes et coloration scale
   
+  ### **🚀 DÉPLOIEMENT PIANOROLLBASE (Session 2025-07-27)** 
+  - **✅ Mode principal** : `/pianorollBase` désormais équipé du système MIDI Recording complet
+  - **✅ Architecture identique** : Pattern éprouvé appliqué avec succès depuis `/pianorollBaseSettings`
+  - **✅ Interface mise à jour** : Titre "Piano Roll Base - Mode Principal + MIDI Recording"
+  - **✅ Compilation réussie** : Build OK + serveur sur port 3002
+  - **🎯 Impact** : Le mode principal modulaire a maintenant l'enregistrement MIDI temps réel
+  - **📊 Status déploiement** : 3 pages équipées (/pianorollBaseSettings, /assistantGamme, /pianorollBase)
+  
   ### **🎯 Architecture MIDI Input :**
   - **`MidiInputEngine.ts`** - Moteur Web MIDI API complet avec Web MIDI API native
   - **`useMidiInput.ts`** - Hook React avec polling d'état (même pattern que MIDI Output)

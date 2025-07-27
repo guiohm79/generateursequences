@@ -16,6 +16,9 @@ import { PianoKeys } from './components/PianoKeys';
 import { StepHeader } from './components/StepHeader';
 import { PianoGridComplete } from './components/PianoGridComplete';
 import { MidiOutputPanel } from '../../components/MidiOutputPanel';
+import { MidiStatusBar } from '../../components/MidiStatusBar';
+import { useMidiInputForMode, useMidiConfig } from '../../contexts/MidiConfigContext';
+import { useMidiConfigLoader } from '../../hooks/useMidiConfigLoader';
 
 // Import des types locaux
 import { NoteEvent, NoteId, SelectionRectangle, ClipboardData } from './types';
@@ -122,6 +125,74 @@ const PianoRollCompleteTestPage: React.FC = () => {
     setAudioEnabled,
     initialize 
   } = useSimpleAudio();
+
+  // MIDI Input simplifié
+  const midiInput = useMidiInputForMode();
+  
+  // Contexte global pour accéder aux fonctions de configuration
+  const { midiInput: globalMidiInput } = useMidiConfig();
+  
+  // Chargeur de configuration MIDI
+  const { reloadConfig } = useMidiConfigLoader();
+
+  // Debug MIDI state (réduit pour production)
+  useEffect(() => {
+    if (midiInput.isConnected) {
+      console.log('[pianorollBase] ✅ MIDI connecté:', midiInput.deviceName);
+    }
+  }, [midiInput.isConnected, midiInput.deviceName]);
+
+  // Setup pour l'enregistrement en temps réel en boucle
+  useEffect(() => {
+    if (midiInput.isConnected) {
+      // Configuration d'un callback pour recevoir les notes MIDI en temps réel
+      const callbacks = {
+        onNoteRecorded: (note: any) => {
+          // Si on est en train d'enregistrer ET que la lecture est active
+          if (midiInput.isRecording && isPlaying) {
+            // Calculer la position actuelle dans la boucle
+            const loopPosition = currentStep % stepCount;
+            
+            // Créer la note event immédiatement
+            const noteEvent: NoteEvent = {
+              step: loopPosition,
+              note: note.note,
+              velocity: note.velocity,
+              duration: 1, // Durée par défaut
+              isActive: true
+            };
+
+            // Ajouter directement au pattern sans attendre
+            setPattern(prevPattern => {
+              const newPattern = [...prevPattern];
+              const existingIndex = newPattern.findIndex(
+                n => n.step === loopPosition && n.note === note.note && n.isActive
+              );
+
+              if (existingIndex >= 0) {
+                // Remplacer la note existante
+                newPattern[existingIndex] = noteEvent;
+              } else {
+                // Ajouter la nouvelle note
+                newPattern.push(noteEvent);
+              }
+              
+              console.log(`[Piano Roll Base - Enregistrement temps réel] Note ${note.note} ajoutée au step ${loopPosition}`);
+              return newPattern;
+            });
+          }
+        },
+        onPlaythrough: (note: string, velocity: number, isNoteOn: boolean) => {
+          if (midiInput.playthroughEnabled) {
+            // Playthrough audio normal - déjà géré par le hook
+          }
+        }
+      };
+      
+      // Appliquer les callbacks via le contexte global
+      globalMidiInput.setCallbacks(callbacks);
+    }
+  }, [midiInput.isConnected, midiInput.isRecording, isPlaying, currentStep, stepCount, globalMidiInput]);
 
   // Undo/Redo manager
   const [undoRedoManager] = useState(() => new UndoRedoManager());
@@ -450,6 +521,34 @@ const PianoRollCompleteTestPage: React.FC = () => {
       setSelectedNotes(new Set());
       setExportStatus('✅ Pattern effacé');
       setTimeout(() => setExportStatus(''), 2000);
+    }
+  };
+
+  // Gestion du recording MIDI avec synchronisation lecture
+  const handleMidiRecordingStart = () => {
+    if (midiInput.recordEnabled && !midiInput.isRecording) {
+      // Démarrer l'enregistrement ET la lecture simultanément
+      midiInput.startRecording();
+      if (isInitialized && !isPlaying) {
+        start();
+        setExportStatus('🔴 Enregistrement + lecture démarrés');
+      }
+    }
+  };
+
+  const handleMidiRecordingStop = () => {
+    if (midiInput.isRecording) {
+      // Arrêter la lecture ET l'enregistrement
+      stop();
+      
+      // Vider le buffer des notes enregistrées (pour éviter le doublement)
+      midiInput.stopRecording();
+      
+      // Les notes ont déjà été ajoutées en temps réel via le callback onNoteRecorded
+      // Donc on ne fait que sauvegarder l'historique
+      saveToHistory('MIDI Recording temps réel');
+      setExportStatus('⏹️ Enregistrement arrêté - notes ajoutées en temps réel');
+      setTimeout(() => setExportStatus(''), 3000);
     }
   };
 
@@ -934,9 +1033,98 @@ const PianoRollCompleteTestPage: React.FC = () => {
         {/* Header */}
         <div className="mb-4 sm:mb-6 lg:mb-8">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            🎹 Piano Roll - Test Modulaire Complet
+            🎹 Piano Roll Base - Mode Principal + MIDI Recording
           </h1>
-          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Test de tous les composants modulaires ensemble</p>
+          <p className="text-slate-400 text-sm sm:text-base lg:text-lg">Mode principal avec architecture modulaire + enregistrement MIDI temps réel</p>
+        </div>
+
+        {/* Barre de status MIDI avec recording personnalisé */}
+        <div className="bg-gray-900 rounded-lg p-3 mb-4">
+          <div className="flex items-center justify-between">
+            {/* Status MIDI */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${
+                  midiInput.isConnected ? 'bg-green-500' : 'bg-gray-500'
+                }`} />
+                <span className="text-gray-300">MIDI Input:</span>
+                <span className={midiInput.isConnected ? 'text-green-400' : 'text-gray-400'}>
+                  {midiInput.isConnected ? midiInput.deviceName : 'Déconnecté'}
+                </span>
+              </div>
+
+              {midiInput.isConnected && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300">Playthrough:</span>
+                    <span className={midiInput.playthroughEnabled ? 'text-green-400' : 'text-gray-400'}>
+                      {midiInput.playthroughEnabled ? '🔊' : '🔇'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300">Recording:</span>
+                    <span className={midiInput.recordEnabled ? 'text-orange-400' : 'text-gray-400'}>
+                      {midiInput.recordEnabled ? (midiInput.isRecording ? '🔴' : '⚪') : '⭕'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Contrôles */}
+            <div className="flex items-center gap-2">
+              {/* Toggle Recording - TOUJOURS visible quand MIDI connecté */}
+              {midiInput.isConnected && (
+                <button
+                  onClick={() => {
+                    globalMidiInput.setRecordEnabled(!midiInput.recordEnabled);
+                  }}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    midiInput.recordEnabled
+                      ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                      : 'bg-gray-600 hover:bg-gray-700 text-gray-300'
+                  }`}
+                  title={`${midiInput.recordEnabled ? 'Désactiver' : 'Activer'} l'enregistrement MIDI`}
+                >
+                  {midiInput.recordEnabled ? '⏺️ ARM' : '⭕ ARM'}
+                </button>
+              )}
+
+              {/* Bouton Record/Stop - visible seulement si ARM activé */}
+              {midiInput.isConnected && midiInput.recordEnabled && (
+                <button
+                  onClick={midiInput.isRecording ? handleMidiRecordingStop : handleMidiRecordingStart}
+                  className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                    midiInput.isRecording
+                      ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  title={midiInput.isRecording ? 'Arrêter enregistrement + lecture' : 'Démarrer enregistrement + lecture'}
+                >
+                  {midiInput.isRecording ? '⏹️ Stop' : '⏺️ Rec'}
+                </button>
+              )}
+
+              {/* Panic */}
+              {midiInput.isConnected && (
+                <button
+                  onClick={midiInput.panic}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-medium transition-colors"
+                >
+                  🛑 panic
+                </button>
+              )}
+
+              {/* Config */}
+              <button
+                onClick={() => window.open('/configuration', '_blank')}
+                className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-xs font-medium transition-colors"
+              >
+                ⚙️ Config
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* COMPOSANT TRANSPORT CONTROLS */}
