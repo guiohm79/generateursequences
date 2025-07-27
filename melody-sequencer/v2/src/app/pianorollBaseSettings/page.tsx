@@ -142,6 +142,58 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   }, [midiInput.isConnected, midiInput.deviceName]);
 
+  // Setup pour l'enregistrement en temps réel en boucle
+  useEffect(() => {
+    if (midiInput.isConnected) {
+      // Configuration d'un callback pour recevoir les notes MIDI en temps réel
+      const callbacks = {
+        onNoteRecorded: (note: any) => {
+          // Si on est en train d'enregistrer ET que la lecture est active
+          if (midiInput.isRecording && isPlaying) {
+            // Calculer la position actuelle dans la boucle
+            const loopPosition = currentStep % stepCount;
+            
+            // Créer la note event immédiatement
+            const noteEvent: NoteEvent = {
+              step: loopPosition,
+              note: note.note,
+              velocity: note.velocity,
+              duration: 1, // Durée par défaut
+              isActive: true
+            };
+
+            // Ajouter directement au pattern sans attendre
+            setPattern(prevPattern => {
+              const newPattern = [...prevPattern];
+              const existingIndex = newPattern.findIndex(
+                n => n.step === loopPosition && n.note === note.note && n.isActive
+              );
+
+              if (existingIndex >= 0) {
+                // Remplacer la note existante
+                newPattern[existingIndex] = noteEvent;
+              } else {
+                // Ajouter la nouvelle note
+                newPattern.push(noteEvent);
+              }
+              
+              console.log(`[Enregistrement temps réel] Note ${note.note} ajoutée au step ${loopPosition}`);
+              return newPattern;
+            });
+          }
+        },
+        onPlaythrough: (note: string, velocity: number, isNoteOn: boolean) => {
+          if (midiInput.playthroughEnabled) {
+            // Playthrough audio normal - déjà géré par le hook
+          }
+        }
+      };
+      
+      // Appliquer les callbacks via le contexte global
+      globalMidiInput.setCallbacks(callbacks);
+    }
+  }, [midiInput.isConnected, midiInput.isRecording, isPlaying, currentStep, stepCount, globalMidiInput]);
+
   // Undo/Redo manager
   const [undoRedoManager] = useState(() => new UndoRedoManager());
   const [historyInfo, setHistoryInfo] = useState<{
@@ -472,47 +524,31 @@ const PianoRollCompleteTestPage: React.FC = () => {
     }
   };
 
-  // Gestion du recording MIDI
+  // Gestion du recording MIDI avec synchronisation lecture
+  const handleMidiRecordingStart = () => {
+    if (midiInput.recordEnabled && !midiInput.isRecording) {
+      // Démarrer l'enregistrement ET la lecture simultanément
+      midiInput.startRecording();
+      if (isInitialized && !isPlaying) {
+        start();
+        setExportStatus('🔴 Enregistrement + lecture démarrés');
+      }
+    }
+  };
+
   const handleMidiRecordingStop = () => {
     if (midiInput.isRecording) {
-      const recordedNotes = midiInput.stopRecording();
-      if (recordedNotes && recordedNotes.length > 0) {
-        // Convertir les notes MIDI en NoteEvents
-        const noteEvents = midiInput.convertToNoteEvents(stepCount, tempo);
-        
-        if (noteEvents.length > 0) {
-          saveToHistory('MIDI Recording');
-          
-          // Ajouter les notes enregistrées au pattern existant
-          const newPattern = [...pattern];
-          noteEvents.forEach((recordedNote: any) => {
-            // Vérifier qu'il n'y a pas déjà une note au même endroit
-            const existingIndex = newPattern.findIndex(
-              n => n.step === recordedNote.step && n.note === recordedNote.note && n.isActive
-            );
-
-            const noteEvent: NoteEvent = {
-              step: recordedNote.step,
-              note: recordedNote.note,
-              velocity: recordedNote.velocity,
-              duration: recordedNote.duration || 1,
-              isActive: true
-            };
-
-            if (existingIndex >= 0) {
-              // Remplacer la note existante
-              newPattern[existingIndex] = noteEvent;
-            } else {
-              // Ajouter la nouvelle note
-              newPattern.push(noteEvent);
-            }
-          });
-
-          setPattern(newPattern);
-          setExportStatus(`✅ ${noteEvents.length} notes MIDI ajoutées`);
-          setTimeout(() => setExportStatus(''), 3000);
-        }
-      }
+      // Arrêter la lecture ET l'enregistrement
+      stop();
+      
+      // Vider le buffer des notes enregistrées (pour éviter le doublement)
+      midiInput.stopRecording();
+      
+      // Les notes ont déjà été ajoutées en temps réel via le callback onNoteRecorded
+      // Donc on ne fait que sauvegarder l'historique
+      saveToHistory('MIDI Recording temps réel');
+      setExportStatus('⏹️ Enregistrement arrêté - notes ajoutées en temps réel');
+      setTimeout(() => setExportStatus(''), 3000);
     }
   };
 
@@ -1065,12 +1101,13 @@ const PianoRollCompleteTestPage: React.FC = () => {
               {/* Bouton Record/Stop - visible seulement si ARM activé */}
               {midiInput.isConnected && midiInput.recordEnabled && (
                 <button
-                  onClick={midiInput.isRecording ? handleMidiRecordingStop : midiInput.startRecording}
+                  onClick={midiInput.isRecording ? handleMidiRecordingStop : handleMidiRecordingStart}
                   className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                     midiInput.isRecording
                       ? 'bg-red-600 hover:bg-red-700 text-white animate-pulse'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
+                  title={midiInput.isRecording ? 'Arrêter enregistrement + lecture' : 'Démarrer enregistrement + lecture'}
                 >
                   {midiInput.isRecording ? '⏹️ Stop' : '⏺️ Rec'}
                 </button>
@@ -1235,7 +1272,7 @@ const PianoRollCompleteTestPage: React.FC = () => {
 
         {/* Zone de test */}
         <div className="mt-6 p-4 bg-gradient-to-r from-green-800/50 to-green-700/50 backdrop-blur-sm rounded-2xl border border-green-600/50">
-          <h2 className="text-lg font-bold mb-3 text-green-400">✅ Test Modulaire Complet</h2>
+          <h2 className="text-lg font-bold mb-3 text-green-400">✅ Test Modulaire Complet + MIDI Recording en Temps Réel</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <button
               onClick={() => {
@@ -1286,6 +1323,20 @@ const PianoRollCompleteTestPage: React.FC = () => {
             <p>• <strong>Interactions</strong> : Click pour ajouter/supprimer notes, Ctrl+click pour sélection</p>
             <p>• <strong>Audio</strong> : Play/Stop, tempo, vitesses (l'initialisation se fera dans l'intégration finale)</p>
             <p>• <strong>Export/Import</strong> : MIDI + Presets + Undo/Redo complets</p>
+            <p>• <strong>🎹 MIDI Recording temps réel</strong> : ARM → REC → les notes jouées s'ajoutent en boucle → STOP</p>
+          </div>
+          
+          {/* Instructions MIDI Recording */}
+          <div className="mt-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
+            <h3 className="text-blue-300 font-semibold mb-2">🎹 Instructions MIDI Recording en Temps Réel :</h3>
+            <ol className="text-xs text-blue-200 space-y-1 list-decimal list-inside">
+              <li><strong>Connecter</strong> : Aller dans ⚙️ Config pour sélectionner votre clavier MIDI</li>
+              <li><strong>ARM</strong> : Cliquer sur "⏺️ ARM" pour activer l'enregistrement</li>
+              <li><strong>REC</strong> : Cliquer sur "⏺️ Rec" → démarre automatiquement lecture + enregistrement</li>
+              <li><strong>Jouer</strong> : Les notes jouées s'ajoutent directement dans la grille en temps réel</li>
+              <li><strong>Boucle</strong> : La lecture continue en boucle, vous pouvez ajouter des notes à chaque passage</li>
+              <li><strong>STOP</strong> : Cliquer sur "⏹️ Stop" → arrête lecture + enregistrement</li>
+            </ol>
           </div>
         </div>
 
