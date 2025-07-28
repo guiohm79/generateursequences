@@ -19,6 +19,7 @@ import {
   NOTE_ORDER,
   SCALES
 } from '../../lib/InspirationEngine';
+import { UserPatternCollector, PatternMetadata, DatasetStats } from '../../lib/UserPatternCollector';
 
 // Import des composants modulaires
 import { TransportControls } from './components/TransportControls';
@@ -133,6 +134,10 @@ const InspirationPage: React.FC = () => {
     maxOct: 4
   });
   const [selectedAmbiance, setSelectedAmbiance] = useState<string>('energique');
+
+  // 🧠 États pour alimenter l'IA avec les patterns Inspiration
+  const [datasetStats, setDatasetStats] = useState<DatasetStats | null>(null);
+  const [feedingStatus, setFeedingStatus] = useState<string>('');
 
   // Audio engine
   const { 
@@ -950,11 +955,72 @@ const InspirationPage: React.FC = () => {
     saveToHistory(`${direction} Déplacer ${selectedNotes.size} note(s)`);
   };
 
+  // === FONCTIONS ALIMENTER IA ===
+  
+  /**
+   * Met à jour les statistiques du dataset
+   */
+  const updateDatasetStats = () => {
+    const stats = UserPatternCollector.getDatasetStats();
+    setDatasetStats(stats);
+  };
+
+  /**
+   * Alimente l'IA avec le pattern actuel généré par Inspiration
+   */
+  const handleFeedInspirationPattern = async () => {
+    try {
+      if (pattern.length === 0) {
+        setFeedingStatus('❌ Aucun pattern à alimenter');
+        setTimeout(() => setFeedingStatus(''), 3000);
+        return;
+      }
+
+      setFeedingStatus('💾 Alimentation IA en cours...');
+
+      // Créer les métadonnées basées sur les paramètres Inspiration actuels
+      const metadata: PatternMetadata = {
+        style: generationParams.style as any || 'psy',
+        part: generationParams.part as any || 'lead',
+        tempo: tempo,
+        stepCount: stepCount,
+        root: generationParams.root || 'C',
+        scale: generationParams.scale || 'minor',
+        description: `Pattern Inspiration ${generationParams.style}/${generationParams.part} - ${new Date().toLocaleDateString()}`
+      };
+
+      const patternId = await UserPatternCollector.savePatternAsTrainingData(
+        pattern,
+        metadata,
+        1, // Rating positif
+        'inspiration' // Source: algorithme inspiration
+      );
+
+      // Mettre à jour les stats
+      updateDatasetStats();
+      
+      // Feedback utilisateur
+      setFeedingStatus(`✅ Pattern alimenté ! IA enrichie (+${pattern.length} notes)`);
+      
+      // Sauvegarder dans l'historique
+      saveToHistory(`🧠 Pattern alimenté en IA (source: Inspiration)`);
+      
+      setTimeout(() => setFeedingStatus(''), 4000);
+
+    } catch (error) {
+      console.error('Erreur alimentation IA:', error);
+      setFeedingStatus(`❌ Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`);
+      setTimeout(() => setFeedingStatus(''), 5000);
+    }
+  };
+
   // === EFFECTS ===
   useEffect(() => {
     loadPresets();
     // Initialiser l'audio engine automatiquement
     initialize();
+    // Charger les statistiques du dataset IA
+    updateDatasetStats();
   }, [initialize]);
 
   useEffect(() => {
@@ -1326,9 +1392,42 @@ const InspirationPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Zone de génération */}
+        {/* Zone de génération + Alimentation IA */}
         <div className="mt-6 p-4 bg-gradient-to-r from-purple-800/50 to-pink-700/50 backdrop-blur-sm rounded-2xl border border-purple-600/50">
-          <h2 className="text-lg font-bold mb-3 text-purple-400">🎨 Génération Inspiration</h2>
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold text-purple-400">🎨 Génération Inspiration</h2>
+            {/* Section Alimenter IA */}
+            <div className="flex items-center gap-3">
+              {datasetStats && (
+                <div className="text-xs text-purple-300">
+                  Dataset: {datasetStats.positivePatterns} patterns
+                  {datasetStats.isReadyForTraining && (
+                    <span className="ml-2 px-2 py-1 bg-green-600/20 text-green-400 rounded">✓ Prêt</span>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={handleFeedInspirationPattern}
+                disabled={pattern.length === 0}
+                className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                  pattern.length > 0
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+                title="Alimenter l'IA avec le pattern actuel - Les notes sont sauvegardées pour entraîner un modèle personnalisé"
+              >
+                👍 Alimenter IA
+              </button>
+            </div>
+          </div>
+          
+          {/* Status de l'alimentation IA */}
+          {feedingStatus && (
+            <div className="mb-4 p-3 bg-green-900/30 border border-green-600/50 rounded-lg">
+              <div className="text-green-300 text-sm font-medium">{feedingStatus}</div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <button
               onClick={() => {
@@ -1404,6 +1503,7 @@ const InspirationPage: React.FC = () => {
           <div className="text-sm text-purple-300 space-y-1">
             <p>• <strong>Générateur avancé</strong> : Interface complète avec tous les paramètres</p>
             <p>• <strong>Ambiances rapides</strong> : Énergique (Goa/Psy), Mystérieux (Dark), Lead Hypnotique</p>
+            <p>• <strong>👍 Alimenter IA</strong> : Sauvegarde les patterns que vous aimez pour entraîner un modèle personnalisé</p>
             <p>• <strong>Basé sur V1</strong> : Algorithmes de randomEngine.js adaptés pour TypeScript</p>
             <p>• <strong>Styles disponibles</strong> : Goa, Psy, Prog, Deep + Bassline, Lead, Pad, Arpège</p>
           </div>

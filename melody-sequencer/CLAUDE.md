@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with the Melody Sequencer project.
 
+## But du projet
+
+Ce projet a pour but de facilité l'inspiration de l'utilisateur dans la recherche de sequences musicales, ce projet est un outils en parrallele d'un DAW,
+Ce projet doit pouvoir creer des sequences musicales en respectant les critères de l'utilisateur, il doit egalement donner des suite de note ou des sequences completes en fonction des notes présentes sur la grille du piano roll.
+Actuellement le projet est orienté vers la musique electronique type trance goa, psytrance...
+
+Ce projet est en constante evolution c'est pourqui une approche modulaire a été adoptée.
+
 ## 🎯 Project Structure Overview
 
 This project uses a **dual-version architecture** with V1 (stable) and V2 (modern) development streams:
@@ -83,7 +91,7 @@ melody-sequencer/
 12. ✅ ~~**🤖 Génération IA Magenta.js**~~ - **TERMINÉ** - Phase 1-3 complètes avec contraintes musicales
 13. ✅ ~~**🎹 MIDI Input Temps Réel**~~ - **TERMINÉ** - Contrôle clavier maître + recording + playthrough
 14. **Quantization** - Alignement automatique des notes sur la grille
-15. **Assistant de Gammes** - Assistant gammes et accords musicaux (NOTA: assitantGamme existe déjà)
+15. **Assistant de Gammes** - Assistant gammes et accords musicaux NOTA: assitantGamme existe déjà mais il faut ajouter de l'attractivité a ce mode.
 15. **Multi-patterns** - Gestion de plusieurs patterns/séquences
 16. **Génération IA Avancée** - Modèles Magenta supplémentaires (MelodyRNN, PerformanceRNN)
 

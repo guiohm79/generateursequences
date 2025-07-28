@@ -35,7 +35,10 @@
       "Bash(timeout 10 curl -s http://localhost:3000/midiInput)",
       "Bash(timeout 5 curl -I http://localhost:3000/midiInput)",
       "WebFetch(domain:codepen.io)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebFetch(domain:storage.googleapis.com)",
+      "WebFetch(domain:goo.gl)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": []
   }

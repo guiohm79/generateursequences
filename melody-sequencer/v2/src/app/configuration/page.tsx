@@ -344,8 +344,8 @@ export default function ConfigurationPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-700">
               <div className="text-center">
-                <div className={`text-lg font-mono ${midiOutput.isConnected ? 'text-green-400' : 'text-gray-400'}`}>
-                  {midiOutput.isConnected ? 'CONNECTÉ' : 'DÉCONNECTÉ'}
+                <div className={`text-lg font-mono ${midiOutput.selectedDevice ? 'text-green-400' : 'text-gray-400'}`}>
+                  {midiOutput.selectedDevice ? 'CONNECTÉ' : 'DÉCONNECTÉ'}
                 </div>
                 <div className="text-xs text-gray-400">Status MIDI Output</div>
               </div>

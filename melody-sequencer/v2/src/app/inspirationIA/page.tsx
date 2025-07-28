@@ -19,6 +19,7 @@ import {
   NOTE_ORDER,
   SCALES
 } from '../../lib/InspirationEngine';
+import { UserPatternCollector, PatternMetadata, DatasetStats } from '../../lib/UserPatternCollector';
 
 // Import des composants modulaires
 import { TransportControls } from './components/TransportControls';
@@ -134,6 +135,12 @@ const InspirationPage: React.FC = () => {
     maxOct: 4
   });
   const [selectedAmbiance, setSelectedAmbiance] = useState<string>('energique');
+
+  // 🧠 États pour la collecte des patterns utilisateur
+  const [datasetStats, setDatasetStats] = useState<DatasetStats | null>(null);
+  const [showDatasetDialog, setShowDatasetDialog] = useState(false);
+  const [feedingStatus, setFeedingStatus] = useState<string>('');
+  const [lastFeedAction, setLastFeedAction] = useState<{ type: 'positive' | 'negative'; timestamp: number } | null>(null);
 
   // Audio engine
   const { 
@@ -951,11 +958,139 @@ const InspirationPage: React.FC = () => {
     saveToHistory(`${direction} Déplacer ${selectedNotes.size} note(s)`);
   };
 
+  // === FONCTIONS COLLECTE PATTERNS IA ===
+  
+  /**
+   * Met à jour les statistiques du dataset
+   */
+  const updateDatasetStats = () => {
+    const stats = UserPatternCollector.getDatasetStats();
+    setDatasetStats(stats);
+  };
+
+  /**
+   * Alimente l'IA avec le pattern actuel (feedback positif)
+   */
+  const handleFeedPositivePattern = async (description?: string) => {
+    try {
+      if (pattern.length === 0) {
+        setFeedingStatus('❌ Aucun pattern à alimenter');
+        setTimeout(() => setFeedingStatus(''), 3000);
+        return;
+      }
+
+      setFeedingStatus('💾 Sauvegarde du pattern...');
+
+      // Créer les métadonnées basées sur les paramètres actuels
+      const metadata: PatternMetadata = {
+        style: generationParams.style as any || 'psy',
+        part: generationParams.part as any || 'lead',
+        tempo: tempo,
+        stepCount: stepCount,
+        root: generationParams.root || 'C',
+        scale: generationParams.scale || 'minor',
+        description: description || `Pattern ${generationParams.style} généré le ${new Date().toLocaleDateString()}`
+      };
+
+      const patternId = await UserPatternCollector.savePatternAsTrainingData(
+        pattern,
+        metadata,
+        1, // Rating positif
+        'manual' // Source manuelle
+      );
+
+      // Mettre à jour les stats
+      updateDatasetStats();
+      
+      // Feedback utilisateur
+      setFeedingStatus(`✅ Pattern alimenté ! ID: ${patternId.slice(-8)}`);
+      setLastFeedAction({ type: 'positive', timestamp: Date.now() });
+      
+      // Sauvegarder dans l'historique
+      saveToHistory(`🧠 Pattern alimenté en IA (${pattern.length} notes)`);
+      
+      setTimeout(() => setFeedingStatus(''), 4000);
+
+    } catch (error) {
+      console.error('Erreur alimentation IA:', error);
+      setFeedingStatus(`❌ Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`);
+      setTimeout(() => setFeedingStatus(''), 5000);
+    }
+  };
+
+  /**
+   * Marque le pattern comme non désiré (feedback négatif)
+   */
+  const handleFeedNegativePattern = async () => {
+    try {
+      if (pattern.length === 0) {
+        setFeedingStatus('❌ Aucun pattern à marquer');
+        setTimeout(() => setFeedingStatus(''), 3000);
+        return;
+      }
+
+      setFeedingStatus('🚫 Marquage pattern négatif...');
+
+      const metadata: PatternMetadata = {
+        style: generationParams.style as any || 'psy',
+        part: generationParams.part as any || 'lead',
+        tempo: tempo,
+        stepCount: stepCount,
+        root: generationParams.root || 'C',
+        scale: generationParams.scale || 'minor',
+        description: `Pattern non désiré - ${new Date().toLocaleDateString()}`
+      };
+
+      const patternId = await UserPatternCollector.savePatternAsTrainingData(
+        pattern,
+        metadata,
+        -1, // Rating négatif
+        'manual'
+      );
+
+      updateDatasetStats();
+      setFeedingStatus(`🚫 Pattern marqué comme non désiré`);
+      setLastFeedAction({ type: 'negative', timestamp: Date.now() });
+      
+      setTimeout(() => setFeedingStatus(''), 4000);
+
+    } catch (error) {
+      console.error('Erreur marquage négatif:', error);
+      setFeedingStatus(`❌ Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`);
+      setTimeout(() => setFeedingStatus(''), 5000);
+    }
+  };
+
+  /**
+   * Obtient des recommandations personnalisées basées sur les patterns aimés
+   */
+  const getPersonalizedRecommendations = () => {
+    const recommendations = UserPatternCollector.getPersonalizedRecommendations();
+    if (recommendations && recommendations.confidence > 0.3) {
+      // Appliquer les recommandations aux paramètres de génération
+      setGenerationParams(prev => ({
+        ...prev,
+        style: recommendations.suggestedStyle,
+        part: recommendations.suggestedPart,
+        scale: recommendations.suggestedScale
+      }));
+      setTempo(recommendations.suggestedTempo);
+      
+      setFeedingStatus(`🎯 Paramètres ajustés selon vos goûts (${Math.round(recommendations.confidence * 100)}% confiance)`);
+      setTimeout(() => setFeedingStatus(''), 5000);
+    } else {
+      setFeedingStatus('📊 Pas assez de données pour des recommandations (minimum: 10 patterns)');
+      setTimeout(() => setFeedingStatus(''), 4000);
+    }
+  };
+
   // === EFFECTS ===
   useEffect(() => {
     loadPresets();
     // Initialiser l'audio engine automatiquement
     initialize();
+    // Charger les statistiques du dataset
+    updateDatasetStats();
   }, [initialize]);
 
   useEffect(() => {
@@ -1447,6 +1582,123 @@ const InspirationPage: React.FC = () => {
           </div>
         </div>
 
+        {/* 🧠 SECTION GESTION DATASET IA - Phase 1 */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-indigo-800/50 to-blue-700/50 backdrop-blur-sm rounded-2xl border border-indigo-600/50">
+          <h2 className="text-lg font-bold mb-3 text-indigo-300">🧠 Gestion Dataset IA - Apprentissage Personnel</h2>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Instructions et workflow */}
+            <div>
+              <h3 className="text-md font-semibold text-indigo-300 mb-3">📋 Workflow recommandé</h3>
+              <div className="space-y-3">
+                <div className="p-3 bg-indigo-900/30 border border-indigo-600/50 rounded-lg">
+                  <h4 className="text-sm font-medium text-indigo-300 mb-2">🎨 Collecte de patterns :</h4>
+                  <ul className="text-xs text-indigo-400 space-y-1">
+                    <li>• <strong>Allez dans "Inspiration"</strong> et générez des patterns</li>
+                    <li>• <strong>Testez différents styles</strong> : Goa, Psy, Prog, Deep</li>
+                    <li>• <strong>Ajustez selon vos goûts</strong> (notes, vélocités, timing)</li>
+                    <li>• <strong>Cliquez "👍 Alimenter IA"</strong> sur ceux que vous aimez</li>
+                    <li>• <strong>Répétez</strong> jusqu'à avoir 50+ patterns pour l'entraînement</li>
+                  </ul>
+                </div>
+                
+                <button
+                  onClick={getPersonalizedRecommendations}
+                  disabled={!datasetStats || datasetStats.positivePatterns < 10}
+                  className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+                    !datasetStats || datasetStats.positivePatterns < 10
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                  }`}
+                  title="Ajuster les paramètres selon vos goûts"
+                >
+                  🎯 Recommandations Perso (10+ patterns requis)
+                </button>
+              </div>
+            </div>
+
+            {/* Statistiques dataset */}
+            <div>
+              <h3 className="text-md font-semibold text-indigo-300 mb-3">Dataset Personnel</h3>
+              {datasetStats ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-indigo-400">Patterns aimés:</span>
+                    <span className="text-green-400 font-bold">{datasetStats.positivePatterns}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-indigo-400">Patterns évités:</span>
+                    <span className="text-red-400 font-bold">{datasetStats.negativePatterns}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-indigo-400">Total collecté:</span>
+                    <span className="text-blue-400 font-bold">{datasetStats.totalPatterns}</span>
+                  </div>
+                  
+                  {/* Barre de progression vers l'entraînement */}
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-indigo-400 mb-1">
+                      <span>Progression entraînement IA</span>
+                      <span>{datasetStats.positivePatterns}/50</span>
+                    </div>
+                    <div className="w-full bg-indigo-900/50 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-500 ${
+                          datasetStats.isReadyForTraining ? 'bg-green-500' : 'bg-blue-500'
+                        }`}
+                        style={{ width: `${Math.min(100, (datasetStats.positivePatterns / 50) * 100)}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-center mt-1">
+                      {datasetStats.isReadyForTraining ? (
+                        <span className="text-green-400">✅ Prêt pour l'entraînement !</span>
+                      ) : (
+                        <span className="text-indigo-400">
+                          Encore {50 - datasetStats.positivePatterns} patterns pour l'entraînement
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Style préféré si disponible */}
+                  {Object.keys(datasetStats.preferredStyles).length > 0 && (
+                    <div className="mt-3 p-2 bg-indigo-900/30 rounded">
+                      <div className="text-xs text-indigo-400 mb-1">Vos préférences :</div>
+                      <div className="text-xs text-indigo-200">
+                        Style: <strong>{Object.keys(datasetStats.preferredStyles)[0]}</strong> • 
+                        Partie: <strong>{Object.keys(datasetStats.preferredParts)[0] || 'N/A'}</strong> • 
+                        Tempo moy: <strong>{datasetStats.averageTempo} BPM</strong>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-indigo-400 text-sm">Chargement des statistiques...</div>
+              )}
+
+              <button
+                onClick={() => setShowDatasetDialog(true)}
+                className="mt-3 w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors text-sm"
+              >
+                📊 Voir Dataset Complet
+              </button>
+            </div>
+          </div>
+
+          {/* Explication du système */}
+          <div className="mt-4 p-3 bg-indigo-900/20 rounded-lg">
+            <h4 className="text-sm font-medium text-indigo-300 mb-2">💡 Système d'apprentissage hybride :</h4>
+            <ul className="text-xs text-indigo-400 space-y-1">
+              <li>🎨 <strong>Génération via "Inspiration"</strong> : Créez des patterns avec l'algorithme avancé</li>
+              <li>👍 <strong>Alimentation depuis "Inspiration"</strong> : Bouton "Alimenter IA" pour patterns aimés</li>
+              <li>📊 <strong>Analyse automatique</strong> : L'IA apprend vos préférences (gammes, rythmes, styles)</li>
+              <li>🎯 <strong>Recommandations</strong> : Après 10+ patterns, suggestions personnalisées</li>
+              <li>🚀 <strong>Phase 2</strong> : À 50+ patterns → Entraînement d'un modèle sur vos goûts</li>
+              <li>🧠 <strong>IA Personnelle</strong> : Génération dans votre style unique</li>
+            </ul>
+          </div>
+        </div>
+
         {/* Pattern Info */}
         <div className="mt-6 p-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 backdrop-blur-sm rounded-2xl border border-slate-600/50">
           <h3 className="text-lg font-bold mb-4 text-slate-200">📊 Pattern Info</h3>
@@ -1821,6 +2073,187 @@ const InspirationPage: React.FC = () => {
         isAudioEnabled={isAudioEnabled}
         onAudioEnabledChange={setAudioEnabled}
       />
+
+      {/* 📊 DIALOG DATASET COMPLET */}
+      {showDatasetDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <h2 className="text-xl font-bold text-white mb-4">📊 Dataset Personnel Complet</h2>
+            
+            {datasetStats && (
+              <>
+                {/* Résumé statistiques */}
+                <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-3 bg-green-900/30 border border-green-600/50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-green-400">{datasetStats.positivePatterns}</div>
+                    <div className="text-sm text-green-300">Patterns aimés</div>
+                  </div>
+                  <div className="p-3 bg-red-900/30 border border-red-600/50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-red-400">{datasetStats.negativePatterns}</div>
+                    <div className="text-sm text-red-300">Patterns évités</div>
+                  </div>
+                  <div className="p-3 bg-blue-900/30 border border-blue-600/50 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-blue-400">{datasetStats.totalPatterns}</div>
+                    <div className="text-sm text-blue-300">Total collecté</div>
+                  </div>
+                </div>
+
+                {/* Préférences musicales */}
+                {Object.keys(datasetStats.preferredStyles).length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-3">🎵 Vos Préférences Musicales</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      
+                      {/* Styles préférés */}
+                      <div className="p-3 bg-slate-700/50 rounded-lg">
+                        <h4 className="font-medium text-slate-300 mb-2">Styles favoris</h4>
+                        {Object.entries(datasetStats.preferredStyles)
+                          .sort(([,a], [,b]) => b - a)
+                          .slice(0, 3)
+                          .map(([style, count]) => (
+                            <div key={style} className="flex justify-between text-sm">
+                              <span className="text-slate-400 capitalize">{style}</span>
+                              <span className="text-blue-400 font-bold">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+
+                      {/* Parties préférées */}
+                      <div className="p-3 bg-slate-700/50 rounded-lg">
+                        <h4 className="font-medium text-slate-300 mb-2">Parties favoris</h4>
+                        {Object.entries(datasetStats.preferredParts)
+                          .sort(([,a], [,b]) => b - a)
+                          .slice(0, 3)
+                          .map(([part, count]) => (
+                            <div key={part} className="flex justify-between text-sm">
+                              <span className="text-slate-400 capitalize">{part}</span>
+                              <span className="text-green-400 font-bold">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+
+                      {/* Gammes préférées */}
+                      <div className="p-3 bg-slate-700/50 rounded-lg">
+                        <h4 className="font-medium text-slate-300 mb-2">Gammes favorites</h4>
+                        {Object.entries(datasetStats.preferredScales)
+                          .sort(([,a], [,b]) => b - a)
+                          .slice(0, 3)
+                          .map(([scale, count]) => (
+                            <div key={scale} className="flex justify-between text-sm">
+                              <span className="text-slate-400">{scale}</span>
+                              <span className="text-purple-400 font-bold">{count}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+
+                    {/* Moyennes */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-3 bg-slate-700/30 rounded-lg text-center">
+                        <div className="text-lg font-bold text-yellow-400">{datasetStats.averageTempo} BPM</div>
+                        <div className="text-sm text-slate-400">Tempo moyen préféré</div>
+                      </div>
+                      <div className="p-3 bg-slate-700/30 rounded-lg text-center">
+                        <div className="text-lg font-bold text-cyan-400">{datasetStats.averageNoteCount}</div>
+                        <div className="text-sm text-slate-400">Notes moyennes par pattern</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions dataset */}
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-white mb-3">⚙️ Actions Dataset</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      onClick={() => {
+                        const exportData = UserPatternCollector.exportDataset();
+                        const blob = new Blob([exportData], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `dataset-personnel-${new Date().toISOString().split('T')[0]}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      📤 Exporter Dataset
+                    </button>
+                    
+                    <label className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors cursor-pointer text-center">
+                      📥 Importer Dataset
+                      <input
+                        type="file"
+                        accept=".json"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            try {
+                              const text = await file.text();
+                              const imported = await UserPatternCollector.importDataset(text);
+                              updateDatasetStats();
+                              setFeedingStatus(`✅ ${imported} patterns importés`);
+                              setTimeout(() => setFeedingStatus(''), 3000);
+                            } catch (error) {
+                              setFeedingStatus(`❌ Erreur import: ${error instanceof Error ? error.message : 'Inconnue'}`);
+                              setTimeout(() => setFeedingStatus(''), 5000);
+                            }
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+
+                    <button
+                      onClick={() => {
+                        if (confirm('Êtes-vous sûr de vouloir effacer tout votre dataset personnel ? Cette action est irréversible.')) {
+                          UserPatternCollector.clearDataset();
+                          updateDatasetStats();
+                          setFeedingStatus('🗑️ Dataset effacé');
+                          setTimeout(() => setFeedingStatus(''), 3000);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                    >
+                      🗑️ Effacer Dataset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Phase suivante */}
+                <div className="p-3 bg-indigo-900/20 rounded-lg">
+                  <h4 className="text-sm font-medium text-indigo-300 mb-2">🚀 Prochaines étapes :</h4>
+                  <div className="text-xs text-indigo-400 space-y-1">
+                    {datasetStats.isReadyForTraining ? (
+                      <>
+                        <div className="text-green-400">✅ <strong>Dataset prêt !</strong> Vous avez {datasetStats.positivePatterns} patterns positifs</div>
+                        <div>🔥 <strong>Phase 2</strong> : Entraînement d'un modèle IA personnalisé sur vos goûts</div>
+                        <div>🎯 <strong>Phase 3</strong> : Génération IA dans votre style unique</div>
+                      </>
+                    ) : (
+                      <>
+                        <div>📊 <strong>Collecte en cours</strong> : {datasetStats.positivePatterns}/50 patterns positifs</div>
+                        <div>⏳ Encore {50 - datasetStats.positivePatterns} patterns pour déclencher l'entraînement</div>
+                        <div>💡 <strong>Astuce</strong> : Allez dans la page "Inspiration", générez des patterns, puis cliquez "👍 Alimenter IA" sur ceux que vous aimez</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setShowDatasetDialog(false)}
+                className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scale Editor */}
       <ScaleEditor

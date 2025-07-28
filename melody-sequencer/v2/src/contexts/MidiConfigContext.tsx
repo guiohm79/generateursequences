@@ -40,7 +40,6 @@ interface MidiConfigState {
     isInitialized: boolean;
     selectedDevice: any;
     availableDevices: any[];
-    isConnected: boolean;
     // Actions
     initialize: () => Promise<boolean>;
     selectDevice: (deviceId: string) => boolean;
@@ -171,7 +170,6 @@ export function MidiConfigProvider({ children }: { children: React.ReactNode }) 
       isInitialized: midiOutputHook.isInitialized,
       selectedDevice: midiOutputHook.selectedDevice,
       availableDevices: midiOutputHook.availableDevices,
-      isConnected: midiOutputHook.isConnected,
       // Actions
       initialize: midiOutputHook.initialize,
       selectDevice: (deviceId: string) => {
@@ -179,10 +177,10 @@ export function MidiConfigProvider({ children }: { children: React.ReactNode }) 
         refresh();
         return result;
       },
-      sendNote: midiOutputHook.sendNote,
-      stopNote: midiOutputHook.stopNote,
+      sendNote: midiOutputHook.sendNoteOn,
+      stopNote: midiOutputHook.sendNoteOff,
       panic: () => {
-        midiOutputHook.panic();
+        midiOutputHook.stopAllNotes();
         refresh();
       },
       refreshDevices: () => {

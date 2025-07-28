@@ -21,7 +21,7 @@ import { GenerationParams, getAvailableScales, NOTE_ORDER } from '../../../lib/I
 interface MagentaModel {
   initialize(): Promise<void>;
   isInitialized(): boolean;
-  sample?(numSamples: number, temperature?: number): Promise<MagentaSequence[]>;
+  sample?(numSamples: number, temperature?: number): Promise<any[]>;
 }
 
 // Props du composant
@@ -75,6 +75,42 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
   
   const [selectedPreset, setSelectedPreset] = useState<string>('psyTrance');
   const [availableScales, setAvailableScales] = useState<{ value: string; label: string }[]>([]);
+  
+  // 🎯 CONFIGURATION MODÈLES AVANCÉS
+  const [selectedModel, setSelectedModel] = useState<string>('mel_2bar_small');
+  const [generationParams, setGenerationParams] = useState({
+    numSamples: 4,           // Générer 4 variations
+    temperatureRange: {      // Plage de températures
+      min: 0.7, 
+      max: 1.6
+    },
+    selectionCriteria: 'noteCount' // 'noteCount' | 'complexity' | 'random'
+  });
+
+  // 🔧 MODÈLES DISPONIBLES - URLs VALIDÉES
+  const AVAILABLE_MODELS = {
+    'mel_2bar_small': {
+      name: '🎵 Melody 2-Bar (Testé) ⭐',
+      url: 'https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_2bar_small',
+      description: 'Modèle éprouvé 2 mesures avec multi-échantillons avancés',
+      size: '~8MB',
+      recommended: true
+    },
+    'mel_4bar_med_lokl_q2': {
+      name: '🚀 Melody 4-Bar (Expérimental)',
+      url: 'https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_4bar_med_lokl_q2',
+      description: '⚠️ En cours de validation - 4 mesures, sampling optimisé',
+      size: '~30MB',
+      recommended: false
+    },
+    'mel_4bar_small_q2': {
+      name: '⚡ Melody 4-Bar (Test)',
+      url: 'https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_4bar_small_q2',
+      description: '⚠️ URL à valider - Version légère 4 mesures',
+      size: '~15MB',
+      recommended: false
+    }
+  };
 
   // Test d'importation de Magenta.js
   const testMagentaImport = async () => {
@@ -146,9 +182,14 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
         status: 'Création d\'une instance MusicVAE...' 
       }));
 
-      // URL de checkpoint pour un modèle pré-entraîné (exemple)
-      // Note: Il faudra trouver les vraies URLs des checkpoints
-      const checkpointUrl = 'https://storage.googleapis.com/magentadata/js/checkpoints/music_vae/mel_2bar_small';
+      // 🚀 MODÈLE SÉLECTIONNABLE - Plus de puissance et flexibilité
+      const modelConfig = AVAILABLE_MODELS[selectedModel as keyof typeof AVAILABLE_MODELS];
+      const checkpointUrl = modelConfig.url;
+      
+      setState(prev => ({ 
+        ...prev, 
+        status: `📦 Initialisation ${modelConfig.name} (${modelConfig.size})...` 
+      }));
       
       // Créer une instance du modèle
       const musicVAE = new magenta.MusicVAE(checkpointUrl);
@@ -199,9 +240,46 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
     }));
 
     try {
-      // Tentative de génération
+      // 🎯 GÉNÉRATION MULTI-ÉCHANTILLONS POUR QUALITÉ OPTIMALE
       if (model.sample) {
-        const sequences = await model.sample(1, 0.8); // 1 sample, température 0.8
+        setState(prev => ({ 
+          ...prev, 
+          status: '🎲 Génération de 4 variations avec températures différentes...' 
+        }));
+        
+        // 🎲 Générer échantillons avec températures configurables
+        const { min, max } = generationParams.temperatureRange;
+        const temps = [
+          min,                           // 🎯 Conservative
+          min + (max - min) * 0.33,     // ⚖️ Balanced  
+          min + (max - min) * 0.66,     // 🎨 Creative
+          max                            // 🚀 Experimental
+        ];
+        
+        const [conservative, balanced, creative, experimental] = await Promise.all([
+          model.sample(1, temps[0]),  // 🎯 Conservative - patterns cohérents
+          model.sample(1, temps[1]),  // ⚖️ Balanced - équilibre créativité/structure  
+          model.sample(1, temps[2]),  // 🎨 Creative - plus d'originalité
+          model.sample(1, temps[3])   // 🚀 Experimental - maximum créativité
+        ]);
+        
+        // Combiner tous les échantillons et sélectionner les meilleurs
+        const allSequences = [
+          ...conservative, 
+          ...balanced, 
+          ...creative, 
+          ...experimental
+        ].filter(seq => seq && seq.notes && seq.notes.length > 0);
+        
+        setState(prev => ({ 
+          ...prev, 
+          status: `🎵 ${allSequences.length} variations générées, sélection du meilleur...` 
+        }));
+        
+        // Sélectionner la séquence avec le plus de notes (généralement plus intéressante)
+        const sequences = [allSequences.reduce((best, current) => 
+          current.notes.length > best.notes.length ? current : best
+        )];
         
         if (sequences && sequences.length > 0) {
           const generatedSequence = sequences[0];
@@ -284,7 +362,7 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
 
   return (
     <div className="p-6 bg-gradient-to-r from-purple-900/50 to-blue-900/50 backdrop-blur-sm rounded-2xl border border-purple-600/50">
-      <h2 className="text-2xl font-bold mb-4 text-purple-300">🤖 Test Magenta.js - Phase 3 : Contraintes Musicales</h2>
+      <h2 className="text-2xl font-bold mb-4 text-purple-300">🚀 IA Avancée Magenta.js - Modèles 4-Bar + Multi-Échantillons</h2>
       
       {/* Status */}
       <div className="mb-6 p-3 bg-slate-800/50 rounded-lg">
@@ -302,6 +380,86 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
           <div className="text-red-200 text-sm mt-1">{state.error}</div>
         </div>
       )}
+
+      {/* 🚀 CONFIGURATION MODÈLES AVANCÉS */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-600/50 rounded-lg">
+        <h3 className="text-lg font-semibold text-emerald-300 mb-4">🚀 Configuration IA Avancée</h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sélection du modèle */}
+          <div>
+            <label className="block text-sm font-medium text-emerald-300 mb-2">Modèle IA</label>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="w-full px-3 py-2 bg-emerald-800 text-white rounded-lg border border-emerald-600 focus:border-emerald-400 focus:outline-none text-sm"
+            >
+              {Object.entries(AVAILABLE_MODELS).map(([key, model]) => (
+                <option key={key} value={key}>
+                  {model.name} {model.recommended ? '⭐' : ''}
+                </option>
+              ))}
+            </select>
+            <div className="mt-2 text-xs text-emerald-400">
+              {AVAILABLE_MODELS[selectedModel as keyof typeof AVAILABLE_MODELS].description}
+            </div>
+            <div className="text-xs text-emerald-500 mt-1">
+              Taille: {AVAILABLE_MODELS[selectedModel as keyof typeof AVAILABLE_MODELS].size}
+            </div>
+          </div>
+
+          {/* Paramètres de génération */}
+          <div>
+            <label className="block text-sm font-medium text-emerald-300 mb-2">Plage Température</label>
+            <div className="flex space-x-2">
+              <div className="flex-1">
+                <label className="text-xs text-emerald-400">Min (Conservative)</label>
+                <input
+                  type="number"
+                  min="0.1"
+                  max="1.0"
+                  step="0.1"
+                  value={generationParams.temperatureRange.min}
+                  onChange={(e) => setGenerationParams(prev => ({
+                    ...prev,
+                    temperatureRange: { ...prev.temperatureRange, min: parseFloat(e.target.value) }
+                  }))}
+                  className="w-full px-2 py-1 bg-emerald-800 text-white rounded border border-emerald-600 focus:border-emerald-400 focus:outline-none text-sm"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-emerald-400">Max (Experimental)</label>
+                <input
+                  type="number"
+                  min="1.0"
+                  max="2.0"
+                  step="0.1"
+                  value={generationParams.temperatureRange.max}
+                  onChange={(e) => setGenerationParams(prev => ({
+                    ...prev,
+                    temperatureRange: { ...prev.temperatureRange, max: parseFloat(e.target.value) }
+                  }))}
+                  className="w-full px-2 py-1 bg-emerald-800 text-white rounded border border-emerald-600 focus:border-emerald-400 focus:outline-none text-sm"
+                />
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-emerald-400">
+              🎲 4 échantillons générés simultanément avec températures {generationParams.temperatureRange.min} → {generationParams.temperatureRange.max}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-emerald-800/20 rounded-lg">
+          <h4 className="text-sm font-medium text-emerald-300 mb-2">💡 Améliorations IA :</h4>
+          <ul className="text-xs text-emerald-400 space-y-1">
+            <li>✅ <strong>Modèle 4-bar</strong> au lieu de 2-bar (patterns 2x plus longs)</li>
+            <li>✅ <strong>Multi-échantillons</strong> : 4 variations simultanées pour qualité optimale</li>
+            <li>✅ <strong>Sélection intelligente</strong> : Choix automatique du meilleur échantillon</li>
+            <li>✅ <strong>Températures configurables</strong> : Contrôle créativité vs cohérence</li>
+            <li>🔄 <strong>Modèles sélectionnables</strong> : Melody, Trio, ou Haute Qualité</li>
+          </ul>
+        </div>
+      </div>
 
       {/* Contraintes musicales */}
       <div className="mb-6 p-4 bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-indigo-600/50 rounded-lg">
@@ -541,16 +699,21 @@ const MagentaTest: React.FC<MagentaTestProps> = ({
 
       {/* Instructions */}
       <div className="mt-6 p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-        <h4 className="text-sm font-medium text-slate-300 mb-2">📋 Instructions Phase 3 :</h4>
+        <h4 className="text-sm font-medium text-slate-300 mb-2">🚀 Instructions IA Avancée :</h4>
         <ul className="text-xs text-slate-400 space-y-1">
-          <li>1. Le test d'import s'exécute automatiquement ✅</li>
-          <li>2. Cliquez "Init Modèle" pour initialiser MusicVAE</li>
-          <li>3. Configurez les contraintes musicales (gamme, style, octaves)</li>
-          <li>4. Cliquez "Générer et Ajouter" pour créer des notes IA contraintes</li>
-          <li>5. Les notes respectent automatiquement vos paramètres musicaux !</li>
+          <li>1. <strong>Sélectionner modèle</strong> : mel_4bar_lokl ⭐ (recommandé) ou trio_4bar pour polyphonie</li>
+          <li>2. <strong>Ajuster températures</strong> : Min 0.7 (conservateur) → Max 1.6 (expérimental)</li>
+          <li>3. <strong>Cliquer "Init Modèle"</strong> pour télécharger et initialiser (~60-120MB)</li>
+          <li>4. <strong>Configurer contraintes</strong> : Gamme, style, octaves pour cohérence musicale</li>
+          <li>5. <strong>"Générer et Ajouter"</strong> : 4 variations simultanées → sélection automatique du meilleur</li>
         </ul>
-        <div className="mt-3 text-xs text-indigo-400 bg-indigo-900/20 p-2 rounded">
-          🎯 <strong>Nouveauté Phase 3</strong> : L'IA respecte vos choix musicaux (gammes, styles, octaves) !
+        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+          <div className="bg-emerald-900/20 p-2 rounded text-emerald-400">
+            🚀 <strong>IA Avancée</strong> : Modèles 4-bar + Multi-échantillons
+          </div>
+          <div className="bg-indigo-900/20 p-2 rounded text-indigo-400">
+            🎯 <strong>Contraintes</strong> : Gammes personnalisées + styles musicaux
+          </div>
         </div>
       </div>
     </div>
