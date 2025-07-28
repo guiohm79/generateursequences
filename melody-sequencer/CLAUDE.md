@@ -40,7 +40,7 @@ melody-sequencer/
 - Add features via the extensible menu system
 - Focus on progressive enhancement over complex architecture
 
-## 🎵 Current Development Status (2025-07-26) - **SÉQUENCEUR COMPLET + SCALE HELPER + TOUTES FONCTIONNALITÉS**
+## 🎵 Current Development Status (2025-07-28) - **SÉQUENCEUR COMPLET + IA HYBRIDE + SYSTÈME APPRENTISSAGE**
 
 ### V1 Status
 - ✅ **Production ready** - Fully functional sequencer
@@ -74,6 +74,9 @@ melody-sequencer/
 - ✅ **MIDI Output Temps Réel** - Contrôle devices externes + toggle audio interne + interface complète
 - ✅ **🤖 GÉNÉRATION IA MAGENTA.JS** - Intégration complète avec contraintes musicales (Phase 1-3 terminées)
 - ✅ **🎹 MIDI INPUT TEMPS RÉEL** - Contrôle piano roll via clavier maître + recording + playthrough + diagnostic complet
+- ✅ **🧠 SYSTÈME IA HYBRIDE COMPLET** - Apprentissage personnel + alimentation patterns avec tags
+- ✅ **👍 ALIMENTATION IA INTELLIGENTE** - Dialog sélection style/part + métadonnées précises
+- ✅ **📊 DATASET PERSONNEL** - Collecte patterns aimés + statistiques d'apprentissage + export/import
 - 📱 **Mobile-First** - Interface tactile professionnelle
 
 ### 🎯 **Priorités V2 (Prochaines Étapes)**
@@ -90,10 +93,12 @@ melody-sequencer/
 11. ✅ ~~**MIDI Output Temps Réel**~~ - **TERMINÉ** - Contrôle devices externes + toggle audio interne + corrections z-index
 12. ✅ ~~**🤖 Génération IA Magenta.js**~~ - **TERMINÉ** - Phase 1-3 complètes avec contraintes musicales
 13. ✅ ~~**🎹 MIDI Input Temps Réel**~~ - **TERMINÉ** - Contrôle clavier maître + recording + playthrough
-14. **Quantization** - Alignement automatique des notes sur la grille
-15. **Assistant de Gammes** - Assistant gammes et accords musicaux NOTA: assitantGamme existe déjà mais il faut ajouter de l'attractivité a ce mode.
-15. **Multi-patterns** - Gestion de plusieurs patterns/séquences
-16. **Génération IA Avancée** - Modèles Magenta supplémentaires (MelodyRNN, PerformanceRNN)
+14. ✅ ~~**🧠 Système IA Hybride**~~ - **TERMINÉ** - UserPatternCollector + alimentation intelligente + dataset personnel
+15. ✅ ~~**👍 Tags Alimentation IA**~~ - **TERMINÉ** - Dialog sélection style/part + métadonnées précises
+16. **Quantization** - Alignement automatique des notes sur la grille
+17. **Assistant de Gammes** - Assistant gammes et accords musicaux NOTA: assitantGamme existe déjà mais il faut ajouter de l'attractivité a ce mode.
+18. **Multi-patterns** - Gestion de plusieurs patterns/séquences
+19. **Génération IA Avancée** - Modèles Magenta supplémentaires (MelodyRNN, PerformanceRNN)
 
 ## 🛠️ Quick Development Commands
 
@@ -182,6 +187,8 @@ npm run lint     # Linting (désactivé temporairement)
   ✅ **Hub Interactif** - Gestion tâches/notes/statuts + corrections UX + export/import
   ✅ **🎨 GÉNÉRATEUR INSPIRATION** - Moteur de génération automatique complet basé sur randomEngine V1
   ✅ **🎼 ÉDITEUR DE GAMMES COMPLET** - Création/gestion gammes personnalisées + intégration générateur
+  ✅ **🧠 SYSTÈME IA HYBRIDE COMPLET** - UserPatternCollector + dataset personnel + apprentissage intelligent
+  ✅ **👍 ALIMENTATION IA AVEC TAGS** - Dialog sélection style/part + métadonnées précises + workflow optimisé
   ✅ **MIDI Output Temps Réel** - Contrôle devices externes + toggle audio interne + corrections UX
   
   🎯 **PAGES TEST MODULAIRES (Session 2025-07-25) :**
@@ -190,7 +197,30 @@ npm run lint     # Linting (désactivé temporairement)
   3. **Fonctionnalités communes** : Copier/coller intelligent, raccourcis clavier, déplacement flèches
   4. **Architecture TypeScript** : Props correctes, gestion erreurs, accessibilité
 
-  🎯 **NOUVELLES FONCTIONNALITÉS (Session 2025-07-25) :**
+  🎯 **NOUVELLES FONCTIONNALITÉS IA HYBRIDE (Session 2025-07-28) :**
+  
+  ## 🧠 **SYSTÈME IA HYBRIDE COMPLET**
+  - **Architecture hybride** : Combine algorithme Inspiration + apprentissage Magenta.js
+  - **UserPatternCollector.ts** : Classe complète collecte/analyse/gestion patterns aimés
+  - **Dataset personnel** : Stockage localStorage avec métadonnées enrichies
+  - **Statistiques temps réel** : Dashboard progression apprentissage (50 patterns = seuil)
+  - **Export/Import JSON** : Sauvegarde et partage datasets personnels
+  
+  ## 👍 **ALIMENTATION IA AVEC TAGS**
+  - **Dialog métadonnées** : Interface sélection style (6 choix) + part (5 choix) + description
+  - **Workflow optimisé** : `/inspiration` génère → dialog tags → confirmation → dataset enrichi
+  - **Pré-remplissage intelligent** : Paramètres générateur suggérés automatiquement
+  - **Feedback enrichi** : Messages incluent style/part sélectionnés
+  - **Traçabilité complète** : Historique undo/redo avec détails métadonnées
+  
+  ## 📊 **GESTION DATASET INTELLIGENTE**
+  - **Pages réorganisées** : `/inspiration` pour alimenter, `/inspirationIA` pour gérer
+  - **Interface `/inspirationIA`** : Focus gestion dataset + statistiques + workflow guidé
+  - **Bouton `/inspiration`** : "👍 Alimenter IA" avec dialog sélection intentionnelle
+  - **Apprentissage ciblé** : Chaque pattern correctement catégorisé par l'utilisateur
+  - **Phase 2 préparée** : Architecture prête pour entraînement personnalisé à 50+ patterns
+
+  🎯 **FONCTIONNALITÉS PRÉCÉDENTES (Session 2025-07-25) :**
   
   ## 🗑️ **GESTION PRESETS COMPLÈTE**
   - **Suppression presets** : Bouton 🗑️ rouge dans dialog "📁 Charger"
@@ -362,6 +392,85 @@ npm run lint     # Linting (désactivé temporairement)
   - **Workflow** : Activer les contraintes musicales pour des résultats cohérents
   - **Créativité** : Utiliser comme source d'inspiration, pas de remplacement
   - **Édition** : Toujours ajuster manuellement les résultats selon vos besoins
+
+  ## 🧠 **SYSTÈME IA HYBRIDE COMPLET + ALIMENTATION INTELLIGENTE (Session 2025-07-28)**
+  
+  ### **🎯 Architecture IA Hybride - Le meilleur des deux mondes :**
+  
+  Le système combine l'efficacité de l'algorithme Inspiration avec l'apprentissage personnalisé via Magenta.js :
+  
+  ```
+  🎨 Algorithme Inspiration → 👍 Alimentation IA → 📊 Dataset Personnel → 🧠 IA Personnalisée
+  ```
+  
+  ### **👍 ALIMENTATION IA INTELLIGENTE - Système de Tags (Session 2025-07-28) :**
+  
+  **Interface Dialog Métadonnées :**
+  - **🎨 Style Musical** : Sélection parmi 6 styles (Goa, Psy, Prog, Deep, Tribal, Dark)
+  - **🎵 Type de Pattern** : Sélection parmi 5 types (Bassline, Lead, Lead Hypnotique, Pad, Arpège)
+  - **📝 Description** : Champ libre pour annotations personnalisées
+  - **ℹ️ Métadonnées automatiques** : Tempo, steps, gamme, source automatiquement ajoutées
+  
+  **Workflow Utilisateur Optimisé :**
+  1. **Page `/inspiration`** → Génération de patterns avec algorithme avancé
+  2. **Clic "👍 Alimenter IA"** → Dialog de sélection des métadonnées s'ouvre
+  3. **Sélection intentionnelle** → L'utilisateur choisit style et fonction musicale
+  4. **Confirmation** → Pattern sauvegardé avec métadonnées précises
+  5. **Page `/inspirationIA`** → Consultation des statistiques d'apprentissage
+  
+  **Avantages du Système de Tags :**
+  - ✅ **Dataset précis** : Chaque pattern correctement catégorisé par l'utilisateur
+  - ✅ **Intention musicale claire** : Style et fonction explicitement définis
+  - ✅ **Apprentissage ciblé** : L'IA apprend des patterns spécifiques par catégorie
+  - ✅ **Feedback enrichi** : Messages incluent style/part sélectionnés
+  - ✅ **Traçabilité** : Historique avec informations détaillées
+  
+  ### **📊 DATASET PERSONNEL - UserPatternCollector.ts :**
+  
+  **Collecte et Analyse :**
+  - **Storage localStorage** : Persistance des patterns aimés avec métadonnées complètes
+  - **Analyse musicale automatique** : Octaves, vélocités, complexité rythmique, notes prédominantes
+  - **Statistiques en temps réel** : Compteurs par style/part, moyennes, progression vers entraînement
+  - **Export/Import JSON** : Sauvegarde et partage des datasets personnels
+  
+  **Interface de Gestion (/inspirationIA) :**
+  - **📈 Dashboard statistiques** : Patterns positifs/négatifs, styles préférés, tempo moyen
+  - **🎯 Barre de progression** : Visualisation vers le seuil d'entraînement (50 patterns)
+  - **💡 Workflow guidé** : Instructions claires pour alimenter depuis `/inspiration`
+  - **🔧 Gestion avancée** : Suppression, export, recommandations personnalisées
+  
+  **Types et Interfaces TypeScript :**
+  ```typescript
+  interface PatternTrainingData {
+    id: string;
+    timestamp: number;
+    pattern: NoteEvent[];
+    metadata: PatternMetadata;
+    userRating: number;
+    source: 'inspiration' | 'manual' | 'ai' | 'import';
+    musicContext: MusicContext;
+  }
+  
+  interface PatternMetadata {
+    style: 'goa' | 'psy' | 'prog' | 'deep' | 'tribal' | 'dark';
+    part: 'bassline' | 'lead' | 'hypnoticLead' | 'pad' | 'arpeggio';
+    tempo: number;
+    stepCount: number;
+    root: string;
+    scale: string;
+    description?: string;
+  }
+  ```
+  
+  ### **🚀 Phase 2 Future - Entraînement Personnalisé :**
+  
+  **Objectifs :**
+  - **Modèle IA personnalisé** : Entraîné sur vos préférences musicales uniquement
+  - **Génération dans votre style** : Patterns cohérents avec vos goûts
+  - **Recommandations intelligentes** : Paramètres suggérés basés sur votre historique
+  - **Apprentissage continu** : L'IA s'améliore avec chaque pattern alimenté
+  
+  **Seuil d'entraînement :** 50+ patterns positifs pour déclencher l'entraînement automatique
 
   ## 🎹 **MIDI INPUT TEMPS RÉEL - SYSTÈME COMPLET (Session 2025-07-26)**
   

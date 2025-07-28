@@ -138,6 +138,12 @@ const InspirationPage: React.FC = () => {
   // 🧠 États pour alimenter l'IA avec les patterns Inspiration
   const [datasetStats, setDatasetStats] = useState<DatasetStats | null>(null);
   const [feedingStatus, setFeedingStatus] = useState<string>('');
+  const [showFeedingDialog, setShowFeedingDialog] = useState(false);
+  const [feedingMetadata, setFeedingMetadata] = useState({
+    style: 'psy' as 'goa' | 'psy' | 'prog' | 'deep' | 'tribal' | 'dark',
+    part: 'lead' as 'bassline' | 'lead' | 'hypnoticLead' | 'pad' | 'arpeggio',
+    description: ''
+  });
 
   // Audio engine
   const { 
@@ -966,27 +972,42 @@ const InspirationPage: React.FC = () => {
   };
 
   /**
-   * Alimente l'IA avec le pattern actuel généré par Inspiration
+   * Ouvre le dialog de sélection des métadonnées pour alimenter l'IA
    */
-  const handleFeedInspirationPattern = async () => {
+  const handleFeedInspirationPattern = () => {
+    if (pattern.length === 0) {
+      setFeedingStatus('❌ Aucun pattern à alimenter');
+      setTimeout(() => setFeedingStatus(''), 3000);
+      return;
+    }
+
+    // Pré-remplir avec les paramètres actuels du générateur s'ils existent
+    setFeedingMetadata({
+      style: (generationParams.style as any) || 'psy',
+      part: (generationParams.part as any) || 'lead',
+      description: `Pattern créé le ${new Date().toLocaleDateString()}`
+    });
+    
+    setShowFeedingDialog(true);
+  };
+
+  /**
+   * Confirme l'alimentation IA avec les métadonnées sélectionnées
+   */
+  const handleConfirmFeeding = async () => {
     try {
-      if (pattern.length === 0) {
-        setFeedingStatus('❌ Aucun pattern à alimenter');
-        setTimeout(() => setFeedingStatus(''), 3000);
-        return;
-      }
-
       setFeedingStatus('💾 Alimentation IA en cours...');
+      setShowFeedingDialog(false);
 
-      // Créer les métadonnées basées sur les paramètres Inspiration actuels
+      // Créer les métadonnées avec les choix de l'utilisateur
       const metadata: PatternMetadata = {
-        style: generationParams.style as any || 'psy',
-        part: generationParams.part as any || 'lead',
+        style: feedingMetadata.style,
+        part: feedingMetadata.part,
         tempo: tempo,
         stepCount: stepCount,
         root: generationParams.root || 'C',
         scale: generationParams.scale || 'minor',
-        description: `Pattern Inspiration ${generationParams.style}/${generationParams.part} - ${new Date().toLocaleDateString()}`
+        description: feedingMetadata.description || `Pattern ${feedingMetadata.style}/${feedingMetadata.part} - ${new Date().toLocaleDateString()}`
       };
 
       const patternId = await UserPatternCollector.savePatternAsTrainingData(
@@ -1000,10 +1021,10 @@ const InspirationPage: React.FC = () => {
       updateDatasetStats();
       
       // Feedback utilisateur
-      setFeedingStatus(`✅ Pattern alimenté ! IA enrichie (+${pattern.length} notes)`);
+      setFeedingStatus(`✅ Pattern alimenté ! IA enrichie (+${pattern.length} notes) - ${feedingMetadata.style}/${feedingMetadata.part}`);
       
       // Sauvegarder dans l'historique
-      saveToHistory(`🧠 Pattern alimenté en IA (source: Inspiration)`);
+      saveToHistory(`🧠 Pattern alimenté en IA (${feedingMetadata.style}/${feedingMetadata.part})`);
       
       setTimeout(() => setFeedingStatus(''), 4000);
 
@@ -1869,6 +1890,94 @@ const InspirationPage: React.FC = () => {
                 className="px-6 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
               >
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog Sélection Métadonnées pour Alimenter IA */}
+      {showFeedingDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4 bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
+              👍 Alimenter l'IA - Sélection des Tags
+            </h2>
+            
+            <p className="text-slate-300 text-sm mb-6">
+              Choisissez les métadonnées pour ce pattern ({pattern.length} notes). Ces informations aideront l'IA à apprendre vos préférences musicales.
+            </p>
+
+            <div className="space-y-4">
+              {/* Style Musical */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">🎨 Style Musical</label>
+                <select
+                  value={feedingMetadata.style}
+                  onChange={(e) => setFeedingMetadata(prev => ({ ...prev, style: e.target.value as any }))}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                >
+                  <option value="goa">Goa (Variations subtiles, mélodique)</option>
+                  <option value="psy">Psy (Triplets, accents contretemps)</option>
+                  <option value="prog">Prog (Progressive, build-ups)</option>
+                  <option value="deep">Deep (Downtempo, ambiant)</option>
+                  <option value="tribal">Tribal (Percussif, rythmique)</option>
+                  <option value="dark">Dark (Sombre, intense)</option>
+                </select>
+              </div>
+
+              {/* Type de Pattern */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">🎵 Type de Pattern</label>
+                <select
+                  value={feedingMetadata.part}
+                  onChange={(e) => setFeedingMetadata(prev => ({ ...prev, part: e.target.value as any }))}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none"
+                >
+                  <option value="bassline">Bassline (Rythme grave, foundation)</option>
+                  <option value="lead">Lead (Mélodie principale, captivante)</option>
+                  <option value="hypnoticLead">Lead Hypnotique (Évolutif, répétitif)</option>
+                  <option value="pad">Pad (Notes tenues, atmosphérique)</option>
+                  <option value="arpeggio">Arpège (Montant/descendant, fluide)</option>
+                </select>
+              </div>
+
+              {/* Description (optionnelle) */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">📝 Description (optionnelle)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Pattern énergique pour intro, lead mystérieux..."
+                  value={feedingMetadata.description}
+                  onChange={(e) => setFeedingMetadata(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-700 text-white rounded-lg border border-slate-600 focus:border-green-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              {/* Informations automatiques */}
+              <div className="p-3 bg-slate-700/50 rounded-lg border border-slate-600/50">
+                <h4 className="text-sm font-medium text-slate-300 mb-2">ℹ️ Métadonnées automatiques :</h4>
+                <div className="text-xs text-slate-400 space-y-1">
+                  <div>• <strong>Tempo :</strong> {tempo} BPM</div>
+                  <div>• <strong>Steps :</strong> {stepCount}</div>
+                  <div>• <strong>Gamme :</strong> {generationParams.root} {generationParams.scale}</div>
+                  <div>• <strong>Source :</strong> Algorithme Inspiration</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={handleConfirmFeeding}
+                className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+              >
+                ✅ Confirmer & Alimenter IA
+              </button>
+              <button
+                onClick={() => setShowFeedingDialog(false)}
+                className="flex-1 px-4 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-lg font-medium transition-colors"
+              >
+                ❌ Annuler
               </button>
             </div>
           </div>
